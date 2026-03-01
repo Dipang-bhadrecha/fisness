@@ -1,61 +1,147 @@
-export const theme = {
+import { darkColors, designTokens, lightColors } from './designTokens'
 
+/**
+ * ══════════════════════════════════════════════════════════════
+ * DEFAULT THEME EXPORT (Dark Mode)
+ * Used as fallback when hook is not available
+ * ══════════════════════════════════════════════════════════════
+ */
+export const theme = {
+  // Dark mode colors (primary theme for fisherman environment)
   colors: {
     // ─── BACKGROUNDS ───────────────────────
-    background:     '#1c1408',   // dark brown — main bg
-    surface:        '#2a1f0e',   // slightly lighter — cards
-    elevated:       '#3a2d1a',   // elevated cards
+    background: darkColors.bgBase,
+    surface: darkColors.bgSurface,
+    elevated: darkColors.bgElevated,
+    overlay: darkColors.bgOverlay,
 
     // ─── TEXT ──────────────────────────────
-    textPrimary:    '#faf6ee',   // cream — main text
-    textSecondary:  '#c4b49a',   // muted cream — labels
-    textDisabled:   '#6b5a3e',   // very muted
+    textPrimary: darkColors.textPrimary,
+    textSecondary: darkColors.textSecondary,
+    textMuted: darkColors.textMuted,
+    textInverse: darkColors.textInverse,
+    textDisabled: darkColors.disabled,
 
     // ─── BRAND ─────────────────────────────
-    primary:        '#0d7a5f',   // dark green — buttons
-    primaryLight:   '#0f9b78',   // lighter green — hover
-    primaryMuted:   '#0d7a5f26', // transparent green
+    primary: darkColors.primary,
+    primaryLight: darkColors.primaryLight,
+    primaryDark: darkColors.primaryDark,
+    primaryMuted: darkColors.primaryMuted,
+
+    // ─── SECONDARY ─────────────────────────
+    gold: darkColors.gold,
+    goldLight: darkColors.goldLight,
+    goldDark: darkColors.goldDark,
 
     // ─── STATUS ────────────────────────────
-    pause:          '#e8b800',   // yellow — pause state
-    pauseBg:        '#fffaed',   // pale yellow — pause banner bg
-    pauseText:      '#7a5a00',   // dark yellow — pause text
-    success:        '#22c55e',   // green — success
-    danger:         '#ef4444',   // red — error/delete
-    warning:        '#f59e0b',   // amber — warning
+    success: darkColors.success,
+    danger: darkColors.danger,
+    warning: darkColors.warning,
+    pause: '#E8B800', // Legacy pause color for compatibility
+
+    // Legacy pause colors
+    pauseBg: '#FFFAED',
+    pauseText: '#7A5A00',
 
     // ─── BORDERS ───────────────────────────
-    border:         '#3a2d1a',   // subtle border
-    divider:        '#2a1f0e',   // list dividers
+    border: darkColors.border,
+    borderStrong: darkColors.borderStrong,
+    divider: darkColors.divider,
+
+    // ─── SPECIAL ────────────────────────────
+    focus: darkColors.focus,
+    disabled: darkColors.disabled,
   },
 
-  fontSize: {
-    xs:   10,
-    sm:   12,
-    md:   14,
-    lg:   16,
-    xl:   20,
-    xxl:  28,
-    huge: 48,
-  },
+  // Typography system
+  fontSize: designTokens.typography.fontSize,
+  lineHeight: designTokens.typography.lineHeight,
+  fontWeight: designTokens.typography.fontWeight,
+  fontFamily: designTokens.typography.fontFamily,
 
-  spacing: {
-    xs:  4,
-    sm:  8,
-    md:  16,
-    lg:  24,
-    xl:  32,
-    xxl: 48,
-  },
+  // Spacing scale (8pt grid)
+  spacing: designTokens.spacing,
 
-  radius: {
-    sm:   8,
-    md:   12,
-    lg:   16,
-    xl:   24,
-    full: 999,
-  },
+  // Border radius tokens
+  radius: designTokens.borderRadius,
 
-  // Minimum touch target — 64px for wet hands at port
-  touchTarget: 64,
+  // Shadows/elevation system
+  shadows: designTokens.shadows,
+
+  // Component-specific tokens
+  componentTokens: designTokens.componentTokens,
+
+  // Accessibility guidelines
+  touchTarget: designTokens.accessibility.touchTargetPreferred, // 64px for wet hands
+  minTouchTarget: designTokens.accessibility.touchTargetMin,   // 48px fallback
+  focusRing: designTokens.accessibility.focusRing,
+  contrastMinimum: designTokens.accessibility.contrastMinimum,
+  contrastEnhanced: designTokens.accessibility.contrastEnhanced,
+
+  // Animation/motion
+  motion: designTokens.motion,
 }
+
+/**
+ * Light mode theme variant
+ * Same structure as dark theme but with light colors
+ */
+export const lightTheme = {
+  colors: {
+    background: lightColors.bgBase,
+    surface: lightColors.bgSurface,
+    elevated: lightColors.bgElevated,
+    overlay: lightColors.bgOverlay,
+
+    textPrimary: lightColors.textPrimary,
+    textSecondary: lightColors.textSecondary,
+    textMuted: lightColors.textMuted,
+    textInverse: lightColors.textInverse,
+    textDisabled: lightColors.disabled,
+
+    primary: lightColors.primary,
+    primaryLight: lightColors.primaryLight,
+    primaryDark: lightColors.primaryDark,
+    primaryMuted: lightColors.primaryMuted,
+
+    gold: lightColors.gold,
+    goldLight: lightColors.goldLight,
+    goldDark: lightColors.goldDark,
+
+    success: lightColors.success,
+    danger: lightColors.danger,
+    warning: lightColors.warning,
+    pause: '#D97706',
+
+    pauseBg: '#FEF3C7',
+    pauseText: '#92400E',
+
+    border: lightColors.border,
+    borderStrong: lightColors.borderStrong,
+    divider: lightColors.divider,
+
+    focus: lightColors.focus,
+    disabled: lightColors.disabled,
+  },
+
+  fontSize: designTokens.typography.fontSize,
+  lineHeight: designTokens.typography.lineHeight,
+  fontWeight: designTokens.typography.fontWeight,
+  fontFamily: designTokens.typography.fontFamily,
+
+  spacing: designTokens.spacing,
+  radius: designTokens.borderRadius,
+  shadows: designTokens.shadows,
+  componentTokens: designTokens.componentTokens,
+
+  touchTarget: designTokens.accessibility.touchTargetPreferred,
+  minTouchTarget: designTokens.accessibility.touchTargetMin,
+  focusRing: designTokens.accessibility.focusRing,
+  contrastMinimum: designTokens.accessibility.contrastMinimum,
+  contrastEnhanced: designTokens.accessibility.contrastEnhanced,
+
+  motion: designTokens.motion,
+}
+
+export type ColorMode = 'dark' | 'light'
+export { designTokens }

@@ -1,16 +1,30 @@
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { theme } from '../constants/theme'
 
+/**
+ * Root Layout with Design System Integration
+ * - Dark mode optimized for fisherman environment
+ * - Light mode support for accessibility
+ * - Professional design tokens applied globally
+ */
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar
         style="light"
-        backgroundColor="transparent"
-        translucent={true}
+        backgroundColor={theme.colors.background}
+        translucent={false}
       />
-      <Stack>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: {
+            backgroundColor: theme.colors.background,
+          },
+        }}
+      >
         <Stack.Screen
           name="index"
           options={{ headerShown: false }}

@@ -79,14 +79,14 @@ const styles = StyleSheet.create({
     maxHeight: 70,
   },
   container: {
-    paddingHorizontal: theme.spacing.sm,
+    paddingHorizontal: theme.spacing[2],
     paddingVertical: 4,
-    gap: theme.spacing.xs,
+    gap: theme.spacing[1],
     flexDirection: 'row',
     alignItems: 'center',
   },
   tab: {
-    paddingHorizontal: theme.spacing.sm,
+    paddingHorizontal: theme.spacing[2],
     paddingVertical: 8,
     borderRadius: theme.radius.sm,
     alignItems: 'center',

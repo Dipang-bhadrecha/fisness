@@ -1,13 +1,13 @@
 import { router } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import {
-  Alert,
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AddFishModal } from '../components/tali/AddFishModal'
@@ -376,9 +376,9 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.sm,
-    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing[2],
+    paddingVertical: theme.spacing[2],
+    gap: theme.spacing[2],
   },
   backBtn: {
     width: 40,
@@ -409,8 +409,8 @@ const styles = StyleSheet.create({
   },
   endBtn: {
     backgroundColor: theme.colors.danger,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing[4],
+    paddingVertical: theme.spacing[1],
     borderRadius: theme.radius.sm,
     minHeight: 36,
     justifyContent: 'center',
@@ -424,8 +424,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: theme.spacing.sm,
-    padding: theme.spacing.xl,
+    gap: theme.spacing[2],
+    padding: theme.spacing[8],
   },
   emptyIcon: {
     fontSize: 64,
@@ -442,10 +442,10 @@ const styles = StyleSheet.create({
   },
   emptyAddBtn: {
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing[8],
+    paddingVertical: theme.spacing[4],
     borderRadius: theme.radius.md,
-    marginTop: theme.spacing.md,
+    marginTop: theme.spacing[4],
   },
   emptyAddBtnText: {
     color: '#fff',
@@ -456,15 +456,15 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
-    padding: theme.spacing.md,
-    paddingBottom: theme.spacing.xl,
-    gap: theme.spacing.sm,
+    padding: theme.spacing[4],
+    paddingBottom: theme.spacing[8],
+    gap: theme.spacing[2],
   },
   totalBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: theme.spacing.sm,
+    paddingBottom: theme.spacing[2],
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
@@ -516,8 +516,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.radius.xl,
     borderTopRightRadius: theme.radius.xl,
-    padding: theme.spacing.lg,
-    gap: theme.spacing.md,
+    padding: theme.spacing[6],
+    gap: theme.spacing[4],
   },
   modalTitle: {
     fontSize: theme.fontSize.xl,
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
   modalInput: {
     backgroundColor: theme.colors.elevated,
     borderRadius: theme.radius.md,
-    padding: theme.spacing.md,
+    padding: theme.spacing[4],
     fontSize: theme.fontSize.xxl,
     color: theme.colors.textPrimary,
     fontWeight: '700',
@@ -540,6 +540,6 @@ const styles = StyleSheet.create({
   },
   modalBtns: {
     flexDirection: 'row',
-    gap: theme.spacing.sm,
+    gap: theme.spacing[2],
   },
 })

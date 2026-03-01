@@ -7,6 +7,13 @@ import {
     TouchableWithoutFeedback,
     View,
 } from 'react-native'
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
+import Animated, {
+    runOnJS,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+} from 'react-native-reanimated'
 
 interface BucketWeightModalProps {
   visible: boolean
@@ -25,8 +32,8 @@ export function BucketWeightModal({
   onConfirm,
   onCancel,
 }: BucketWeightModalProps) {
-//   const [display, setDisplay] = useState(String(defaultWeight))
-const [display, setDisplay] = useState('0')
+  const [display, setDisplay] = useState('0')
+  const translateY = useSharedValue(0)
 
   const handleKey = (key: string) => {
     if (key === 'backspace') {
@@ -37,7 +44,6 @@ const [display, setDisplay] = useState('0')
       }
       return
     }
-    // Max 4 digits
     if (display.length >= 4) return
     if (display === '0') {
       setDisplay(key)
@@ -46,7 +52,7 @@ const [display, setDisplay] = useState('0')
     }
   }
 
-const handleConfirm = () => {
+  const handleConfirm = () => {
     const weight = parseInt(display, 10)
     if (!weight || weight <= 0) return
     onConfirm(weight)
@@ -55,8 +61,28 @@ const handleConfirm = () => {
 
   const handleCancel = () => {
     setDisplay('0')
+    translateY.value = withSpring(0)
     onCancel()
   }
+
+  // Swipe down > 80px to close
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      if (e.translationY > 0) {
+        translateY.value = e.translationY
+      }
+    })
+    .onEnd((e) => {
+      if (e.translationY > 80) {
+        runOnJS(handleCancel)()
+      } else {
+        translateY.value = withSpring(0)
+      }
+    })
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }))
 
   const keys = [
     ['1', '2', '3'],
@@ -72,71 +98,77 @@ const handleConfirm = () => {
       animationType="slide"
       onRequestClose={handleCancel}
     >
-      {/* Tap outside to close */}
-      <TouchableWithoutFeedback onPress={handleCancel}>
-        <View style={styles.overlay}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        {/* Tap outside overlay to close */}
+        <TouchableWithoutFeedback onPress={handleCancel}>
+          <View style={styles.overlay}>
 
-          {/* Sheet — stop tap propagation */}
-          <TouchableWithoutFeedback onPress={() => {}}>
-            <View style={styles.sheet}>
+            {/* Stop taps on sheet from closing */}
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <Animated.View style={[styles.sheet, animatedStyle]}>
 
-              {/* Handle bar — swipe down indicator */}
-              <View style={styles.handle} />
+                {/* Swipe handle */}
+                <GestureDetector gesture={panGesture}>
+                  <View style={styles.handleArea}>
+                    <View style={styles.handle} />
+                  </View>
+                </GestureDetector>
 
-              {/* Fish name */}
-              <Text style={styles.fishName}>{fishName}</Text>
-              <Text style={styles.fishGuj}>{fishNameGujarati}</Text>
-              <Text style={styles.label}>દરેક ટોપલી કેટલા kg ની છે?</Text>
+                {/* Fish name */}
+                <Text style={styles.fishName}>{fishName}</Text>
+                <Text style={styles.fishGuj}>{fishNameGujarati}</Text>
+                <Text style={styles.label}>દરેક ટોપલી કેટલા kg ની છે?</Text>
 
-              {/* Display */}
-              <View style={styles.displayRow}>
-                <View style={styles.displayBox}>
-                  <Text style={styles.displayNumber}>{display}</Text>
-                  <Text style={styles.displayUnit}>kg</Text>
+                {/* Display */}
+                <View style={styles.displayRow}>
+                  <View style={styles.displayBox}>
+                    <Text style={styles.displayNumber}>{display}</Text>
+                    <Text style={styles.displayUnit}>kg</Text>
+                  </View>
                 </View>
-              </View>
 
-              {/* Numpad */}
-              <View style={styles.numpad}>
-                {keys.map((row, ri) => (
-                  <View key={ri} style={styles.numRow}>
-                    {row.map((key) => {
-                      const isEnter = key === 'enter'
-                      const isBackspace = key === 'backspace'
-                      return (
-                        <TouchableOpacity
-                          key={key}
-                          onPress={() =>
-                            isEnter ? handleConfirm() : handleKey(key)
-                          }
-                          activeOpacity={0.7}
-                          style={[
-                            styles.key,
-                            isEnter && styles.keyEnter,
-                            isBackspace && styles.keyBackspace,
-                          ]}
-                        >
-                          <Text
+                {/* Numpad */}
+                <View style={styles.numpad}>
+                  {keys.map((row, ri) => (
+                    <View key={ri} style={styles.numRow}>
+                      {row.map((key) => {
+                        const isEnter = key === 'enter'
+                        const isBackspace = key === 'backspace'
+                        return (
+                          <TouchableOpacity
+                            key={key}
+                            onPress={() =>
+                              isEnter ? handleConfirm() : handleKey(key)
+                            }
+                            activeOpacity={0.7}
                             style={[
-                              styles.keyText,
-                              isEnter && styles.keyTextEnter,
-                              isBackspace && styles.keyTextBackspace,
+                              styles.key,
+                              isEnter && styles.keyEnter,
+                              isBackspace && styles.keyBackspace,
                             ]}
                           >
-                            {isEnter ? 'Enter' : isBackspace ? '⌫' : key}
-                          </Text>
-                        </TouchableOpacity>
-                      )
-                    })}
-                  </View>
-                ))}
-              </View>
+                            <Text
+                              style={[
+                                styles.keyText,
+                                isEnter && styles.keyTextEnter,
+                                isBackspace && styles.keyTextBackspace,
+                              ]}
+                            >
+                              {isEnter ? 'Enter' : isBackspace ? '⌫' : key}
+                            </Text>
+                          </TouchableOpacity>
+                        )
+                      })}
+                    </View>
+                  ))}
+                </View>
 
-            </View>
-          </TouchableWithoutFeedback>
+              </Animated.View>
+            </TouchableWithoutFeedback>
 
-        </View>
-      </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </GestureHandlerRootView>
     </Modal>
   )
 }
@@ -155,13 +187,15 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
     gap: 12,
   },
+  handleArea: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
   handle: {
     width: 40,
     height: 4,
     backgroundColor: '#ccc',
     borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 4,
   },
   fishName: {
     fontSize: 24,
