@@ -1,5 +1,3 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
 # dependencies
 node_modules/
 
@@ -41,3 +39,34 @@ app-example
 # generated native folders
 /ios
 /android
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-*
+
+# Windows
+Thumbs.db
+$RECYCLE.BIN/
+
+# Build outputs
+build/
+.gradle/
+local.properties
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+.cache/
+
+# Lock files (when using package managers)
+pnpm-lock.yaml
+
+# Markdown files
+*.md
+!README.md
