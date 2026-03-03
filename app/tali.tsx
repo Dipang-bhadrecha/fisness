@@ -1,17 +1,18 @@
 import { router } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import {
-    Alert,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AddFishModal } from '../components/tali/AddFishModal'
 import { BucketWeightModal } from '../components/tali/BucketWeightModal'
+import { DeleteFishSheet } from '../components/tali/DeleteFishSheet'
 import { FishTab } from '../components/tali/FishTab'
 import { PauseBanner } from '../components/tali/PauseBanner'
 import { TaliGrid } from '../components/tali/TaliGrid'
@@ -23,7 +24,7 @@ import { FishCategory } from '../types'
 import { formatKg } from '../utils/calculations'
 
 export default function TaliScreen() {
-const {
+  const {
     session,
     createSession,
     addFishToSession,
@@ -49,14 +50,21 @@ const {
   const [partialModalVisible, setPartialModalVisible] = useState(false)
   const [partialInput, setPartialInput] = useState('')
 
-  // Step 1 — user picks fish from AddFishModal
+  // ── Delete fish state ──────────────────────────────────────────────────────
+  const [deletingFish, setDeletingFish] = useState<{
+    id: string
+    name: string
+    nameGujarati: string
+  } | null>(null)
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+
   const handleFishSelected = (fish: FishCategory) => {
     setPendingFish(fish)
     setAddFishVisible(false)
-    setBucketModalVisible(true)  // Step 2 — ask bucket weight
+    setBucketModalVisible(true)
   }
 
-  // Step 2 — user enters bucket weight, fish is added to session
   const handleBucketConfirm = (weight: number) => {
     if (!pendingFish) return
     addFishToSession(pendingFish.id, weight)
@@ -69,20 +77,22 @@ const {
     setPendingFish(null)
   }
 
+  // Long press on a fish tab → opens DeleteFishSheet
   const handleDeleteFish = (fishId: string) => {
     if (!session || session.fishData.length <= 1) return
-    Alert.alert(
-      'માછલી કાઢો?',
-      'આ માછલી ની બધી ગણતરી ભૂંસાઈ જશે.',
-      [
-        { text: 'ના', style: 'cancel' },
-        {
-          text: 'કાઢો',
-          style: 'destructive',
-          onPress: () => deleteFish(fishId),
-        },
-      ]
-    )
+
+    // Build fish name from session data — works for both preset and custom fish
+    const fd = session.fishData.find((f) => f.fishId === fishId)
+    if (!fd) return
+
+    const preset = FISH_CATEGORIES.find((f) => f.id === fishId)
+    const name = preset?.name
+      ?? (fishId.startsWith('custom_')
+        ? fishId.replace('custom_', '').replace(/_/g, ' ')
+        : fishId)
+    const nameGujarati = preset?.nameGujarati ?? name
+
+    setDeletingFish({ id: fishId, name, nameGujarati })
   }
 
   const handlePartialSave = () => {
@@ -106,15 +116,14 @@ const {
           text: 'હા, પૂરું કરો',
           style: 'destructive',
           onPress: () => {
-            endSession()
-            router.push('/summary')
+            router.push('/bill')
           },
         },
       ]
     )
   }
 
-  // Empty state — no fish added yet
+  // ── Empty state ────────────────────────────────────────────────────────────
   if (!session || session.fishData.length === 0) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -166,6 +175,8 @@ const {
       </SafeAreaView>
     )
   }
+
+  // ── Active session ─────────────────────────────────────────────────────────
 
   const activeFishData = session.fishData.find(
     (fd) => fd.fishId === session.activeFishId
@@ -225,7 +236,7 @@ const {
         </TouchableOpacity>
       </View>
 
-      {/* Fish Tabs — with + at end */}
+      {/* Fish Tabs */}
       <FishTab
         categories={sessionCategories}
         activeFishId={session.activeFishId}
@@ -244,7 +255,7 @@ const {
       )}
 
       {/* Tali Grid */}
-<TaliGrid
+      <TaliGrid
         entries={activeFishData.entries}
         bucketWeight={activeFishData.bucketWeight}
         partialWeight={activeFishData.partialWeight}
@@ -361,6 +372,21 @@ const {
         />
       )}
 
+      {/* Delete Fish Sheet — beautiful bottom sheet, replaces ugly Alert */}
+      {deletingFish && (
+        <DeleteFishSheet
+          visible={true}
+          fishId={deletingFish.id}
+          fishName={deletingFish.name}
+          fishNameGujarati={deletingFish.nameGujarati}
+          onConfirm={() => {
+            deleteFish(deletingFish.id)
+            setDeletingFish(null)
+          }}
+          onCancel={() => setDeletingFish(null)}
+        />
+      )}
+
     </SafeAreaView>
   )
 }
@@ -409,7 +435,7 @@ const styles = StyleSheet.create({
   },
   endBtn: {
     backgroundColor: theme.colors.danger,
-    paddingHorizontal: theme.spacing[4],
+    paddingHorizontal: theme.spacing[3],
     paddingVertical: theme.spacing[1],
     borderRadius: theme.radius.sm,
     minHeight: 36,
@@ -424,8 +450,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: theme.spacing[2],
-    padding: theme.spacing[8],
+    gap: theme.spacing[1],
+    padding: theme.spacing[4],
   },
   emptyIcon: {
     fontSize: 64,
@@ -442,10 +468,10 @@ const styles = StyleSheet.create({
   },
   emptyAddBtn: {
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing[8],
-    paddingVertical: theme.spacing[4],
+    paddingHorizontal: theme.spacing[4],
+    paddingVertical: theme.spacing[3],
     borderRadius: theme.radius.md,
-    marginTop: theme.spacing[4],
+    marginTop: theme.spacing[3],
   },
   emptyAddBtnText: {
     color: '#fff',
@@ -456,8 +482,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
-    padding: theme.spacing[4],
-    paddingBottom: theme.spacing[8],
+    padding: theme.spacing[3],
+    paddingBottom: theme.spacing[4],
     gap: theme.spacing[2],
   },
   totalBox: {
@@ -516,8 +542,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.radius.xl,
     borderTopRightRadius: theme.radius.xl,
-    padding: theme.spacing[6],
-    gap: theme.spacing[4],
+    padding: theme.spacing[4],
+    gap: theme.spacing[3],
   },
   modalTitle: {
     fontSize: theme.fontSize.xl,
@@ -531,7 +557,7 @@ const styles = StyleSheet.create({
   modalInput: {
     backgroundColor: theme.colors.elevated,
     borderRadius: theme.radius.md,
-    padding: theme.spacing[4],
+    padding: theme.spacing[3],
     fontSize: theme.fontSize.xxl,
     color: theme.colors.textPrimary,
     fontWeight: '700',
