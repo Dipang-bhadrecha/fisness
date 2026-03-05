@@ -6,8 +6,8 @@ import { theme } from '../constants/theme'
 
 import { Redirect } from 'expo-router'
 
-export default function HomeScreen() {
-  return <Redirect href="/tali" />
+export default function RootIndex() {
+  return <Redirect href="/(auth)/phone" />
 }
 
 const styles = StyleSheet.create({
