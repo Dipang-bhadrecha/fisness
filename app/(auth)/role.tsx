@@ -2,6 +2,7 @@ import { router } from 'expo-router'
 import React, { useState } from 'react'
 import {
     ScrollView,
+    StatusBar,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -14,10 +15,8 @@ type Role = {
   id: string
   emoji: string
   title: string
-  titleGujarati: string
+  titleGuj: string
   subtitle: string
-  description: string
-  isPrimary?: boolean
 }
 
 const ROLES: Role[] = [
@@ -25,35 +24,29 @@ const ROLES: Role[] = [
     id: 'boat_owner',
     emoji: '⚓',
     title: 'Boat Owner',
-    titleGujarati: 'બોટ માલિક',
+    titleGuj: 'બોટ માલિક',
     subtitle: 'Trips · Financials · Crew',
-    description: 'Manage your boats, view profits, track expenses',
-    isPrimary: true,
   },
   {
     id: 'boat_manager',
     emoji: '🧭',
     title: 'Boat Manager',
-    titleGujarati: 'બોટ મેનેજર',
+    titleGuj: 'બોટ મેનેજર',
     subtitle: 'Tali · Expenses · Reports',
-    description: 'Do tali, log expenses, manage assigned boats',
   },
   {
     id: 'supplier',
     emoji: '🏭',
     title: 'Supplier (Dango)',
-    titleGujarati: 'સપ્લાયર (દાંગો)',
+    titleGuj: 'સપ્લાયર (દાંગો)',
     subtitle: 'Review & Confirm tali weights',
-    description: 'Verify incoming fish weights and confirm bills',
-    isPrimary: true,
   },
   {
     id: 'mehtaji',
     emoji: '📋',
     title: 'Mehtaji / Manager',
-    titleGujarati: 'મહેતાજી / મેનેજર',
+    titleGuj: 'મહેતાજી / મેનેજર',
     subtitle: 'Tali · Bills · Kharchi',
-    description: 'Full operations — tali, bills, expenses',
   },
 ]
 
@@ -62,250 +55,236 @@ export default function RoleScreen() {
 
   const handleContinue = () => {
     if (!selected) return
-    // TODO: save role to store/backend, then route to correct dashboard
-    switch (selected) {
-      case 'boat_owner':
-        router.replace('/(owner)/home' as any)
-        break
-      case 'boat_manager':
-        router.replace('/(owner)/home' as any) // TODO: create (manager) screens
-        break
-      case 'supplier':
-        router.replace('/(owner)/home' as any) // TODO: create (supplier) screens
-        break
-      case 'mehtaji':
-        router.replace('/(owner)/home' as any) // TODO: create (mehtaji) screens
-        break
-    }
+    // All routes go to owner home for now
+    // TODO: route to role-specific home once those screens are built
+    router.replace('/(owner)/home' as any)
   }
 
+  const selectedRole = ROLES.find(r => r.id === selected)
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerLabel}>હું છું —</Text>
-          <Text style={styles.headerTitle}>તમારી ભૂમિકા પસંદ કરો</Text>
-          <Text style={styles.headerSub}>
-            MatsyaKosh તમારા role પ્રમાણે experience customize કરે છે
-          </Text>
-        </View>
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#0a1628" />
+      <View style={styles.bg}>
+        <View style={styles.bgCircle1} />
 
-        {/* Role Cards */}
-        <View style={styles.roleList}>
-          {ROLES.map((role) => {
-            const isSelected = selected === role.id
-            return (
-              <TouchableOpacity
-                key={role.id}
-                style={[
-                  styles.roleCard,
-                  isSelected && styles.roleCardSelected,
-                  role.isPrimary && styles.roleCardPrimary,
-                ]}
-                onPress={() => setSelected(role.id)}
-                activeOpacity={0.8}
-              >
-                {/* Left — emoji + text */}
-                <View style={styles.roleCardLeft}>
-                  <View style={[
-                    styles.roleEmojiBadge,
-                    isSelected && styles.roleEmojiBadgeSelected,
-                  ]}>
-                    <Text style={styles.roleEmoji}>{role.emoji}</Text>
-                  </View>
-                  <View style={styles.roleText}>
-                    <Text style={[
-                      styles.roleTitle,
-                      isSelected && styles.roleTitleSelected,
+        <SafeAreaView style={styles.safe}>
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.headerLabel}>— હું છું —</Text>
+              <Text style={styles.headerTitle}>તમારી ભૂમિકા{'\n'}પસંદ કરો</Text>
+              <Text style={styles.headerSub}>
+                MatsyaKosh તમારા role પ્રમાણે{'\n'}experience customize કરે છે
+              </Text>
+            </View>
+
+            {/* Role cards */}
+            <View style={styles.roleList}>
+              {ROLES.map((role) => {
+                const isSelected = selected === role.id
+                return (
+                  <TouchableOpacity
+                    key={role.id}
+                    style={[styles.roleCard, isSelected && styles.roleCardSelected]}
+                    onPress={() => setSelected(role.id)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[
+                      styles.roleIconBox,
+                      isSelected && styles.roleIconBoxSelected,
                     ]}>
-                      {role.title}
-                    </Text>
-                    <Text style={styles.roleTitleGuj}>{role.titleGujarati}</Text>
-                    <Text style={styles.roleSubtitle}>{role.subtitle}</Text>
-                  </View>
-                </View>
+                      <Text style={styles.roleEmoji}>{role.emoji}</Text>
+                    </View>
 
-                {/* Right — arrow / check */}
-                <View style={[
-                  styles.roleArrow,
-                  isSelected && styles.roleArrowSelected,
+                    <View style={styles.roleText}>
+                      <Text style={[
+                        styles.roleTitle,
+                        isSelected && styles.roleTitleSelected,
+                      ]}>
+                        {role.title}
+                      </Text>
+                      <Text style={styles.roleTitleGuj}>{role.titleGuj}</Text>
+                      <Text style={styles.roleSubtitle}>{role.subtitle}</Text>
+                    </View>
+
+                    <View style={[
+                      styles.roleArrow,
+                      isSelected && styles.roleArrowSelected,
+                    ]}>
+                      <Text style={styles.roleArrowText}>
+                        {isSelected ? '✓' : '›'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+
+            {/* Continue button */}
+            <TouchableOpacity
+              style={[styles.ctaBtn, !selected && styles.ctaBtnDisabled]}
+              onPress={handleContinue}
+              activeOpacity={0.85}
+              disabled={!selected}
+            >
+              <View style={[
+                styles.ctaBtnInner,
+                !selected && styles.ctaBtnInnerDisabled,
+              ]}>
+                <Text style={[
+                  styles.ctaBtnText,
+                  !selected && styles.ctaBtnTextMuted,
                 ]}>
-                  <Text style={styles.roleArrowText}>
-                    {isSelected ? '✓' : '→'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )
-          })}
-        </View>
+                  {selectedRole
+                    ? `${selectedRole.title} તરીકે ચાલુ →`
+                    : 'ભૂમિકા પસંદ કરો'}
+                </Text>
+              </View>
+            </TouchableOpacity>
 
-        {/* Continue Button */}
-        <TouchableOpacity
-          style={[
-            styles.continueBtn,
-            !selected && styles.continueBtnDisabled,
-          ]}
-          onPress={handleContinue}
-          activeOpacity={0.8}
-          disabled={!selected}
-        >
-          <Text style={styles.continueBtnText}>
-            {selected
-              ? `${ROLES.find(r => r.id === selected)?.title} તરીકે ચાલુ રાખો →`
-              : 'ભૂમિકા પસંદ કરો'}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
+            <View style={{ height: 20 }} />
+          </ScrollView>
+        </SafeAreaView>
+      </View>
+    </>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
+  bg: { flex: 1, backgroundColor: '#0a1628' },
+  bgCircle1: {
+    position: 'absolute',
+    top: -60,
+    right: -60,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(13,122,95,0.1)',
   },
+  safe: { flex: 1 },
   scroll: {
-    flexGrow: 1,
-    padding: theme.spacing.lg,
-    gap: theme.spacing.xl,
-    paddingBottom: theme.spacing.xxl,
+    padding: 24,
+    gap: 24,
   },
 
-  // Header
-  header: {
-    gap: theme.spacing.xs,
-    paddingTop: theme.spacing.lg,
-  },
+  header: { gap: 8, paddingTop: 16 },
   headerLabel: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.primary,
+    fontSize: 12,
+    color: theme.colors.primaryLight,
     fontWeight: '700',
-    letterSpacing: 2,
+    letterSpacing: 3,
     textTransform: 'uppercase',
   },
   headerTitle: {
-    fontSize: theme.fontSize.xxl,
+    fontSize: 36,
     fontWeight: '800',
-    color: theme.colors.textPrimary,
-    lineHeight: 36,
+    color: '#fff',
+    letterSpacing: -0.5,
+    lineHeight: 42,
   },
   headerSub: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.4)',
     lineHeight: 22,
-    marginTop: theme.spacing.xs,
+    marginTop: 4,
   },
 
-  // Role list
-  roleList: {
-    gap: theme.spacing.sm,
-  },
+  roleList: { gap: 10 },
 
-  // Individual role card
   roleCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1.5,
-    borderColor: theme.colors.border,
-    padding: theme.spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: theme.touchTarget + 16,
+    gap: 14,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 16,
+    minHeight: 80,
   },
   roleCardSelected: {
-    backgroundColor: theme.colors.primaryMuted,
+    backgroundColor: 'rgba(13,122,95,0.12)',
     borderColor: theme.colors.primary,
   },
-  roleCardPrimary: {
-    // slightly elevated for primary roles
-    backgroundColor: theme.colors.elevated,
-  },
 
-  roleCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-    flex: 1,
-  },
-
-  roleEmojiBadge: {
+  roleIconBox: {
     width: 52,
     height: 52,
-    backgroundColor: theme.colors.elevated,
-    borderRadius: theme.radius.md,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  roleEmojiBadgeSelected: {
+  roleIconBoxSelected: {
     backgroundColor: theme.colors.primary,
   },
-  roleEmoji: {
-    fontSize: 26,
-  },
+  roleEmoji: { fontSize: 26 },
 
-  roleText: {
-    flex: 1,
-    gap: 2,
-  },
+  roleText: { flex: 1, gap: 2 },
   roleTitle: {
-    fontSize: theme.fontSize.lg,
+    fontSize: 16,
     fontWeight: '700',
-    color: theme.colors.textPrimary,
+    color: '#fff',
   },
-  roleTitleSelected: {
-    color: theme.colors.primaryLight,
-  },
+  roleTitleSelected: { color: theme.colors.primaryLight },
   roleTitleGuj: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.45)',
     fontWeight: '500',
   },
   roleSubtitle: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textDisabled,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.3)',
     marginTop: 2,
   },
 
-  // Arrow
   roleArrow: {
     width: 36,
     height: 36,
-    backgroundColor: theme.colors.elevated,
-    borderRadius: theme.radius.sm,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  roleArrowSelected: {
-    backgroundColor: theme.colors.primary,
-  },
+  roleArrowSelected: { backgroundColor: theme.colors.primary },
   roleArrowText: {
-    fontSize: theme.fontSize.lg,
-    color: theme.colors.textPrimary,
+    fontSize: 18,
+    color: '#fff',
     fontWeight: '700',
   },
 
-  // Continue button
-  continueBtn: {
+  ctaBtn: {
+    borderRadius: 16,
+    shadowColor: '#0d7a5f',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
+    marginTop: 8,
+  },
+  ctaBtnDisabled: { shadowOpacity: 0, elevation: 0 },
+  ctaBtnInner: {
+    height: 68,
     backgroundColor: theme.colors.primary,
-    borderRadius: theme.radius.lg,
-    minHeight: theme.touchTarget + 8,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.primaryLight,
   },
-  continueBtnDisabled: {
-    opacity: 0.35,
+  ctaBtnInnerDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  continueBtnText: {
-    fontSize: theme.fontSize.lg,
+  ctaBtnText: {
+    fontSize: 17,
     fontWeight: '800',
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
+    color: '#fff',
+    letterSpacing: 0.2,
   },
+  ctaBtnTextMuted: { color: 'rgba(255,255,255,0.2)' },
 })
