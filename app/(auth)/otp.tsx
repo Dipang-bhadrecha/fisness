@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
+    Dimensions,
     KeyboardAvoidingView,
     Platform,
     StatusBar,
@@ -12,148 +13,131 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../constants/theme'
+import { useLanguage } from '../../hooks/useLanguage'
 
-const OTP_LENGTH = 6
+const OTP_LEN = 6
+const { height: SCREEN_H } = Dimensions.get('window')
 
 export default function OTPScreen() {
+  const { t } = useLanguage()
   const { phone } = useLocalSearchParams<{ phone: string }>()
   const [otp, setOtp] = useState('')
-  const [resendTimer, setResendTimer] = useState(30)
+  const [timer, setTimer] = useState(30)
   const [loading, setLoading] = useState(false)
+  const [focused, setFocused] = useState(false)
   const inputRef = useRef<TextInput>(null)
 
   useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 300)
+    const id = setTimeout(() => inputRef.current?.focus(), 400)
+    return () => clearTimeout(id)
   }, [])
 
   useEffect(() => {
-    if (resendTimer <= 0) return
-    const t = setTimeout(() => setResendTimer(v => v - 1), 1000)
-    return () => clearTimeout(t)
-  }, [resendTimer])
+    if (timer <= 0) return
+    const id = setTimeout(() => setTimer(v => v - 1), 1000)
+    return () => clearTimeout(id)
+  }, [timer])
 
-  const handleVerify = () => {
-    if (otp.length !== OTP_LENGTH) return
+  const focus = useCallback(() => inputRef.current?.focus(), [])
+
+  const verify = () => {
+    if (otp.length !== OTP_LEN) return
     setLoading(true)
-    // TODO: call backend verify OTP API
     setTimeout(() => {
       setLoading(false)
-      router.replace('/(auth)/role')
+      router.replace('/(auth)/language')
     }, 800)
   }
 
-  const handleResend = () => {
-    if (resendTimer > 0) return
-    setResendTimer(30)
-    setOtp('')
-    // TODO: resend OTP API
-  }
-
-  const digits = Array.from({ length: OTP_LENGTH }, (_, i) => otp[i] ?? '')
+  const digits = Array.from({ length: OTP_LEN }, (_, i) => otp[i] ?? '')
 
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#0a1628" />
-      <View style={styles.bg}>
-        <View style={styles.bgCircle1} />
+      <View style={s.bg}>
+        <View style={s.bgCircle} />
 
-        <SafeAreaView style={styles.safe}>
+        <SafeAreaView style={s.safe}>
+          {/* Back button — absolute, never shifts */}
+          <TouchableOpacity style={s.back} onPress={() => router.back()}>
+            <Text style={s.backTxt}>←</Text>
+          </TouchableOpacity>
+
+          {/* Logo — fixed position above card, never inside KAV */}
+          <View style={s.logoWrap}>
+            <View style={s.glowRing}><View style={s.glowInner} /></View>
+            <Text style={s.fish}>🐟</Text>
+            <Text style={s.appName}>MatsyaKosh</Text>
+          </View>
+
+          {/* Only the card is inside KAV */}
           <KeyboardAvoidingView
-            style={styles.kav}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
+            <View style={s.card}>
+              <View style={s.cardBar} />
+              <View style={s.cardBody}>
 
-            {/* Back button */}
-            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-              <Text style={styles.backText}>←</Text>
-            </TouchableOpacity>
-
-            {/* Logo small */}
-            <View style={styles.logoSection}>
-              <View style={styles.glowRing}>
-                <View style={styles.glowInner} />
-              </View>
-              <Text style={styles.fishEmoji}>🐟</Text>
-              <Text style={styles.appName}>MatsyaKosh</Text>
-            </View>
-
-            {/* Form card */}
-            <View style={styles.card}>
-              <View style={styles.cardAccent} />
-              <View style={styles.cardContent}>
-
-                <Text style={styles.cardTitle}>OTP ચકાસો</Text>
-                <Text style={styles.cardSubtitle}>
-                  +91 {phone} પર {OTP_LENGTH} આંકડાનો OTP મોકલ્યો
-                </Text>
+                <Text style={s.title}>{t.otp.cardTitle}</Text>
+                <Text style={s.sub}>{t.otp.cardSubtitle(phone ?? '')}</Text>
 
                 {/* OTP boxes */}
-                <TouchableOpacity
-                  activeOpacity={1}
-                  onPress={() => inputRef.current?.focus()}
-                >
-                  <View style={styles.otpRow}>
-                    {digits.map((d, i) => (
-                      <View
-                        key={i}
-                        style={[
-                          styles.otpBox,
-                          d !== '' && styles.otpBoxFilled,
-                          i === otp.length && styles.otpBoxActive,
-                        ]}
-                      >
-                        {d !== '' ? (
-                          <Text style={styles.otpDigit}>{d}</Text>
-                        ) : i === otp.length ? (
-                          <View style={styles.cursor} />
-                        ) : null}
-                      </View>
-                    ))}
+                <TouchableOpacity activeOpacity={1} onPress={focus}>
+                  <View style={s.boxes}>
+                    {digits.map((d, i) => {
+                      const active = focused && i === otp.length
+                      const filled = d !== ''
+                      return (
+                        <View key={i} style={[
+                          s.box,
+                          filled && s.boxFilled,
+                          active && s.boxActive,
+                        ]}>
+                          {filled
+                            ? <Text style={s.digit}>{d}</Text>
+                            : active ? <View style={s.cur} /> : null}
+                        </View>
+                      )
+                    })}
                   </View>
                 </TouchableOpacity>
 
-                {/* Hidden real input */}
-                <TextInput
-                  ref={inputRef}
-                  style={styles.hiddenInput}
-                  keyboardType="number-pad"
-                  maxLength={OTP_LENGTH}
-                  value={otp}
-                  onChangeText={setOtp}
-                  caretHidden
-                />
-
-                {/* Resend */}
-                <View style={styles.resendRow}>
-                  <Text style={styles.resendLabel}>OTP નથી મળ્યો?  </Text>
-                  {resendTimer > 0 ? (
-                    <Text style={styles.resendTimer}>{resendTimer}s માં ફરી મોકલો</Text>
-                  ) : (
-                    <TouchableOpacity onPress={handleResend}>
-                      <Text style={styles.resendBtn}>ફરી મોકલો</Text>
-                    </TouchableOpacity>
-                  )}
+                {/* Hidden input — NOT absolutely positioned (Android issue) */}
+                <View style={s.inputHider}>
+                  <TextInput
+                    ref={inputRef}
+                    style={s.hiddenInput}
+                    keyboardType="number-pad"
+                    maxLength={OTP_LEN}
+                    value={otp}
+                    onChangeText={setOtp}
+                    onFocus={() => setFocused(true)}
+                    onBlur={() => setFocused(false)}
+                    caretHidden
+                    autoComplete="one-time-code"
+                  />
                 </View>
 
-                {/* Verify button */}
+                {/* Resend */}
+                <View style={s.resendRow}>
+                  <Text style={s.resendLabel}>{t.otp.noOtp}</Text>
+                  {timer > 0
+                    ? <Text style={s.resendTimer}>{t.otp.resendIn(timer)}</Text>
+                    : <TouchableOpacity onPress={() => { setTimer(30); setOtp(''); setTimeout(focus, 100) }}>
+                        <Text style={s.resendBtn}>{t.otp.resendBtn}</Text>
+                      </TouchableOpacity>
+                  }
+                </View>
+
+                {/* Verify */}
                 <TouchableOpacity
-                  style={[
-                    styles.ctaBtn,
-                    (otp.length !== OTP_LENGTH || loading) && styles.ctaBtnDisabled,
-                  ]}
-                  onPress={handleVerify}
+                  onPress={verify}
                   activeOpacity={0.85}
-                  disabled={otp.length !== OTP_LENGTH || loading}
+                  disabled={otp.length !== OTP_LEN || loading}
                 >
-                  <View style={[
-                    styles.ctaBtnInner,
-                    (otp.length !== OTP_LENGTH || loading) && styles.ctaBtnInnerDisabled,
-                  ]}>
-                    <Text style={[
-                      styles.ctaBtnText,
-                      (otp.length !== OTP_LENGTH || loading) && styles.ctaBtnTextMuted,
-                    ]}>
-                      {loading ? 'ચકાસી રહ્યું છે...' : 'ચકાસો ✓'}
+                  <View style={[s.btn, (otp.length !== OTP_LEN || loading) && s.btnOff]}>
+                    <Text style={[s.btnTxt, (otp.length !== OTP_LEN || loading) && s.btnTxtOff]}>
+                      {loading ? t.otp.verifying : t.otp.verifyBtn}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -167,185 +151,105 @@ export default function OTPScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   bg: { flex: 1, backgroundColor: '#0a1628' },
-  bgCircle1: {
-    position: 'absolute',
-    top: -60,
-    right: -60,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
+  bgCircle: {
+    position: 'absolute', top: -60, right: -60,
+    width: 220, height: 220, borderRadius: 110,
     backgroundColor: 'rgba(13,122,95,0.1)',
   },
-  safe: { flex: 1 },
-  kav: { flex: 1 },
+  safe: { flex: 1, justifyContent: 'flex-end' },
 
-  backBtn: {
-    margin: 20,
-    width: 44,
-    height: 44,
+  back: {
+    position: 'absolute', top: 16, left: 20, zIndex: 10,
+    width: 44, height: 44,
     backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
-  backText: {
-    fontSize: 20,
-    color: '#fff',
-    fontWeight: '700',
-  },
+  backTxt: { fontSize: 20, color: '#fff', fontWeight: '700' },
 
-  logoSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
+  logoWrap: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    bottom: 280,
+    alignItems: 'center', justifyContent: 'center',
   },
   glowRing: {
     position: 'absolute',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(13,122,95,0.07)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 150, height: 150, borderRadius: 75,
+    backgroundColor: 'rgba(13,122,95,0.08)',
+    alignItems: 'center', justifyContent: 'center',
   },
   glowInner: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 95, height: 95, borderRadius: 48,
     backgroundColor: 'rgba(13,122,95,0.1)',
   },
-  fishEmoji: { fontSize: 56, marginBottom: 12 },
-  appName: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -0.3,
-  },
+  fish: { fontSize: 52, marginBottom: 10 },
+  appName: { fontSize: 24, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
 
   card: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: 'rgba(255,255,255,0.09)',
+    backgroundColor: 'rgba(20,40,70,0.95)',
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderWidth: 1, borderBottomWidth: 0,
+    borderColor: 'rgba(255,255,255,0.1)',
     overflow: 'hidden',
   },
-  cardAccent: {
-    height: 3,
-    width: 64,
-    backgroundColor: theme.colors.primary,
+  cardBar: {
+    height: 3, width: 44, backgroundColor: theme.colors.primaryLight,
     alignSelf: 'center',
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2,
+    borderBottomLeftRadius: 2, borderBottomRightRadius: 2,
   },
-  cardContent: {
-    padding: 28,
-    paddingBottom: 36,
-    gap: 16,
-  },
-  cardTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -0.3,
-    marginTop: 4,
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
-    lineHeight: 20,
-    marginTop: -6,
-  },
+  cardBody: { padding: 24, paddingBottom: 36, gap: 14 },
+  title: { fontSize: 24, fontWeight: '800', color: '#fff', marginTop: 2 },
+  sub: { fontSize: 14, color: 'rgba(255,255,255,0.45)', lineHeight: 20, marginTop: -4 },
 
-  otpRow: {
-    flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'center',
-    marginVertical: 4,
+  boxes: { flexDirection: 'row', gap: 8 },
+  box: {
+    flex: 1, height: 54,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 12, borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  otpBox: {
-    flex: 1,
-    height: 60,
-    maxWidth: 52,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  otpBoxFilled: {
+  boxFilled: {
     borderColor: theme.colors.primary,
-    backgroundColor: 'rgba(13,122,95,0.15)',
+    backgroundColor: 'rgba(13,122,95,0.18)',
   },
-  otpBoxActive: {
+  boxActive: {
     borderColor: theme.colors.primaryLight,
-    backgroundColor: 'rgba(15,155,120,0.1)',
+    backgroundColor: 'rgba(15,155,120,0.12)',
   },
-  otpDigit: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#fff',
-  },
-  cursor: {
-    width: 2,
-    height: 28,
-    backgroundColor: theme.colors.primaryLight,
-    borderRadius: 1,
+  digit: { fontSize: 22, fontWeight: '800', color: '#fff' },
+  cur: { width: 2, height: 22, backgroundColor: theme.colors.primaryLight, borderRadius: 1 },
+
+  // Key fix for Android: NOT absolute — use a clipping View instead
+  inputHider: {
+    height: 1,
+    overflow: 'hidden',
   },
   hiddenInput: {
-    position: 'absolute',
-    opacity: 0,
-    width: 1,
-    height: 1,
+    height: 40,
+    color: 'transparent',
+    backgroundColor: 'transparent',
   },
 
   resendRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: 'row', justifyContent: 'center',
+    alignItems: 'center', gap: 4, flexWrap: 'wrap',
   },
-  resendLabel: { fontSize: 14, color: 'rgba(255,255,255,0.4)' },
-  resendTimer: { fontSize: 14, color: 'rgba(255,255,255,0.25)' },
-  resendBtn: {
-    fontSize: 14,
-    color: theme.colors.primaryLight,
-    fontWeight: '700',
-  },
+  resendLabel: { fontSize: 13, color: 'rgba(255,255,255,0.4)' },
+  resendTimer: { fontSize: 13, color: 'rgba(255,255,255,0.25)' },
+  resendBtn: { fontSize: 13, color: theme.colors.primaryLight, fontWeight: '700' },
 
-  ctaBtn: {
-    borderRadius: 16,
-    marginTop: 4,
-    shadowColor: '#0d7a5f',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
+  btn: {
+    height: 56, backgroundColor: theme.colors.primaryLight,
+    borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#0f9b78', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35, shadowRadius: 12,
   },
-  ctaBtnDisabled: { shadowOpacity: 0, elevation: 0 },
-  ctaBtnInner: {
-    height: 68,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.primaryLight,
-  },
-  ctaBtnInnerDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  ctaBtnText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: 0.3,
-  },
-  ctaBtnTextMuted: { color: 'rgba(255,255,255,0.2)' },
+  btnOff: { backgroundColor: 'rgba(255,255,255,0.06)', elevation: 0, shadowOpacity: 0 },
+  btnTxt: { fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
+  btnTxtOff: { color: 'rgba(255,255,255,0.2)' },
 })

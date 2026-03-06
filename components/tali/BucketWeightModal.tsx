@@ -14,6 +14,7 @@ import Animated, {
     useSharedValue,
     withSpring,
 } from 'react-native-reanimated'
+import { useLanguage } from '../../hooks/useLanguage'
 
 interface BucketWeightModalProps {
   visible: boolean
@@ -32,6 +33,7 @@ export function BucketWeightModal({
   onConfirm,
   onCancel,
 }: BucketWeightModalProps) {
+  const { t } = useLanguage()
   const [display, setDisplay] = useState('0')
   const translateY = useSharedValue(0)
 
@@ -117,7 +119,7 @@ export function BucketWeightModal({
                 {/* Fish name */}
                 <Text style={styles.fishName}>{fishName}</Text>
                 <Text style={styles.fishGuj}>{fishNameGujarati}</Text>
-                <Text style={styles.label}>દરેક ટોપલી કેટલા kg ની છે?</Text>
+                <Text style={styles.label}>{t.tali.bucketWeightLabel}</Text>
 
                 {/* Display */}
                 <View style={styles.displayRow}>
@@ -154,7 +156,7 @@ export function BucketWeightModal({
                                 isBackspace && styles.keyTextBackspace,
                               ]}
                             >
-                              {isEnter ? 'Enter' : isBackspace ? '⌫' : key}
+                              {isEnter ? t.common.confirm : isBackspace ? '␡' : key}
                             </Text>
                           </TouchableOpacity>
                         )

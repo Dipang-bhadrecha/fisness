@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "matsyakosh",
-    "slug": "matsyakosh",
+    "name": "fishness",
+    "slug": "fishness",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "matsyakosh",
+    "scheme": "fishness",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

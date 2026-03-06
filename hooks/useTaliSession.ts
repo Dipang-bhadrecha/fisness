@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useEffect } from 'react'
 import { useTaliStore } from '../store/taliStore'
 
-const SESSION_KEY = 'matsyakosh_active_session'
+const SESSION_KEY = 'fishness_active_session'
 
 export function useTaliSession() {
   const store = useTaliStore()

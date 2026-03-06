@@ -1,13 +1,13 @@
 import { router } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import {
-  Alert,
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AddFishModal } from '../components/tali/AddFishModal'
@@ -19,11 +19,13 @@ import { TaliGrid } from '../components/tali/TaliGrid'
 import { Button } from '../components/ui/Button'
 import { FISH_CATEGORIES } from '../constants/fishTypes'
 import { theme } from '../constants/theme'
+import { useLanguage } from '../hooks/useLanguage'
 import { useTaliSession } from '../hooks/useTaliSession'
 import { FishCategory } from '../types'
 import { formatKg } from '../utils/calculations'
 
 export default function TaliScreen() {
+  const { t } = useLanguage()
   const {
     session,
     createSession,
@@ -98,7 +100,7 @@ export default function TaliScreen() {
   const handlePartialSave = () => {
     const weight = parseFloat(partialInput)
     if (isNaN(weight) || weight <= 0) {
-      Alert.alert('ભૂલ', 'સાચું વજન નાખો')
+      Alert.alert(t.common.error, t.tali.invalidWeight)
       return
     }
     setPartialWeight(session!.activeFishId, weight)
@@ -108,12 +110,12 @@ export default function TaliScreen() {
 
   const handleEndSession = () => {
     Alert.alert(
-      'સેશન પૂરું કરો?',
-      'શું તમે ખરેખર આ તાલી સેશન પૂરું કરવા માંગો છો?',
+      t.tali.endConfirmTitle,
+      t.tali.endConfirmMsg,
       [
-        { text: 'ના', style: 'cancel' },
+        { text: t.common.no, style: 'cancel' },
         {
-          text: 'હા, પૂરું કરો',
+          text: t.tali.endConfirmYes,
           style: 'destructive',
           onPress: () => {
             router.push('/bill')
@@ -135,23 +137,23 @@ export default function TaliScreen() {
             <Text style={styles.backBtnText}>←</Text>
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>તાલી</Text>
-            <Text style={styles.headerSub}>વજન સત્ર</Text>
+            <Text style={styles.headerTitle}>{t.tali.headerTitle}</Text>
+            <Text style={styles.headerSub}>{t.tali.headerSubtitle}</Text>
           </View>
           <View style={{ width: 40 }} />
         </View>
 
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>🐟</Text>
-          <Text style={styles.emptyTitle}>માછલી ઉમેરો</Text>
+          <Text style={styles.emptyTitle}>{t.tali.emptyTitle}</Text>
           <Text style={styles.emptyText}>
-            + બટન દબાવો અને પ્રથમ માછલી ઉમેરો
+            {t.tali.emptyText}
           </Text>
           <TouchableOpacity
             onPress={() => setAddFishVisible(true)}
             style={styles.emptyAddBtn}
           >
-            <Text style={styles.emptyAddBtnText}>+ માછલી ઉમેરો</Text>
+            <Text style={styles.emptyAddBtnText}>{t.tali.addFish}</Text>
           </TouchableOpacity>
         </View>
 
@@ -228,11 +230,11 @@ export default function TaliScreen() {
           <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>તાલી</Text>
-          <Text style={styles.headerSub}>વજન સત્ર</Text>
+          <Text style={styles.headerTitle}>{t.tali.headerTitle}</Text>
+          <Text style={styles.headerSub}>{t.tali.headerSubtitle}</Text>
         </View>
         <TouchableOpacity onPress={handleEndSession} style={styles.endBtn}>
-          <Text style={styles.endBtnText}>પૂરું</Text>
+          <Text style={styles.endBtnText}>{t.tali.endSession}</Text>
         </TouchableOpacity>
       </View>
 
@@ -265,7 +267,7 @@ export default function TaliScreen() {
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
         <View style={styles.totalBox}>
-          <Text style={styles.totalLabel}>કુલ વજન</Text>
+          <Text style={styles.totalLabel}>{t.tali.totalLabel}</Text>
           <Text style={styles.totalValue}>
             {formatKg(activeFishData.totalKg)}
           </Text>
@@ -287,13 +289,13 @@ export default function TaliScreen() {
         >
           {activeFishData.isPaused ? (
             <>
-              <Text style={styles.countBtnDeck}>⏸ અટકેલ છે</Text>
-              <Text style={styles.countBtnHint}>ફરી ચાલુ કરવા ટેપ કરો</Text>
+              <Text style={styles.countBtnDeck}>{t.tali.paused}</Text>
+              <Text style={styles.countBtnHint}>{t.tali.resumeHint}</Text>
             </>
           ) : (
             <>
               <Text style={styles.countBtnDeck}>
-                ટાળી {activeFishData.currentDeck}
+                {t.tali.deckLabel(activeFishData.currentDeck)}
               </Text>
               <Text style={styles.countBtnNumber}>
                 {activeFishData.currentCount % 10 === 0 &&
@@ -301,7 +303,7 @@ export default function TaliScreen() {
                   ? 10
                   : activeFishData.currentCount % 10}
               </Text>
-              <Text style={styles.countBtnHint}>ટેપ કરો</Text>
+              <Text style={styles.countBtnHint}>{t.tali.tapHint}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -316,22 +318,22 @@ export default function TaliScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>છેલ્લું વજન નાખો</Text>
+            <Text style={styles.modalTitle}>{t.tali.partialTitle}</Text>
             <Text style={styles.modalSub}>
-              {activeFish.nameGujarati} — છેલ્લા તૂટક વજનનો આંક (દા.ત. 18)
+              {activeFish.nameGujarati} — છેલ્લા તૂટક વજનનો આંક
             </Text>
             <TextInput
               style={styles.modalInput}
               value={partialInput}
               onChangeText={setPartialInput}
               keyboardType="decimal-pad"
-              placeholder="જેમ કે 18"
+              placeholder={t.tali.partialPlaceholder}
               placeholderTextColor={theme.colors.textDisabled}
               autoFocus
             />
             <View style={styles.modalBtns}>
               <Button
-                label="રદ કરો"
+                label={t.common.cancel}
                 variant="secondary"
                 size="md"
                 onPress={() => {
@@ -341,7 +343,7 @@ export default function TaliScreen() {
                 style={{ flex: 1 }}
               />
               <Button
-                label="સાચવો"
+                label={t.common.save}
                 variant="primary"
                 size="md"
                 onPress={handlePartialSave}

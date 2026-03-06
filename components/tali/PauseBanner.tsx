@@ -1,6 +1,7 @@
 import React from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { theme } from '../../constants/theme'
+import { useLanguage } from '../../hooks/useLanguage'
 
 interface PauseBannerProps {
   pausedAtCount: number
@@ -8,12 +9,13 @@ interface PauseBannerProps {
 }
 
 export function PauseBanner({ pausedAtCount, onResume }: PauseBannerProps) {
+  const { t } = useLanguage()
   return (
     <View style={styles.banner}>
       <View>
-        <Text style={styles.title}>⏸ તાલી અટકી છે</Text>
+        <Text style={styles.title}>{t.tali.paused}</Text>
         <Text style={styles.subtitle}>
-          છેલ્લો કાઉન્ટ: {pausedAtCount}
+          {t.tali.pausedAt(pausedAtCount)}
         </Text>
       </View>
       <TouchableOpacity
@@ -21,7 +23,7 @@ export function PauseBanner({ pausedAtCount, onResume }: PauseBannerProps) {
         activeOpacity={0.75}
         style={styles.resumeBtn}
       >
-        <Text style={styles.resumeText}>▶ ચાલુ કરો</Text>
+        <Text style={styles.resumeText}>{t.tali.resume}</Text>
       </TouchableOpacity>
     </View>
   )

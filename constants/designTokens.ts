@@ -1,6 +1,6 @@
 /**
  * ══════════════════════════════════════════════════════════════
- * MATSYAKOSH — DESIGN TOKENS v1.0
+ * FISHNESS — DESIGN TOKENS v1.0
  * Professional Design System for Fisherman-First Engagement
  * ══════════════════════════════════════════════════════════════
  */

@@ -1,6 +1,7 @@
 import { router } from 'expo-router'
 import React, { useRef, useState } from 'react'
 import {
+    Dimensions,
     KeyboardAvoidingView,
     Platform,
     StatusBar,
@@ -12,76 +13,57 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../constants/theme'
+import { useLanguage } from '../../hooks/useLanguage'
+
+const { height: SCREEN_H } = Dimensions.get('window')
 
 export default function PhoneScreen() {
+  const { t } = useLanguage()
   const [phone, setPhone] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const inputRef = useRef<TextInput>(null)
-
   const isValid = phone.trim().length === 10
-
-  const handleNext = () => {
-    if (!isValid) return
-    router.push({ pathname: '/(auth)/otp', params: { phone } })
-  }
 
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#0a1628" />
-      <View style={styles.bg}>
+      <View style={s.bg}>
+        <View style={s.bgCircle1} />
+        <View style={s.bgCircle2} />
 
-        {/* Decorative background circles for depth */}
-        <View style={styles.bgCircle1} />
-        <View style={styles.bgCircle2} />
+        <SafeAreaView style={s.safe}>
+          {/* Logo — fixed height, always visible */}
+          <View style={s.logoWrap}>
+            <View style={s.glowRing}><View style={s.glowInner} /></View>
+            <Text style={s.fish}>🐟</Text>
+            <Text style={s.appName}>MatsyaKosh</Text>
+            <Text style={s.tagline}>{t.phone.appTagline}</Text>
+          </View>
 
-        <SafeAreaView style={styles.safe}>
+          {/* Card — KAV only wraps the card, not the logo */}
           <KeyboardAvoidingView
-            style={styles.kav}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
+            <View style={s.card}>
+              <View style={s.cardBar} />
+              <View style={s.cardBody}>
 
-            {/* ── TOP: Logo ── */}
-            <View style={styles.logoSection}>
-              <View style={styles.glowRing}>
-                <View style={styles.glowInner} />
-              </View>
-              <Text style={styles.fishEmoji}>🐟</Text>
-              <Text style={styles.appName}>MatsyaKosh</Text>
-              <Text style={styles.appTagline}>માછલી વ્યવસ્થાપન પ્લેટફોર્મ</Text>
-            </View>
+                <Text style={s.title}>{t.phone.cardTitle}</Text>
+                <Text style={s.sub}>{t.phone.cardSubtitle}</Text>
 
-            {/* ── BOTTOM: Form card ── */}
-            <View style={styles.card}>
-              {/* Top accent pill */}
-              <View style={styles.cardAccent} />
-
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>નંબર દાખલ કરો</Text>
-                <Text style={styles.cardSubtitle}>
-                  OTP વડે login — કોઈ password નહીં
-                </Text>
-
-                {/* Phone input */}
-                <TouchableOpacity
-                  activeOpacity={1}
-                  onPress={() => inputRef.current?.focus()}
-                  style={[
-                    styles.inputWrapper,
-                    isFocused && styles.inputWrapperFocused,
-                  ]}
-                >
-                  <View style={styles.prefix}>
-                    <Text style={styles.prefixFlag}>🇮🇳</Text>
-                    <Text style={styles.prefixCode}>+91</Text>
-                    <View style={styles.prefixDivider} />
+                {/* Input */}
+                <View style={[s.inputRow, isFocused && s.inputRowOn]}>
+                  <View style={s.prefix}>
+                    <Text style={s.flag}>🇮🇳</Text>
+                    <Text style={s.code}>+91</Text>
                   </View>
-
+                  <View style={s.sep} />
                   <TextInput
                     ref={inputRef}
-                    style={styles.input}
-                    placeholder="10 આંકડાનો નંબર"
+                    style={s.input}
+                    placeholder="XXXXXXXXXX"
                     placeholderTextColor="rgba(255,255,255,0.2)"
-                    keyboardType="phone-pad"
+                    keyboardType="number-pad"
                     maxLength={10}
                     value={phone}
                     onChangeText={setPhone}
@@ -89,50 +71,37 @@ export default function PhoneScreen() {
                     onBlur={() => setIsFocused(false)}
                     selectionColor={theme.colors.primaryLight}
                   />
-
                   {isValid && (
-                    <View style={styles.validBadge}>
-                      <Text style={styles.validCheck}>✓</Text>
+                    <View style={s.check}>
+                      <Text style={s.checkText}>✓</Text>
                     </View>
                   )}
-                </TouchableOpacity>
-
-                {/* Security note */}
-                <View style={styles.securityRow}>
-                  <Text style={styles.securityIcon}>🔒</Text>
-                  <Text style={styles.securityText}>
-                    તમારી અંગત માહિતી સંપૂર્ણ સુરક્ષિત છે
-                  </Text>
                 </View>
 
-                {/* CTA */}
+                {/* Security */}
+                <View style={s.secRow}>
+                  <Text style={s.secIcon}>🔒</Text>
+                  <Text style={s.secText}>{t.phone.securityNote}</Text>
+                </View>
+
+                {/* Button */}
                 <TouchableOpacity
-                  style={[styles.ctaBtn, !isValid && styles.ctaBtnDisabled]}
-                  onPress={handleNext}
+                  onPress={() => {
+                    if (!isValid) return
+                    router.push({ pathname: '/(auth)/otp', params: { phone } })
+                  }}
                   activeOpacity={0.85}
                   disabled={!isValid}
                 >
-                  <View style={[
-                    styles.ctaBtnInner,
-                    !isValid && styles.ctaBtnInnerDisabled,
-                  ]}>
-                    <Text style={[
-                      styles.ctaBtnText,
-                      !isValid && styles.ctaBtnTextMuted,
-                    ]}>
-                      આગળ વધો
-                    </Text>
-                    <Text style={[
-                      styles.ctaBtnArrow,
-                      !isValid && styles.ctaBtnTextMuted,
-                    ]}>
-                      →
+                  <View style={[s.btn, !isValid && s.btnOff]}>
+                    <Text style={[s.btnTxt, !isValid && s.btnTxtOff]}>
+                      {t.phone.nextBtn}  →
                     </Text>
                   </View>
                 </TouchableOpacity>
+
               </View>
             </View>
-
           </KeyboardAvoidingView>
         </SafeAreaView>
       </View>
@@ -140,221 +109,122 @@ export default function PhoneScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  bg: {
-    flex: 1,
-    backgroundColor: '#0a1628',
-  },
+const s = StyleSheet.create({
+  bg: { flex: 1, backgroundColor: '#0a1628' },
   bgCircle1: {
-    position: 'absolute',
-    top: -80,
-    right: -80,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: 'rgba(13,122,95,0.12)',
+    position: 'absolute', top: -60, right: -60,
+    width: 260, height: 260, borderRadius: 130,
+    backgroundColor: 'rgba(13,122,95,0.1)',
   },
   bgCircle2: {
-    position: 'absolute',
-    bottom: 220,
-    left: -60,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    position: 'absolute', top: SCREEN_H * 0.3, left: -60,
+    width: 180, height: 180, borderRadius: 90,
     backgroundColor: 'rgba(13,122,95,0.07)',
   },
-  safe: { flex: 1 },
-  kav: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
+  safe: { flex: 1, justifyContent: 'flex-end' },
 
-  // Logo
-  logoSection: {
-    flex: 1,
+  // Logo: fixed, not inside KAV — never moves
+  logoWrap: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    bottom: 260, // rough card height
     alignItems: 'center',
     justifyContent: 'center',
   },
   glowRing: {
     position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(13,122,95,0.07)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 170, height: 170, borderRadius: 85,
+    backgroundColor: 'rgba(13,122,95,0.08)',
+    alignItems: 'center', justifyContent: 'center',
   },
   glowInner: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
+    width: 110, height: 110, borderRadius: 55,
     backgroundColor: 'rgba(13,122,95,0.1)',
   },
-  fishEmoji: {
-    fontSize: 76,
-    marginBottom: 16,
-  },
+  fish: { fontSize: 64, marginBottom: 10 },
   appName: {
-    fontSize: 38,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -0.5,
-    marginBottom: 8,
+    fontSize: 32, fontWeight: '800', color: '#fff',
+    letterSpacing: -0.5, marginBottom: 6,
   },
-  appTagline: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 0.5,
-  },
+  tagline: { fontSize: 13, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.4 },
 
   // Card
   card: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: 'rgba(255,255,255,0.09)',
+    backgroundColor: 'rgba(20,40,70,0.95)',
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderWidth: 1, borderBottomWidth: 0,
+    borderColor: 'rgba(255,255,255,0.1)',
     overflow: 'hidden',
   },
-  cardAccent: {
-    height: 3,
-    width: 64,
-    backgroundColor: theme.colors.primary,
+  cardBar: {
+    height: 3, width: 44,
+    backgroundColor: theme.colors.primaryLight,
     alignSelf: 'center',
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2,
+    borderBottomLeftRadius: 2, borderBottomRightRadius: 2,
   },
-  cardContent: {
-    padding: 28,
-    paddingBottom: 36,
-    gap: 16,
-  },
-  cardTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -0.3,
-    marginTop: 4,
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
-    lineHeight: 20,
-    marginTop: -6,
-  },
+  cardBody: { padding: 24, paddingBottom: 36, gap: 14 },
 
-  // Input
-  inputWrapper: {
+  title: { fontSize: 24, fontWeight: '800', color: '#fff', marginTop: 2 },
+  sub: { fontSize: 14, color: 'rgba(255,255,255,0.45)', marginTop: -4 },
+
+  // Input row — NO overflow:hidden (clips text on Android)
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.1)',
-    height: 68,
-    overflow: 'hidden',
+    borderColor: 'rgba(255,255,255,0.12)',
+    height: 56,
   },
-  inputWrapperFocused: {
+  inputRowOn: {
     borderColor: theme.colors.primaryLight,
     backgroundColor: 'rgba(15,155,120,0.1)',
   },
   prefix: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    gap: 8,
-    height: '100%',
+    flexDirection: 'row', alignItems: 'center',
+    gap: 6, paddingLeft: 14, paddingRight: 10,
   },
-  prefixFlag: { fontSize: 24 },
-  prefixCode: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.75)',
-  },
-  prefixDivider: {
-    width: 1,
-    height: 26,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    marginLeft: 6,
-  },
+  flag: { fontSize: 20 },
+  code: { fontSize: 16, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
+  sep: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.15)' },
   input: {
     flex: 1,
-    height: '100%',
-    paddingHorizontal: 16,
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
-    letterSpacing: 4,
-  },
-  validBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  validCheck: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '800',
-  },
-
-  // Security
-  securityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  securityIcon: { fontSize: 13 },
-  securityText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.35)',
-  },
-
-  // Button
-  ctaBtn: {
-    borderRadius: 16,
-    marginTop: 4,
-    shadowColor: '#0d7a5f',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  ctaBtnDisabled: {
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  ctaBtnInner: {
-    height: 68,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.primaryLight,
-  },
-  ctaBtnInnerDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  ctaBtnText: {
+    height: 56,
+    paddingLeft: 12,
+    paddingRight: 8,
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#fff',
-    letterSpacing: 0.3,
+    letterSpacing: 1.5,
   },
-  ctaBtnArrow: {
-    fontSize: 22,
-    color: '#fff',
-    fontWeight: '700',
+  check: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: theme.colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: 12,
   },
-  ctaBtnTextMuted: {
-    color: 'rgba(255,255,255,0.2)',
+  checkText: { fontSize: 13, color: '#fff', fontWeight: '800' },
+
+  secRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  secIcon: { fontSize: 12 },
+  secText: { fontSize: 12, color: 'rgba(255,255,255,0.35)', flex: 1 },
+
+  btn: {
+    height: 56,
+    backgroundColor: theme.colors.primaryLight,
+    borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#0f9b78',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
   },
+  btnOff: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    elevation: 0, shadowOpacity: 0,
+  },
+  btnTxt: { fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
+  btnTxtOff: { color: 'rgba(255,255,255,0.2)' },
 })

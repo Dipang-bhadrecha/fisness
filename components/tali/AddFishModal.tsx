@@ -1,26 +1,27 @@
 import React, { useState } from 'react'
 import {
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    Image,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from 'react-native'
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
+    runOnJS,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
 } from 'react-native-reanimated'
 import { getFishImage } from '../../constants/fishImages'
 import { theme } from '../../constants/theme'
+import { useLanguage } from '../../hooks/useLanguage'
 import { FishCategory } from '../../types'
 
 const PRESET_FISH: FishCategory[] = [
@@ -89,6 +90,7 @@ export function AddFishModal({
   onAddFish,
   alreadyAddedIds,
 }: AddFishModalProps) {
+  const { t } = useLanguage()
   const [search, setSearch] = useState('')
   const [customName, setCustomName] = useState('')
   const translateY = useSharedValue(0)
@@ -164,9 +166,9 @@ export function AddFishModal({
                 <KeyboardAvoidingView
                   behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 >
-                  <Text style={styles.title}>Add Fish</Text>
+                  <Text style={styles.title}>{t.tali.addFishTitle}</Text>
                   <Text style={styles.subtitle}>
-                    Choose from list or type custom name
+                    Select a fish or enter a custom name
                   </Text>
 
                   {/* Search */}
@@ -174,7 +176,7 @@ export function AddFishModal({
                     style={styles.searchInput}
                     value={search}
                     onChangeText={setSearch}
-                    placeholder="Search... (bhungar, prawn, ઝીંગા...)"
+                    placeholder={t.tali.searchPlaceholder}
                     placeholderTextColor="#aaa"
                   />
 
@@ -196,8 +198,8 @@ export function AddFishModal({
                         <View style={styles.emptyState}>
                           <Text style={styles.emptyText}>
                             {search
-                              ? `"${search}" ની કોઈ માછલી મળી નહી`
-                              : 'બધી માછલી ઉમેરી દીધી છે ✓'}
+                              ? `No fish matching "${search}"`
+                              : 'All available fish have been added ✓'}
                           </Text>
                         </View>
                       )}
@@ -210,7 +212,7 @@ export function AddFishModal({
                       style={styles.customInput}
                       value={customName}
                       onChangeText={setCustomName}
-                      placeholder="Custom fish name..."
+                      placeholder={`Enter custom fish name...`}
                       placeholderTextColor="#aaa"
                     />
                     <TouchableOpacity
@@ -221,13 +223,13 @@ export function AddFishModal({
                         !customName.trim() && styles.addBtnDisabled,
                       ]}
                     >
-                      <Text style={styles.addBtnText}>Add</Text>
+                      <Text style={styles.addBtnText}>{t.tali.addBtn}</Text>
                     </TouchableOpacity>
                   </View>
 
                   {/* Cancel */}
                   <TouchableOpacity onPress={handleClose} style={styles.cancelBtn}>
-                    <Text style={styles.cancelText}>Cancel</Text>
+                    <Text style={styles.cancelText}>{t.common.cancel}</Text>
                   </TouchableOpacity>
                 </KeyboardAvoidingView>
               </Animated.View>

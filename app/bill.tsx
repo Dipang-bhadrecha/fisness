@@ -184,7 +184,7 @@ function ReceiptFooter({ companyName }: { companyName: string }) {
         <Text style={styles.signatureCompany}>{companyName}</Text>
       </View>
       <View style={styles.poweredBy}>
-        <Text style={styles.poweredByText}>Matsyakosh</Text>
+        <Text style={styles.poweredByText}>Fishness</Text>
         <Text style={styles.poweredByDot}>·</Text>
         <Text style={styles.poweredByText}>Knowmadic</Text>
       </View>

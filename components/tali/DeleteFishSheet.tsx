@@ -17,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { getFishImage } from '../../constants/fishImages'
 import { theme } from '../../constants/theme'
+import { useLanguage } from '../../hooks/useLanguage'
 
 interface DeleteFishSheetProps {
   visible: boolean
@@ -35,6 +36,7 @@ export function DeleteFishSheet({
   onConfirm,
   onCancel,
 }: DeleteFishSheetProps) {
+  const { t } = useLanguage()
   const translateY = useSharedValue(0)
   const image = getFishImage(fishId)
 
@@ -107,7 +109,7 @@ export function DeleteFishSheet({
                   <Text style={styles.warningIcon}>⚠️</Text>
                   <Text style={styles.warningText}>
                     <Text style={styles.warningBold}>{fishName}</Text>
-                    {' '}ની બધી ગણતરી અને વજન કાયમ માટે ભૂંસાઈ જશે.
+                    {' —'} {t.tali.deleteFishMsg}
                   </Text>
                 </View>
 
@@ -119,7 +121,7 @@ export function DeleteFishSheet({
                     activeOpacity={0.8}
                     style={styles.cancelBtn}
                   >
-                    <Text style={styles.cancelText}>રાખો</Text>
+                    <Text style={styles.cancelText}>{t.common.cancel}</Text>
                   </TouchableOpacity>
 
                   {/* Delete — danger */}
@@ -128,7 +130,7 @@ export function DeleteFishSheet({
                     activeOpacity={0.8}
                     style={styles.deleteBtn}
                   >
-                    <Text style={styles.deleteText}>🗑 કાઢો</Text>
+                    <Text style={styles.deleteText}>🗑 {t.tali.deleteConfirm}</Text>
                   </TouchableOpacity>
                 </View>
 
