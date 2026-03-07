@@ -1,28 +1,66 @@
+/**
+ * app/(auth)/phone.tsx — Phone Number Entry
+ *
+ * Calls POST /auth/send-otp on the Fastify backend.
+ * On success → navigates to OTP screen with phone param.
+ * On failure → shows inline error with actionable message.
+ */
+
 import { router } from 'expo-router'
 import React, { useRef, useState } from 'react'
 import {
-    Dimensions,
-    KeyboardAvoidingView,
-    Platform,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../constants/theme'
 import { useLanguage } from '../../hooks/useLanguage'
+import { ApiError, sendOtp } from '../services/api'
 
 const { height: SCREEN_H } = Dimensions.get('window')
 
 export default function PhoneScreen() {
   const { t } = useLanguage()
   const [phone, setPhone] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [isFocused, setIsFocused] = useState(false)
   const inputRef = useRef<TextInput>(null)
+
   const isValid = phone.trim().length === 10
+
+  const handleSendOtp = async () => {
+    if (!isValid || loading) return
+    setError(null)
+    setLoading(true)
+
+    try {
+      await sendOtp(phone.trim())
+      // OTP sent — navigate to verify screen
+      router.push({ pathname: '/(auth)/otp', params: { phone: phone.trim() } })
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.code === 'NETWORK_ERROR') {
+          setError(
+            'Cannot reach server. Make sure:\n• Your backend is running\n• Both devices are on the same WiFi\n• The IP in .env.local is correct'
+          )
+        } else {
+          setError(err.message)
+        }
+      } else {
+        setError('Something went wrong. Please try again.')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <>
@@ -66,19 +104,30 @@ export default function PhoneScreen() {
                     keyboardType="number-pad"
                     maxLength={10}
                     value={phone}
-                    onChangeText={setPhone}
+                    onChangeText={(v) => {
+                      setPhone(v)
+                      if (error) setError(null)
+                    }}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     selectionColor={theme.colors.primaryLight}
+                    editable={!loading}
                   />
-                  {isValid && (
+                  {isValid && !loading && (
                     <View style={s.check}>
                       <Text style={s.checkText}>✓</Text>
                     </View>
                   )}
                 </View>
 
-                {/* Security */}
+                {/* Error message */}
+                {error && (
+                  <View style={s.errorBox}>
+                    <Text style={s.errorText}>{error}</Text>
+                  </View>
+                )}
+
+                {/* Security note */}
                 <View style={s.secRow}>
                   <Text style={s.secIcon}>🔒</Text>
                   <Text style={s.secText}>{t.phone.securityNote}</Text>
@@ -86,16 +135,13 @@ export default function PhoneScreen() {
 
                 {/* Button */}
                 <TouchableOpacity
-                  onPress={() => {
-                    if (!isValid) return
-                    router.push({ pathname: '/(auth)/otp', params: { phone } })
-                  }}
+                  onPress={handleSendOtp}
                   activeOpacity={0.85}
-                  disabled={!isValid}
+                  disabled={!isValid || loading}
                 >
-                  <View style={[s.btn, !isValid && s.btnOff]}>
-                    <Text style={[s.btnTxt, !isValid && s.btnTxtOff]}>
-                      {t.phone.nextBtn}  →
+                  <View style={[s.btn, (!isValid || loading) && s.btnOff]}>
+                    <Text style={[s.btnTxt, (!isValid || loading) && s.btnTxtOff]}>
+                      {loading ? 'Sending OTP...' : `${t.phone.nextBtn}  →`}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -123,11 +169,10 @@ const s = StyleSheet.create({
   },
   safe: { flex: 1, justifyContent: 'flex-end' },
 
-  // Logo: fixed, not inside KAV — never moves
   logoWrap: {
     position: 'absolute',
     top: 0, left: 0, right: 0,
-    bottom: 260, // rough card height
+    bottom: 260,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -148,7 +193,6 @@ const s = StyleSheet.create({
   },
   tagline: { fontSize: 13, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.4 },
 
-  // Card
   card: {
     backgroundColor: 'rgba(20,40,70,0.95)',
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
@@ -167,7 +211,6 @@ const s = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '800', color: '#fff', marginTop: 2 },
   sub: { fontSize: 14, color: 'rgba(255,255,255,0.45)', marginTop: -4 },
 
-  // Input row — NO overflow:hidden (clips text on Android)
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -206,6 +249,20 @@ const s = StyleSheet.create({
   },
   checkText: { fontSize: 13, color: '#fff', fontWeight: '800' },
 
+  errorBox: {
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.3)',
+    padding: 12,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#fca5a5',
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+
   secRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   secIcon: { fontSize: 12 },
   secText: { fontSize: 12, color: 'rgba(255,255,255,0.35)', flex: 1 },
@@ -216,10 +273,8 @@ const s = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center', justifyContent: 'center',
     elevation: 6,
-    shadowColor: '#0f9b78',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
+    shadowColor: '#0f9b78', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35, shadowRadius: 12,
   },
   btnOff: {
     backgroundColor: 'rgba(255,255,255,0.06)',

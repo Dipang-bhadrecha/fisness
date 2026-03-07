@@ -8,6 +8,11 @@ import { theme } from '../constants/theme'
  * - Dark mode optimized for fisherman environment
  * - Light mode support for accessibility
  * - Professional design tokens applied globally
+ *
+ * Navigation groups:
+ *   (auth)   → phone, otp, language  (unauthenticated)
+ *   (setup)  → role, owner-type, company-setup, manager-connect, done  (one-time wizard)
+ *   (owner)  → home + all owner screens  (post-setup)
  */
 export default function RootLayout() {
   return (
@@ -25,22 +30,20 @@ export default function RootLayout() {
           },
         }}
       >
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen
-          name="index"
-          options={{ headerShown: false }}
+          name="(setup)"
+          options={{
+            headerShown: false,
+            // Prevent going back to auth once in setup
+            gestureEnabled: false,
+          }}
         />
-        <Stack.Screen
-          name="tali"
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="summary"
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="bill"
-          options={{ headerShown: false }}
-        />
+        <Stack.Screen name="(owner)" options={{ headerShown: false }} />
+        <Stack.Screen name="tali" options={{ headerShown: false }} />
+        <Stack.Screen name="summary" options={{ headerShown: false }} />
+        <Stack.Screen name="bill" options={{ headerShown: false }} />
       </Stack>
     </SafeAreaProvider>
   )

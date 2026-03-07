@@ -1,29 +1,44 @@
+/**
+ * app/(auth)/otp.tsx — OTP Verification
+ *
+ * Calls POST /auth/verify-otp on the Fastify backend.
+ *
+ * Routing after success:
+ *   isNewUser === true  → /(setup)/role    (first time, run wizard)
+ *   isNewUser === false → /(owner)/home    (returning user, go to dashboard)
+ *
+ * Token + user are saved to authStore (persisted to AsyncStorage).
+ */
+
 import { router, useLocalSearchParams } from 'expo-router'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
-    Dimensions,
-    KeyboardAvoidingView,
-    Platform,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../constants/theme'
 import { useLanguage } from '../../hooks/useLanguage'
+import { useAuthStore } from '../../store/authStore'
+import { ApiError, sendOtp, verifyOtp } from '../services/api'
 
 const OTP_LEN = 6
-const { height: SCREEN_H } = Dimensions.get('window')
 
 export default function OTPScreen() {
   const { t } = useLanguage()
   const { phone } = useLocalSearchParams<{ phone: string }>()
+  const { setAuth } = useAuthStore()
+
   const [otp, setOtp] = useState('')
   const [timer, setTimer] = useState(30)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [focused, setFocused] = useState(false)
   const inputRef = useRef<TextInput>(null)
 
@@ -34,19 +49,56 @@ export default function OTPScreen() {
 
   useEffect(() => {
     if (timer <= 0) return
-    const id = setTimeout(() => setTimer(v => v - 1), 1000)
+    const id = setTimeout(() => setTimer((v) => v - 1), 1000)
     return () => clearTimeout(id)
   }, [timer])
 
   const focus = useCallback(() => inputRef.current?.focus(), [])
 
-  const verify = () => {
-    if (otp.length !== OTP_LEN) return
+  const handleResend = async () => {
+    if (!phone) return
+    setError(null)
+    setTimer(30)
+    setOtp('')
+    setTimeout(focus, 100)
+    try {
+      await sendOtp(phone)
+    } catch (err) {
+      setError('Failed to resend OTP. Please try again.')
+    }
+  }
+
+  const handleVerify = async () => {
+    if (otp.length !== OTP_LEN || loading || !phone) return
+    setError(null)
     setLoading(true)
-    setTimeout(() => {
+
+    try {
+      const { token, user, isNewUser } = await verifyOtp(phone, otp)
+
+      // Persist token + user to authStore (also saves to AsyncStorage)
+      await setAuth(token, user, isNewUser)
+
+      // Route based on whether this is a first-time user
+      if (isNewUser) {
+        router.replace('/(setup)/role')
+      } else {
+        router.replace('/(owner)/home' as any)
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 400 || err.status === 401) {
+          setError('Invalid OTP. Please check the code and try again.')
+        } else if (err.code === 'NETWORK_ERROR') {
+          setError('Cannot reach server. Check your connection.')
+        } else {
+          setError(err.message)
+        }
+      } else {
+        setError('Verification failed. Please try again.')
+      }
       setLoading(false)
-      router.replace('/(auth)/language')
-    }, 800)
+    }
   }
 
   const digits = Array.from({ length: OTP_LEN }, (_, i) => otp[i] ?? '')
@@ -58,19 +110,19 @@ export default function OTPScreen() {
         <View style={s.bgCircle} />
 
         <SafeAreaView style={s.safe}>
-          {/* Back button — absolute, never shifts */}
+          {/* Back button */}
           <TouchableOpacity style={s.back} onPress={() => router.back()}>
             <Text style={s.backTxt}>←</Text>
           </TouchableOpacity>
 
-          {/* Logo — fixed position above card, never inside KAV */}
+          {/* Logo */}
           <View style={s.logoWrap}>
             <View style={s.glowRing}><View style={s.glowInner} /></View>
             <Text style={s.fish}>🐟</Text>
             <Text style={s.appName}>MatsyaKosh</Text>
           </View>
 
-          {/* Only the card is inside KAV */}
+          {/* Card */}
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           >
@@ -92,6 +144,7 @@ export default function OTPScreen() {
                           s.box,
                           filled && s.boxFilled,
                           active && s.boxActive,
+                          error && s.boxError,
                         ]}>
                           {filled
                             ? <Text style={s.digit}>{d}</Text>
@@ -102,7 +155,7 @@ export default function OTPScreen() {
                   </View>
                 </TouchableOpacity>
 
-                {/* Hidden input — NOT absolutely positioned (Android issue) */}
+                {/* Hidden input */}
                 <View style={s.inputHider}>
                   <TextInput
                     ref={inputRef}
@@ -110,34 +163,47 @@ export default function OTPScreen() {
                     keyboardType="number-pad"
                     maxLength={OTP_LEN}
                     value={otp}
-                    onChangeText={setOtp}
+                    onChangeText={(v) => {
+                      setOtp(v)
+                      if (error) setError(null)
+                    }}
                     onFocus={() => setFocused(true)}
                     onBlur={() => setFocused(false)}
                     caretHidden
                     autoComplete="one-time-code"
+                    editable={!loading}
                   />
                 </View>
+
+                {/* Error */}
+                {error && (
+                  <View style={s.errorBox}>
+                    <Text style={s.errorText}>{error}</Text>
+                  </View>
+                )}
 
                 {/* Resend */}
                 <View style={s.resendRow}>
                   <Text style={s.resendLabel}>{t.otp.noOtp}</Text>
                   {timer > 0
                     ? <Text style={s.resendTimer}>{t.otp.resendIn(timer)}</Text>
-                    : <TouchableOpacity onPress={() => { setTimer(30); setOtp(''); setTimeout(focus, 100) }}>
+                    : (
+                      <TouchableOpacity onPress={handleResend}>
                         <Text style={s.resendBtn}>{t.otp.resendBtn}</Text>
                       </TouchableOpacity>
+                    )
                   }
                 </View>
 
-                {/* Verify */}
+                {/* Verify button */}
                 <TouchableOpacity
-                  onPress={verify}
+                  onPress={handleVerify}
                   activeOpacity={0.85}
                   disabled={otp.length !== OTP_LEN || loading}
                 >
                   <View style={[s.btn, (otp.length !== OTP_LEN || loading) && s.btnOff]}>
                     <Text style={[s.btnTxt, (otp.length !== OTP_LEN || loading) && s.btnTxtOff]}>
-                      {loading ? t.otp.verifying : t.otp.verifyBtn}
+                      {loading ? 'Verifying...' : t.otp.verifyBtn}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -171,8 +237,7 @@ const s = StyleSheet.create({
 
   logoWrap: {
     position: 'absolute',
-    top: 0, left: 0, right: 0,
-    bottom: 280,
+    top: 0, left: 0, right: 0, bottom: 280,
     alignItems: 'center', justifyContent: 'center',
   },
   glowRing: {
@@ -220,19 +285,24 @@ const s = StyleSheet.create({
     borderColor: theme.colors.primaryLight,
     backgroundColor: 'rgba(15,155,120,0.12)',
   },
+  boxError: {
+    borderColor: 'rgba(239,68,68,0.6)',
+    backgroundColor: 'rgba(239,68,68,0.07)',
+  },
   digit: { fontSize: 22, fontWeight: '800', color: '#fff' },
   cur: { width: 2, height: 22, backgroundColor: theme.colors.primaryLight, borderRadius: 1 },
 
-  // Key fix for Android: NOT absolute — use a clipping View instead
-  inputHider: {
-    height: 1,
-    overflow: 'hidden',
+  inputHider: { height: 1, overflow: 'hidden' },
+  hiddenInput: { height: 40, color: 'transparent', backgroundColor: 'transparent' },
+
+  errorBox: {
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.3)',
+    padding: 12,
   },
-  hiddenInput: {
-    height: 40,
-    color: 'transparent',
-    backgroundColor: 'transparent',
-  },
+  errorText: { fontSize: 12, color: '#fca5a5', lineHeight: 18, fontWeight: '500' },
 
   resendRow: {
     flexDirection: 'row', justifyContent: 'center',
