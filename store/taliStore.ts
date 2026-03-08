@@ -5,7 +5,7 @@ import { calculateTotalKg, generateSessionId } from '../utils/calculations'
 
 interface TaliStore {
   session: TaliSession | null
-  createSession: (boatName: string, companyName: string) => void
+  createSession: (boatName: string, companyName: string, serverSessionId?: string) => void
   addFishToSession: (fishId: string, bucketWeight: number) => void
   addCount: (fishId: string) => void
   pauseSession: (fishId: string) => void
@@ -21,7 +21,7 @@ interface TaliStore {
 export const useTaliStore = create<TaliStore>((set, get) => ({
   session: null,
 
-  createSession: (boatName, companyName) => {
+  createSession: (boatName, companyName, serverSessionId) => {
     const session: TaliSession = {
       sessionId: generateSessionId(),
       boatName,
@@ -32,6 +32,7 @@ export const useTaliStore = create<TaliStore>((set, get) => ({
       isActive: true,
       startTime: new Date().toISOString(),
       endTime: null,
+      serverSessionId: serverSessionId ?? null,
     }
     set({ session })
   },

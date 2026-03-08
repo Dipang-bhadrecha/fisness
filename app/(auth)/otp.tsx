@@ -26,13 +26,21 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../constants/theme'
 import { useLanguage } from '../../hooks/useLanguage'
 import { useAuthStore } from '../../store/authStore'
-import { ApiError, sendOtp, verifyOtp } from '../services/api'
+import { ApiError, sendOtp, verifyOtp } from '@/services/api'
 
 const OTP_LEN = 6
 
+// Ensure phone is a 10-digit string (params can be string | string[])
+function normalizePhone(param: string | string[] | undefined): string {
+  const raw = Array.isArray(param) ? param[0] : param
+  const digits = (raw ?? '').replace(/\D/g, '')
+  return digits.length >= 10 ? digits.slice(-10) : digits
+}
+
 export default function OTPScreen() {
   const { t } = useLanguage()
-  const { phone } = useLocalSearchParams<{ phone: string }>()
+  const paramPhone = useLocalSearchParams<{ phone: string }>().phone
+  const phone = normalizePhone(paramPhone)
   const { setAuth } = useAuthStore()
 
   const [otp, setOtp] = useState('')
@@ -56,7 +64,7 @@ export default function OTPScreen() {
   const focus = useCallback(() => inputRef.current?.focus(), [])
 
   const handleResend = async () => {
-    if (!phone) return
+    if (!phone || phone.length !== 10) return
     setError(null)
     setTimer(30)
     setOtp('')
@@ -69,12 +77,12 @@ export default function OTPScreen() {
   }
 
   const handleVerify = async () => {
-    if (otp.length !== OTP_LEN || loading || !phone) return
+    if (otp.length !== OTP_LEN || loading || !phone || phone.length !== 10) return
     setError(null)
     setLoading(true)
 
     try {
-      const { token, user, isNewUser } = await verifyOtp(phone, otp)
+      const { token, user, isNewUser } = await verifyOtp(phone, otp.trim())
 
       // Persist token + user to authStore (also saves to AsyncStorage)
       await setAuth(token, user, isNewUser)

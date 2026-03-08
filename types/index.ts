@@ -33,6 +33,8 @@ export interface TaliSession {
   isActive: boolean
   startTime: string
   endTime: string | null
+  /** Server session id when created via API; used for sync/end */
+  serverSessionId?: string | null
 }
 
 export interface BillLineItem {

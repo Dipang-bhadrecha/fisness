@@ -120,7 +120,9 @@ async function request<T>(
     )
   }
 
-  return body as T
+  // Backend wraps success responses as { success, message, data, timestamp }
+  const payload = body?.data !== undefined ? body.data : body
+  return payload as T
 }
 
 // ─── Auth endpoints ───────────────────────────────────────────────────────────
@@ -145,24 +147,37 @@ export async function verifyOtp(
   phone: string,
   code: string
 ): Promise<AuthVerifyResponse> {
-  return request('/api/v1/auth/verify-otp', {
-    method: 'POST',
-    body: JSON.stringify({ phone, code }),
-  })
+  const data = await request<{ token: string; user: { id: string; phone: string; name: string | null; isNewUser: boolean } }>(
+    '/api/v1/auth/verify-otp',
+    {
+      method: 'POST',
+      body: JSON.stringify({ phone, code }),
+    }
+  )
+  return {
+    token: data.token,
+    user: {
+      id: data.user.id,
+      phone: data.user.phone,
+      name: data.user.name,
+      createdAt: new Date().toISOString(),
+    },
+    isNewUser: data.user.isNewUser,
+  }
 }
 
 // ─── Setup endpoint ───────────────────────────────────────────────────────────
 
 /**
  * Save workspace configuration from the setup wizard
- * POST /auth/setup
+ * POST /api/v1/auth/setup
  * Called once from setup/done.tsx after wizard is complete.
  */
 export async function completeSetup(
   token: string,
   payload: WorkspaceSetupPayload
 ): Promise<{ workspaces: Workspace[] }> {
-  return request('/auth/setup', {
+  return request('/api/v1/auth/setup', {
     method: 'POST',
     token,
     body: JSON.stringify(payload),
@@ -171,13 +186,156 @@ export async function completeSetup(
 
 // ─── User endpoints ───────────────────────────────────────────────────────────
 
+/** Backend /me returns user with ownedCompanies, companyMemberships, etc. */
+interface BackendMeUser {
+  id: string
+  phone: string
+  name: string | null
+  createdAt: string
+  ownedCompanies?: Array<{ id: string; name: string }>
+  companyMemberships?: Array<{ company: { id: string; name: string } }>
+}
+
 /**
  * Get current user profile + all workspaces
- * GET /me
+ * GET /api/v1/auth/me
  */
 export async function getMe(token: string): Promise<MeResponse> {
-  return request('/me', {
+  const user = await request<BackendMeUser>('/api/v1/auth/me', {
     method: 'GET',
     token,
+  })
+  const workspaces: Workspace[] = []
+  if (user.ownedCompanies) {
+    for (const c of user.ownedCompanies) {
+      workspaces.push({ id: c.id, type: 'company', name: c.name, role: 'owner', permissions: [] })
+    }
+  }
+  if (user.companyMemberships) {
+    for (const m of user.companyMemberships) {
+      workspaces.push({
+        id: m.company.id,
+        type: 'manager_access',
+        name: m.company.name,
+        role: 'manager',
+        permissions: [],
+      })
+    }
+  }
+  return {
+    user: {
+      id: user.id,
+      phone: user.phone,
+      name: user.name,
+      createdAt: user.createdAt,
+    },
+    workspaces,
+    hasCompletedSetup: workspaces.length > 0,
+  }
+}
+
+// ─── Company endpoints ────────────────────────────────────────────────────────
+
+export interface ApiCompany {
+  id: string
+  name: string
+  nameGujarati?: string | null
+  phone?: string | null
+  address?: string | null
+  gstNumber?: string | null
+}
+
+export interface CompaniesResponse {
+  owned: ApiCompany[]
+  memberOf: ApiCompany[]
+}
+
+export async function getMyCompanies(token: string): Promise<CompaniesResponse> {
+  return request('/api/v1/companies', { method: 'GET', token })
+}
+
+export interface ApiRegisteredBoat {
+  id: string
+  name: string
+  nameGujarati?: string | null
+  ownerName?: string | null
+  ownerPhone?: string | null
+}
+
+export async function getRegisteredBoats(
+  token: string,
+  companyId: string
+): Promise<ApiRegisteredBoat[]> {
+  return request(`/api/v1/companies/${companyId}/registered-boats`, {
+    method: 'GET',
+    token,
+  })
+}
+
+// ─── Session (Tali) endpoints ───────────────────────────────────────────────────
+
+export interface CreateSessionPayload {
+  companyId: string
+  registeredBoatId: string
+  clientId?: string
+  notes?: string
+}
+
+export interface ApiSession {
+  id: string
+  companyId: string
+  registeredBoatId: string
+  status: string
+  startTime: string
+  endTime?: string | null
+  clientId?: string | null
+  company?: { id: string; name: string }
+  registeredBoat?: { id: string; name: string }
+}
+
+export async function createSession(
+  token: string,
+  payload: CreateSessionPayload
+): Promise<ApiSession> {
+  return request('/api/v1/sessions', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(payload),
+  })
+}
+
+export interface FishEntryPayload {
+  fishId: string
+  fishName: string
+  fishNameGujarati?: string
+  bucketWeight: number
+  totalKg: number
+}
+
+export async function endSession(
+  token: string,
+  sessionId: string,
+  fishEntries: FishEntryPayload[]
+): Promise<unknown> {
+  return request(`/api/v1/sessions/${sessionId}/end`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ fishEntries }),
+  })
+}
+
+export async function syncSession(
+  token: string,
+  sessionId: string,
+  data: {
+    fishEntries: FishEntryPayload[]
+    endTime?: string
+    notes?: string
+  }
+): Promise<unknown> {
+  return request(`/api/v1/sessions/${sessionId}/sync`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify(data),
   })
 }

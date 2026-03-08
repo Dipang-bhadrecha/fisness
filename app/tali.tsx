@@ -21,11 +21,19 @@ import { FISH_CATEGORIES } from '../constants/fishTypes'
 import { theme } from '../constants/theme'
 import { useLanguage } from '../hooks/useLanguage'
 import { useTaliSession } from '../hooks/useTaliSession'
+import {
+  createSession as apiCreateSession,
+  endSession as apiEndSession,
+  getMyCompanies,
+  getRegisteredBoats,
+} from '@/services/api'
+import { useAuthStore } from '../store/authStore'
 import { FishCategory } from '../types'
-import { formatKg } from '../utils/calculations'
+import { formatKg, generateSessionId } from '../utils/calculations'
 
 export default function TaliScreen() {
   const { t } = useLanguage()
+  const { token } = useAuthStore()
   const {
     session,
     createSession,
@@ -41,10 +49,40 @@ export default function TaliScreen() {
   } = useTaliSession()
 
   useEffect(() => {
-    if (!session) {
+    if (session) return
+
+    const startSession = async () => {
+      if (token) {
+        try {
+          const { owned, memberOf } = await getMyCompanies(token)
+          const company = owned?.[0] ?? memberOf?.[0]
+          if (company?.id) {
+            const boats = await getRegisteredBoats(token, company.id)
+            const boat = boats?.[0]
+            if (boat?.id) {
+              const clientId = generateSessionId()
+              const apiSession = await apiCreateSession(token, {
+                companyId: company.id,
+                registeredBoatId: boat.id,
+                clientId,
+              })
+              createSession(
+                boat.name ?? 'બોટ - 1',
+                company.name ?? 'કંપની',
+                apiSession.id
+              )
+              return
+            }
+          }
+        } catch (_) {
+          // Fallback to local-only session
+        }
+      }
       createSession('બોટ - 1', 'કંપની')
     }
-  }, [])
+
+    startSession()
+  }, [token])
 
   const [addFishVisible, setAddFishVisible] = useState(false)
   const [bucketModalVisible, setBucketModalVisible] = useState(false)
@@ -117,7 +155,27 @@ export default function TaliScreen() {
         {
           text: t.tali.endConfirmYes,
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            if (session?.serverSessionId && token && session.fishData.length > 0) {
+              try {
+                const fishEntries = session.fishData.map((fd) => {
+                  const preset = FISH_CATEGORIES.find((f) => f.id === fd.fishId)
+                  const fishName = preset?.name ?? (fd.fishId.startsWith('custom_') ? fd.fishId.replace('custom_', '').replace(/_/g, ' ') : fd.fishId)
+                  const fishNameGujarati = preset?.nameGujarati ?? fishName
+                  return {
+                    fishId: fd.fishId,
+                    fishName,
+                    fishNameGujarati,
+                    bucketWeight: fd.bucketWeight,
+                    totalKg: fd.totalKg,
+                  }
+                })
+                await apiEndSession(token, session.serverSessionId, fishEntries)
+              } catch (_) {
+                // Still end locally and go to bill
+              }
+            }
+            endSession()
             router.push('/bill')
           },
         },

@@ -22,7 +22,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../constants/theme'
 import { useLanguage } from '../../hooks/useLanguage'
-import { ApiError, sendOtp } from '../services/api'
+import { ApiError, sendOtp } from '@/services/api'
 
 const { height: SCREEN_H } = Dimensions.get('window')
 

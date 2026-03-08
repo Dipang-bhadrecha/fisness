@@ -21,7 +21,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../constants/theme'
 import { useAuthStore } from '../../store/authStore'
-import { ApiError, WorkspaceSetupPayload, completeSetup } from '../services/api'
+import { ApiError, WorkspaceSetupPayload, completeSetup } from '@/services/api'
 
 function Particle({ x, color, delay }: { x: number; color: string; delay: number }) {
   const anim = useRef(new Animated.Value(0)).current
