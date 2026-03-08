@@ -1,13 +1,19 @@
-import { router } from 'expo-router'
+import {
+  createSession as apiCreateSession,
+  endSession as apiEndSession,
+  getMyCompanies,
+  getRegisteredBoats,
+} from '@/services/api'
+import { router, useLocalSearchParams } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import {
-    Alert,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AddFishModal } from '../components/tali/AddFishModal'
@@ -21,12 +27,6 @@ import { FISH_CATEGORIES } from '../constants/fishTypes'
 import { theme } from '../constants/theme'
 import { useLanguage } from '../hooks/useLanguage'
 import { useTaliSession } from '../hooks/useTaliSession'
-import {
-  createSession as apiCreateSession,
-  endSession as apiEndSession,
-  getMyCompanies,
-  getRegisteredBoats,
-} from '@/services/api'
 import { useAuthStore } from '../store/authStore'
 import { FishCategory } from '../types'
 import { formatKg, generateSessionId } from '../utils/calculations'
@@ -34,6 +34,15 @@ import { formatKg, generateSessionId } from '../utils/calculations'
 export default function TaliScreen() {
   const { t } = useLanguage()
   const { token } = useAuthStore()
+
+  // ── Params passed from home screen boat selection ──────────────────────────
+  const { boatId, boatName, companyId, companyName } = useLocalSearchParams<{
+    boatId: string
+    boatName: string
+    companyId: string
+    companyName: string
+  }>()
+
   const {
     session,
     createSession,
@@ -52,6 +61,35 @@ export default function TaliScreen() {
     if (session) return
 
     const startSession = async () => {
+      // ── Path 1: navigated from home with a pre-selected boat ──────────────
+      if (boatId && boatName && companyId) {
+        if (token) {
+          try {
+            const clientId = generateSessionId()
+            const apiSession = await apiCreateSession(token, {
+              companyId,
+              registeredBoatId: boatId,
+              clientId,
+            })
+            createSession(
+              boatName,
+              companyName ?? 'કંપની',
+              apiSession.id
+            )
+            return
+          } catch (_) {
+            // API failed — still start a local session for the selected boat
+            createSession(boatName, companyName ?? 'કંપની')
+            return
+          }
+        } else {
+          // No token — local only
+          createSession(boatName, companyName ?? 'કંપની')
+          return
+        }
+      }
+
+      // ── Path 2: fallback — auto-pick first boat (e.g. nav tab press) ──────
       if (token) {
         try {
           const { owned, memberOf } = await getMyCompanies(token)
@@ -82,7 +120,7 @@ export default function TaliScreen() {
     }
 
     startSession()
-  }, [token])
+  }, [token, boatId, boatName, companyId, companyName])
 
   const [addFishVisible, setAddFishVisible] = useState(false)
   const [bucketModalVisible, setBucketModalVisible] = useState(false)
@@ -121,7 +159,6 @@ export default function TaliScreen() {
   const handleDeleteFish = (fishId: string) => {
     if (!session || session.fishData.length <= 1) return
 
-    // Build fish name from session data — works for both preset and custom fish
     const fd = session.fishData.find((f) => f.fishId === fishId)
     if (!fd) return
 
@@ -196,7 +233,7 @@ export default function TaliScreen() {
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>{t.tali.headerTitle}</Text>
-            <Text style={styles.headerSub}>{t.tali.headerSubtitle}</Text>
+            <Text style={styles.headerSub}>{session?.boatName ?? boatName ?? t.tali.headerSubtitle}</Text>
           </View>
           <View style={{ width: 40 }} />
         </View>
@@ -289,7 +326,7 @@ export default function TaliScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>{t.tali.headerTitle}</Text>
-          <Text style={styles.headerSub}>{t.tali.headerSubtitle}</Text>
+          <Text style={styles.headerSub}>{session.boatName ?? t.tali.headerSubtitle}</Text>
         </View>
         <TouchableOpacity onPress={handleEndSession} style={styles.endBtn}>
           <Text style={styles.endBtnText}>{t.tali.endSession}</Text>
@@ -432,7 +469,7 @@ export default function TaliScreen() {
         />
       )}
 
-      {/* Delete Fish Sheet — beautiful bottom sheet, replaces ugly Alert */}
+      {/* Delete Fish Sheet */}
       {deletingFish && (
         <DeleteFishSheet
           visible={true}

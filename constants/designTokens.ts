@@ -1,6 +1,8 @@
+import { Platform } from 'react-native'
+
 /**
  * ══════════════════════════════════════════════════════════════
- * MATSYAKOSH — DESIGN TOKENS v1.0
+ * MATSYAKOSH — DESIGN TOKENS v1.1
  * Professional Design System for Fisherman-First Engagement
  * ══════════════════════════════════════════════════════════════
  */
@@ -16,77 +18,70 @@ export const darkColors = {
   bgOverlay: '#080F1A99',     // 60% opacity overlay
 
   // Primary Brand Colors
-  primary: '#00C2CB',         // Primary teal (Accessible for all text sizes)
+  primary: '#00C2CB',         // Primary teal
   primaryLight: '#1FD7E0',    // Hover state
   primaryDark: '#0A8A93',     // Active/pressed state
   primaryMuted: '#00C2CB1A',  // 10% opacity for backgrounds
 
   // Secondary Accent (Gold)
-  gold: '#C9A84C',            // Premium, warm accent
-  goldLight: '#D9B86A',       // Hover state
-  goldDark: '#A0721A',        // Active state
-  goldMuted: '#C9A84C0F',     // 6% opacity backgrounds
+  gold: '#C9A84C',
+  goldLight: '#D9B86A',
+  goldDark: '#A0721A',
+  goldMuted: '#C9A84C0F',
 
-  // Status Colors — Must meet WCAG AA for all uses
-  success: '#22C55E',         // Green — Success/complete (Contrast: 11:1 with bg)
-  warning: '#F59E0B',         // Amber — Warning (Contrast: 5.5:1 with bg)
-  danger: '#EF4444',          // Red — Errors/destructive (Contrast: 4.5:1 with bg)
+  // Status Colors
+  success: '#22C55E',
+  warning: '#F59E0B',
+  danger: '#EF4444',
 
   // Text Hierarchy
-  textPrimary: '#F0F4F8',     // Main text (Contrast: 19.5:1 with bgBase)
-  textSecondary: '#8BA3BC',   // Secondary/labels (Contrast: 7.8:1 with bgBase)
-  textMuted: '#3D5A73',       // Disabled/tertiary (Contrast: 3.5:1 with bgBase)
-  textInverse: '#080F1A',     // For light backgrounds
+  textPrimary: '#F0F4F8',
+  textSecondary: '#8BA3BC',
+  textMuted: '#3D5A73',
+  textInverse: '#080F1A',
 
   // Borders & Dividers
-  border: 'rgba(0, 194, 203, 0.1)',      // Primary teal border
-  borderStrong: 'rgba(0, 194, 203, 0.2)', // Stronger border
-  divider: 'rgba(139, 163, 188, 0.08)',   // Subtle divider
+  border: 'rgba(0, 194, 203, 0.1)',
+  borderStrong: 'rgba(0, 194, 203, 0.2)',
+  divider: 'rgba(139, 163, 188, 0.08)',
 
   // Special States
-  disabled: 'rgba(61, 90, 115, 0.5)',    // Disabled elements
-  focus: 'rgba(0, 194, 203, 0.3)',       // Focus ring
+  disabled: 'rgba(61, 90, 115, 0.5)',
+  focus: 'rgba(0, 194, 203, 0.3)',
 } as const
 
 // ─────────────────────────────────────────────────────────────
 // COLOR PALETTE — LIGHT MODE (Secondary)
 // ─────────────────────────────────────────────────────────────
 export const lightColors = {
-  // Backgrounds
-  bgBase: '#F5F8FB',          // Light background
-  bgSurface: '#FFFFFF',       // Cards/surfaces
-  bgElevated: '#EAF1F8',      // Elevated backgrounds
-  bgOverlay: '#F5F8FBCC',     // 80% opacity overlay
+  bgBase: '#F5F8FB',
+  bgSurface: '#FFFFFF',
+  bgElevated: '#EAF1F8',
+  bgOverlay: '#F5F8FBCC',
 
-  // Primary Brand
-  primary: '#006D77',         // Dark teal
-  primaryLight: '#00A3B8',    // Hover
-  primaryDark: '#004D57',     // Active
-  primaryMuted: '#006D770D',  // 5% opacity
+  primary: '#006D77',
+  primaryLight: '#00A3B8',
+  primaryDark: '#004D57',
+  primaryMuted: '#006D770D',
 
-  // Secondary
-  gold: '#A0721A',            // Dark gold
-  goldLight: '#B8892E',       // Hover
-  goldDark: '#7A5A00',        // Active
-  goldMuted: '#A0721A0F',     // 6% opacity
+  gold: '#A0721A',
+  goldLight: '#B8892E',
+  goldDark: '#7A5A00',
+  goldMuted: '#A0721A0F',
 
-  // Status
-  success: '#16A34A',         // Dark green
-  warning: '#D97706',         // Dark amber
-  danger: '#DC2626',          // Dark red
+  success: '#16A34A',
+  warning: '#D97706',
+  danger: '#DC2626',
 
-  // Text
-  textPrimary: '#0D1B2E',     // Main text
-  textSecondary: '#4A6580',   // Secondary
-  textMuted: '#9DB5C8',       // Tertiary
-  textInverse: '#F0F4F8',     // For dark backgrounds
+  textPrimary: '#0D1B2E',
+  textSecondary: '#4A6580',
+  textMuted: '#9DB5C8',
+  textInverse: '#F0F4F8',
 
-  // Borders
   border: 'rgba(0, 109, 119, 0.12)',
   borderStrong: 'rgba(0, 109, 119, 0.2)',
   divider: 'rgba(74, 101, 128, 0.08)',
 
-  // Special
   disabled: 'rgba(157, 181, 200, 0.5)',
   focus: 'rgba(0, 109, 119, 0.2)',
 } as const
@@ -95,199 +90,194 @@ export const lightColors = {
 // TYPOGRAPHY SYSTEM
 // ─────────────────────────────────────────────────────────────
 export const typography = {
-  fontFamily: {
-    display: 'Cormorant Garamond',     // Headlines, hero text
-    body: 'DM Sans',                   // Body, UI, default
-    mono: 'DM Mono',                   // Code, numbers
-  },
-
-  // Font Scale (px) — Cormorant Garamond for display (serif)
-  // DM Sans for body content (optimized for fishing scenario)
   fontSize: {
-    xs: 10,      // Micro labels, captions
-    sm: 12,      // Small text, helper text
-    md: 14,      // Body text, default
-    lg: 16,      // Prominent text, labels
-    xl: 20,      // Subheadings
-    xxl: 28,     // Section headings
-    xxxl: 36,    // Page titles
-    huge: 48,    // Display/hero
-    giant: 64,   // Maximum display
+    xs:   10,
+    sm:   12,
+    md:   14,
+    lg:   16,
+    xl:   18,
+    '2xl': 20,
+    '3xl': 24,
+    '4xl': 28,
+    '5xl': 32,
+    '6xl': 36,
   },
-
   lineHeight: {
-    tight: 1.2,  // Headlines
-    normal: 1.5, // Body
-    relax: 1.75, // Long-form
+    tight:   1.2,
+    normal:  1.5,
+    relaxed: 1.75,
   },
-
   fontWeight: {
-    light: 300,
-    regular: 400,
-    medium: 500,
-    semibold: 600,
-    bold: 700,
-    extrabold: 800,
+    normal:    '400' as const,
+    medium:    '500' as const,
+    semibold:  '600' as const,
+    bold:      '700' as const,
+    extrabold: '800' as const,
+    black:     '900' as const,
   },
-} as const
+  fontFamily: {
+    sans:  undefined, // System default
+    mono:  'Courier New',
+  },
+}
 
 // ─────────────────────────────────────────────────────────────
-// SPACING SYSTEM (8pt Grid)
+// SPACING — 8pt Grid
 // ─────────────────────────────────────────────────────────────
 export const spacing = {
-  0: 0,
-  1: 4,      // sp-1 — Icon gap, micro spacing
-  2: 8,      // sp-2 — Text gap, list item gap
-  3: 12,     // sp-3 — Card inner padding (compact)
-  4: 16,     // sp-4 — Card inner padding (base unit)
-  6: 24,     // sp-6 — Page horizontal padding
-  8: 32,     // sp-8 — Section breaks
-  12: 48,    // sp-12 — Major section breaks
-  16: 64,    // sp-16 — Page margins
+  0:   0,
+  1:   4,
+  2:   8,
+  3:   12,
+  4:   16,
+  5:   20,
+  6:   24,
+  7:   28,
+  8:   32,
+  10:  40,
+  12:  48,
+  16:  64,
+  // Named aliases
+  xs:  4,
+  sm:  8,
+  md:  16,
+  lg:  24,
+  xl:  32,
 } as const
 
 // ─────────────────────────────────────────────────────────────
-// BORDER RADIUS — Accessible Touch Targets
+// BORDER RADIUS
 // ─────────────────────────────────────────────────────────────
 export const borderRadius = {
-  none: 0,
-  sm: 8,      // Subtle rounding
-  md: 12,     // Default, cards
-  lg: 16,     // Large components
-  xl: 20,     // Prominent elements
-  pill: 999,  // Fully rounded
-  circle: 999, // Perfect circle
+  none:   0,
+  xs:     4,
+  sm:     8,
+  md:     12,
+  lg:     16,
+  xl:     20,
+  pill:   999,
+  circle: 999,
 } as const
 
 // ─────────────────────────────────────────────────────────────
-// SHADOWS — Elevation System (Material Design inspired)
+// SHADOWS — Cross-platform (iOS/Android + Web)
+//
+// On web (Expo SDK 53+), React Native deprecated shadow* props
+// in favour of boxShadow (CSS string). This helper returns the
+// right shape for the current platform so there are zero warnings.
 // ─────────────────────────────────────────────────────────────
+function makeShadow(
+  elevation: number,
+  color: string,
+  offsetY: number,
+  opacity: number,
+  radius: number,
+) {
+  if (Platform.OS === 'web') {
+    // CSS boxShadow string — no deprecated warnings on web
+    const hex = color === '#000000' ? '0,0,0' : '0,0,0'
+    return {
+      boxShadow: `0px ${offsetY}px ${radius}px rgba(${hex}, ${opacity})`,
+    }
+  }
+  // Native (iOS elevation handled by shadowColor/Offset/Opacity/Radius; Android by elevation)
+  return {
+    elevation,
+    shadowColor: color,
+    shadowOffset: { width: 0, height: offsetY },
+    shadowOpacity: opacity,
+    shadowRadius: radius,
+  }
+}
+
 export const shadows = {
-  none: {
-    elevation: 0,
-    shadowColor: 'transparent',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0,
-    shadowRadius: 0,
-  },
-  sm: {
-    elevation: 1,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-  },
-  md: {
-    elevation: 2,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-  },
-  lg: {
-    elevation: 4,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-  },
-  xl: {
-    elevation: 8,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-  },
+  none: Platform.OS === 'web'
+    ? { boxShadow: 'none' }
+    : { elevation: 0, shadowColor: 'transparent', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0 },
+
+  sm:  makeShadow(1,  '#000000', 1,  0.08, 2),
+  md:  makeShadow(2,  '#000000', 2,  0.12, 4),
+  lg:  makeShadow(4,  '#000000', 4,  0.15, 8),
+  xl:  makeShadow(8,  '#000000', 8,  0.20, 16),
 } as const
 
 // ─────────────────────────────────────────────────────────────
-// ACCESSIBILITY — Touch Targets & Interactive Areas
+// TEAL GLOW — used on primary CTA buttons
+// A coloured shadow that matches the brand
+// ─────────────────────────────────────────────────────────────
+export const tealGlow = Platform.OS === 'web'
+  ? { boxShadow: '0px 8px 20px rgba(0, 194, 203, 0.4)' }
+  : {
+      elevation: 10,
+      shadowColor: '#00C2CB',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.4,
+      shadowRadius: 20,
+    }
+
+export const tealGlowOff = Platform.OS === 'web'
+  ? { boxShadow: 'none' }
+  : { elevation: 0, shadowOpacity: 0 }
+
+// ─────────────────────────────────────────────────────────────
+// ACCESSIBILITY
 // ─────────────────────────────────────────────────────────────
 export const accessibility = {
-  // Minimum touch target: 48x48dp (per WCAG, Material Design)
-  // Fishermen environment: 64x64dp (wet/rough hands)
-  touchTargetMin: 48,
-  touchTargetPreferred: 64,  // Used for main buttons, tappable areas
-
-  // Focus indicator width
-  focusRing: 2,
-
-  // Minimum color contrast ratios (WCAG)
-  contrastMinimum: 4.5,      // AA level
-  contrastEnhanced: 7,       // AAA level
+  touchTargetMin:       48,
+  touchTargetPreferred: 64,
+  focusRing:            2,
+  contrastMinimum:      4.5,
+  contrastEnhanced:     7,
 } as const
 
 // ─────────────────────────────────────────────────────────────
-// COMPONENT-SPECIFIC TOKEN PRESETS
-// ─────────────────────────────────────────────────────────────
-export const componentTokens = {
-  button: {
-    height: {
-      sm: 40,
-      md: 48,
-      lg: 56,
-    },
-    padding: {
-      sm: { horizontal: 12, vertical: 8 },
-      md: { horizontal: 16, vertical: 12 },
-      lg: { horizontal: 20, vertical: 14 },
-    },
-  },
-  card: {
-    padding: spacing[4],
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-  },
-  badge: {
-    padding: { horizontal: 8, vertical: 4 },
-    borderRadius: borderRadius.pill,
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  input: {
-    height: 48,
-    borderRadius: borderRadius.md,
-    padding: spacing[3],
-    fontSize: typography.fontSize.md,
-  },
-  modal: {
-    borderRadiusTop: borderRadius.xl,
-    padding: spacing[6],
-  },
-} as const
-
-// ─────────────────────────────────────────────────────────────
-// TRANSITIONS & ANIMATIONS
+// MOTION / ANIMATION
 // ─────────────────────────────────────────────────────────────
 export const motion = {
-  duration: {
-    fast: 150,      // Very quick interactions
-    normal: 250,    // Standard animations
-    slow: 350,      // Deliberate animations
-    verySlow: 500,  // Attention-grabbing
+  fast:   150,
+  normal: 250,
+  slow:   400,
+  spring: { damping: 15, stiffness: 150 },
+} as const
+
+// ─────────────────────────────────────────────────────────────
+// COMPONENT TOKENS
+// ─────────────────────────────────────────────────────────────
+export const componentTokens = {
+  input: {
+    height:        56,
+    borderRadius:  12,
+    paddingH:      16,
+    fontSize:      16,
   },
-  easing: {
-    linear: 'linear',
-    easeIn: 'ease-in',
-    easeOut: 'ease-out',
-    easeInOut: 'ease-in-out',
+  card: {
+    borderRadius:  16,
+    padding:       16,
+    borderWidth:   1,
+  },
+  button: {
+    heightSm:  40,
+    heightMd:  56,
+    heightLg:  64,
+    borderRadius: 12,
+  },
+  bottomNav: {
+    height:      64,
+    paddingBottom: 8,
   },
 } as const
 
 // ─────────────────────────────────────────────────────────────
-// EXPORTED DESIGN TOKEN SET
+// DESIGN TOKENS EXPORT
 // ─────────────────────────────────────────────────────────────
 export const designTokens = {
-  dark: darkColors,
-  light: lightColors,
   typography,
   spacing,
   borderRadius,
   shadows,
+  tealGlow,
+  tealGlowOff,
   accessibility,
-  componentTokens,
   motion,
-} as const
-
-export type DesignTokens = typeof designTokens
-export type ColorMode = 'dark' | 'light'
+  componentTokens,
+}

@@ -1,24 +1,21 @@
 /**
  * Setup Wizard — Step 1: Role Selection
  * Route: app/(setup)/role.tsx
- *
- * Replaces the old flat role picker in (auth)/role.tsx.
- * This is the entry point of the post-OTP setup wizard.
- * Collects the user's primary identity — Owner, Manager, or Both.
  */
 
 import { router } from 'expo-router'
 import React, { useState } from 'react'
 import {
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../constants/theme'
+import { coloredShadow, noShadow } from '../../utils/shadow'
 
 type RoleChoice = 'owner' | 'manager' | 'both'
 
@@ -64,7 +61,6 @@ export default function SetupRoleScreen() {
     if (selected === 'manager') {
       router.push('/(setup)/manager-connect')
     } else {
-      // owner or both → go to owner type
       router.push('/(setup)/owner-type')
     }
   }
@@ -79,16 +75,12 @@ export default function SetupRoleScreen() {
         <View style={s.bgCircle2} />
 
         <SafeAreaView style={s.safe}>
-          {/* Progress bar */}
           <View style={s.progressTrack}>
             <View style={[s.progressFill, { width: '20%' }]} />
           </View>
 
-          <ScrollView
-            contentContainerStyle={s.scroll}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Header */}
+          <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+
             <View style={s.header}>
               <View style={s.stepBadge}>
                 <Text style={s.stepText}>STEP 1 OF 5</Text>
@@ -99,7 +91,6 @@ export default function SetupRoleScreen() {
               </Text>
             </View>
 
-            {/* Role cards */}
             <View style={s.cardList}>
               {ROLES.map((role) => {
                 const isSelected = selected === role.id
@@ -108,79 +99,54 @@ export default function SetupRoleScreen() {
                     key={role.id}
                     style={[
                       s.roleCard,
-                      isSelected && {
-                        borderColor: role.accent,
-                        backgroundColor: role.accentMuted,
-                      },
+                      isSelected && { borderColor: role.accent, backgroundColor: role.accentMuted },
                     ]}
                     onPress={() => setSelected(role.id)}
                     activeOpacity={0.8}
                   >
-                    <View
-                      style={[
-                        s.emojiBox,
-                        isSelected && { backgroundColor: role.accent },
-                      ]}
-                    >
+                    <View style={[s.emojiBox, isSelected && { backgroundColor: role.accent }]}>
                       <Text style={s.emoji}>{role.emoji}</Text>
                     </View>
-
                     <View style={s.roleText}>
-                      <Text
-                        style={[
-                          s.roleTitle,
-                          isSelected && { color: '#fff' },
-                        ]}
-                      >
-                        {role.title}
-                      </Text>
+                      <Text style={[s.roleTitle, isSelected && { color: '#fff' }]}>{role.title}</Text>
                       <Text style={s.roleSub}>{role.subtitle}</Text>
                     </View>
-
-                    <View
-                      style={[
-                        s.radio,
-                        isSelected && {
-                          borderColor: role.accent,
-                        },
-                      ]}
-                    >
-                      {isSelected && (
-                        <View
-                          style={[s.radioDot, { backgroundColor: role.accent }]}
-                        />
-                      )}
+                    <View style={[s.radio, isSelected && { borderColor: role.accent }]}>
+                      {isSelected && <View style={[s.radioDot, { backgroundColor: role.accent }]} />}
                     </View>
                   </TouchableOpacity>
                 )
               })}
             </View>
 
-            {/* Info note */}
             <View style={s.infoBox}>
               <Text style={s.infoIcon}>💡</Text>
               <Text style={s.infoText}>
-                Your role determines your dashboard. You can always add more
-                contexts later from Settings.
+                Your role determines your dashboard. You can always add more contexts later from Settings.
               </Text>
             </View>
 
-            {/* CTA */}
+            {/* CTA — shadow applied inline, NOT in StyleSheet */}
             <TouchableOpacity
-              style={[s.ctaBtn, !selected && s.ctaBtnDisabled]}
+              style={[
+                s.ctaBtn,
+                selected
+                  ? coloredShadow(selectedRole?.accent ?? theme.colors.primary, 8, 0.4, 20)
+                  : noShadow,
+              ]}
               onPress={handleContinue}
               disabled={!selected}
               activeOpacity={0.85}
             >
-              <View
-                style={[
-                  s.ctaInner,
-                  !selected && s.ctaInnerDisabled,
-                  selected && { backgroundColor: selectedRole?.accent },
-                ]}
-              >
+              <View style={[
+                s.ctaInner,
+                !selected && s.ctaInnerDisabled,
+                selected && { backgroundColor: selectedRole?.accent },
+              ]}>
                 <Text style={s.ctaText}>
-                  {selected ? `Continue as ${selectedRole?.title.split('—')[0].trim()} →` : 'Select your role'}
+                  {selected
+                    ? `Continue as ${selectedRole?.title.split('—')[0].trim()} →`
+                    : 'Select your role'}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -196,156 +162,67 @@ export default function SetupRoleScreen() {
 const s = StyleSheet.create({
   bg: { flex: 1, backgroundColor: '#0a1628' },
   bgCircle1: {
-    position: 'absolute',
-    top: -80,
-    right: -80,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
+    position: 'absolute', top: -80, right: -80,
+    width: 260, height: 260, borderRadius: 130,
     backgroundColor: 'rgba(0,194,203,0.07)',
   },
   bgCircle2: {
-    position: 'absolute',
-    bottom: 80,
-    left: -60,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
+    position: 'absolute', bottom: 80, left: -60,
+    width: 180, height: 180, borderRadius: 90,
     backgroundColor: 'rgba(0,194,203,0.04)',
   },
   safe: { flex: 1 },
-  progressTrack: {
-    height: 3,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    marginHorizontal: 0,
-  },
-  progressFill: {
-    height: 3,
-    backgroundColor: theme.colors.primaryLight,
-    borderRadius: 2,
-  },
+  progressTrack: { height: 3, backgroundColor: 'rgba(255,255,255,0.08)' },
+  progressFill: { height: 3, backgroundColor: theme.colors.primaryLight, borderRadius: 2 },
   scroll: { paddingHorizontal: 24, paddingTop: 28, gap: 24 },
-
   header: { gap: 10 },
   stepBadge: {
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(0,194,203,0.12)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(0,194,203,0.25)',
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: 1, borderColor: 'rgba(0,194,203,0.25)',
   },
-  stepText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: theme.colors.primaryLight,
-    letterSpacing: 2,
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -0.5,
-    lineHeight: 40,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
-    lineHeight: 21,
-  },
-
+  stepText: { fontSize: 11, fontWeight: '700', color: theme.colors.primaryLight, letterSpacing: 2 },
+  title: { fontSize: 34, fontWeight: '800', color: '#fff', letterSpacing: -0.5, lineHeight: 40 },
+  subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.4)', lineHeight: 21 },
   cardList: { gap: 12 },
   roleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 18,
-    borderWidth: 1.5,
+    borderRadius: 18, borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.08)',
-    padding: 16,
-    minHeight: 84,
+    padding: 16, minHeight: 84,
   },
   emojiBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
+    width: 52, height: 52, borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.07)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   emoji: { fontSize: 26 },
   roleText: { flex: 1, gap: 4 },
-  roleTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.85)',
-    lineHeight: 20,
-  },
-  roleSub: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.3)',
-    lineHeight: 17,
-  },
+  roleTitle: { fontSize: 15, fontWeight: '700', color: 'rgba(255,255,255,0.85)', lineHeight: 20 },
+  roleSub: { fontSize: 12, color: 'rgba(255,255,255,0.3)', lineHeight: 17 },
   radio: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    width: 24, height: 24, borderRadius: 12,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  radioDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-
+  radioDot: { width: 10, height: 10, borderRadius: 5 },
   infoBox: {
-    flexDirection: 'row',
-    gap: 10,
+    flexDirection: 'row', gap: 10,
     backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: 14,
-    borderWidth: 1,
+    borderRadius: 14, borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.07)',
-    padding: 14,
-    alignItems: 'flex-start',
+    padding: 14, alignItems: 'flex-start',
   },
   infoIcon: { fontSize: 16, lineHeight: 20 },
-  infoText: {
-    flex: 1,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.35)',
-    lineHeight: 18,
-  },
-
-  ctaBtn: {
-    borderRadius: 16,
-    shadowColor: '#00C2CB',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  ctaBtnDisabled: { shadowOpacity: 0, elevation: 0 },
+  infoText: { flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.35)', lineHeight: 18 },
+  // ⚠️ shadow* props removed — applied inline via coloredShadow() / noShadow
+  ctaBtn: { borderRadius: 16 },
   ctaInner: {
-    height: 64,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 64, backgroundColor: theme.colors.primary,
+    borderRadius: 16, alignItems: 'center', justifyContent: 'center',
   },
-  ctaInnerDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  ctaText: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: 0.2,
-  },
+  ctaInnerDisabled: { backgroundColor: 'rgba(255,255,255,0.05)' },
+  ctaText: { fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
 })

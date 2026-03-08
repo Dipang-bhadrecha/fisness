@@ -11,13 +11,14 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Language } from '../../constants/i18n'
 import { theme } from '../../constants/theme'
 import { useLanguage } from '../../hooks/useLanguage'
+import { coloredShadow, noShadow } from '../../utils/shadow'
 
 type LangOption = {
   id: Language
   emoji: string
-  name: string          // name in that language
-  nameOther: string     // name in the other language
-  sample: string        // a sample sentence to preview the language
+  name: string
+  nameOther: string
+  sample: string
 }
 
 const LANG_OPTIONS: LangOption[] = [
@@ -46,7 +47,6 @@ export default function LanguageScreen() {
     if (saving) return
     setSaving(true)
     await setLanguage(selected)
-    // ✅ CHANGED: routes to setup wizard instead of old flat role picker
     router.replace('/(setup)/role')
   }
 
@@ -54,7 +54,6 @@ export default function LanguageScreen() {
     <>
       <StatusBar barStyle="light-content" backgroundColor="#0a1628" />
       <View style={styles.bg}>
-        {/* Decorative circles */}
         <View style={styles.bgCircle1} />
         <View style={styles.bgCircle2} />
 
@@ -72,7 +71,6 @@ export default function LanguageScreen() {
 
             {/* Middle — language cards */}
             <View style={styles.middle}>
-              {/* Bilingual heading */}
               <View style={styles.headingBlock}>
                 <Text style={styles.headingEN}>Choose Language</Text>
                 <Text style={styles.headingGU}>ભાષા પસંદ કરો</Text>
@@ -83,7 +81,6 @@ export default function LanguageScreen() {
                 </Text>
               </View>
 
-              {/* Language options */}
               <View style={styles.langList}>
                 {LANG_OPTIONS.map((opt) => {
                   const isSelected = selected === opt.id
@@ -97,7 +94,6 @@ export default function LanguageScreen() {
                       onPress={() => setSelected(opt.id)}
                       activeOpacity={0.8}
                     >
-                      {/* Left: flag + names */}
                       <View style={styles.langCardLeft}>
                         <View style={[
                           styles.flagBox,
@@ -113,7 +109,6 @@ export default function LanguageScreen() {
                             {opt.name}
                           </Text>
                           <Text style={styles.langNameOther}>{opt.nameOther}</Text>
-                          {/* Sample text preview */}
                           <Text style={[
                             styles.langSample,
                             isSelected && styles.langSampleSelected,
@@ -123,7 +118,6 @@ export default function LanguageScreen() {
                         </View>
                       </View>
 
-                      {/* Right: radio indicator */}
                       <View style={[
                         styles.radio,
                         isSelected && styles.radioSelected,
@@ -139,7 +133,10 @@ export default function LanguageScreen() {
             {/* Bottom — continue button */}
             <View style={styles.bottom}>
               <TouchableOpacity
-                style={[styles.ctaBtn, saving && styles.ctaBtnDisabled]}
+                style={[
+                  styles.ctaBtn,
+                  saving ? noShadow : coloredShadow('#0d7a5f', 8, 0.5, 20),
+                ]}
                 onPress={handleContinue}
                 activeOpacity={0.85}
                 disabled={saving}
@@ -155,7 +152,6 @@ export default function LanguageScreen() {
                 </View>
               </TouchableOpacity>
 
-              {/* Bilingual hint */}
               <Text style={styles.hintText}>
                 {selected === 'gu'
                   ? 'ભાષા પાછળથી Settings > Language માં બદલી શકાય'
@@ -173,200 +169,90 @@ export default function LanguageScreen() {
 const styles = StyleSheet.create({
   bg: { flex: 1, backgroundColor: '#0a1628' },
   bgCircle1: {
-    position: 'absolute',
-    top: -80,
-    right: -80,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
+    position: 'absolute', top: -80, right: -80,
+    width: 280, height: 280, borderRadius: 140,
     backgroundColor: 'rgba(13,122,95,0.1)',
   },
   bgCircle2: {
-    position: 'absolute',
-    bottom: 100,
-    left: -60,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    position: 'absolute', bottom: 100, left: -60,
+    width: 200, height: 200, borderRadius: 100,
     backgroundColor: 'rgba(13,122,95,0.06)',
   },
   safe: { flex: 1 },
   container: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingBottom: 32,
+    flex: 1, paddingHorizontal: 24, paddingBottom: 32,
     justifyContent: 'space-between',
   },
-
-  // Logo
-  logoSection: {
-    alignItems: 'center',
-    paddingTop: 40,
-    paddingBottom: 8,
-  },
+  logoSection: { alignItems: 'center', paddingTop: 40, paddingBottom: 8 },
   glowRing: {
-    position: 'absolute',
-    top: 28,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    position: 'absolute', top: 28,
+    width: 120, height: 120, borderRadius: 60,
     backgroundColor: 'rgba(13,122,95,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
   glowInner: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 80, height: 80, borderRadius: 40,
     backgroundColor: 'rgba(13,122,95,0.1)',
   },
   fishEmoji: { fontSize: 52, marginBottom: 10 },
-  appName: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -0.3,
-  },
-
-  // Middle
+  appName: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
   middle: { flex: 1, justifyContent: 'center', gap: 28 },
-
   headingBlock: { alignItems: 'center', gap: 4 },
-  headingEN: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -0.3,
-  },
-  headingGU: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.55)',
-  },
+  headingEN: { fontSize: 28, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
+  headingGU: { fontSize: 22, fontWeight: '700', color: 'rgba(255,255,255,0.55)' },
   headingSub: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.3)',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginTop: 8,
+    fontSize: 12, color: 'rgba(255,255,255,0.3)',
+    textAlign: 'center', lineHeight: 20, marginTop: 8,
   },
-
-  // Language list
   langList: { gap: 12 },
-
   langCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 20,
-    borderWidth: 1.5,
+    borderRadius: 20, borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.08)',
-    padding: 18,
-    minHeight: 90,
+    padding: 18, minHeight: 90,
   },
   langCardSelected: {
     backgroundColor: 'rgba(13,122,95,0.14)',
     borderColor: theme.colors.primary,
   },
-
-  langCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    flex: 1,
-  },
+  langCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
   flagBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+    width: 56, height: 56, borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
-  flagBoxSelected: {
-    backgroundColor: 'rgba(13,122,95,0.25)',
-  },
+  flagBoxSelected: { backgroundColor: 'rgba(13,122,95,0.25)' },
   flagEmoji: { fontSize: 28 },
-
   langNames: { flex: 1, gap: 2 },
-  langName: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -0.2,
-  },
+  langName: { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.2 },
   langNameSelected: { color: theme.colors.primaryLight },
-  langNameOther: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
-    fontWeight: '500',
-  },
-  langSample: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.25)',
-    marginTop: 4,
-    letterSpacing: 0.3,
-  },
-  langSampleSelected: {
-    color: 'rgba(15,155,120,0.7)',
-  },
-
-  // Radio
+  langNameOther: { fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: '500' },
+  langSample: { fontSize: 11, color: 'rgba(255,255,255,0.25)', marginTop: 4, letterSpacing: 0.3 },
+  langSampleSelected: { color: 'rgba(15,155,120,0.7)' },
   radio: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 26, height: 26, borderRadius: 13,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  radioSelected: {
-    borderColor: theme.colors.primary,
-  },
-  radioDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: theme.colors.primary,
-  },
-
-  // Bottom
+  radioSelected: { borderColor: theme.colors.primary },
+  radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: theme.colors.primary },
   bottom: { gap: 14 },
-
-  ctaBtn: {
-    borderRadius: 16,
-    shadowColor: '#0d7a5f',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  ctaBtnDisabled: { shadowOpacity: 0, elevation: 0 },
+  // ⚠️  shadow* props removed — applied inline via coloredShadow() helper
+  ctaBtn: { borderRadius: 16 },
   ctaBtnInner: {
-    height: 68,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.primaryLight,
+    height: 68, backgroundColor: theme.colors.primary,
+    borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: theme.colors.primaryLight,
   },
   ctaBtnInnerDisabled: {
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderColor: 'rgba(255,255,255,0.08)',
   },
-  ctaBtnText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: 0.3,
-  },
+  ctaBtnText: { fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
   hintText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.25)',
-    textAlign: 'center',
-    lineHeight: 18,
+    fontSize: 12, color: 'rgba(255,255,255,0.25)',
+    textAlign: 'center', lineHeight: 18,
   },
 })

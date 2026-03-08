@@ -4,6 +4,7 @@ import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../constants/theme'
 import { useLanguage } from '../../hooks/useLanguage'
+import { coloredShadow, noShadow } from '../../utils/shadow'
 
 const ROLE_IDS = ['boat_owner', 'boat_manager', 'supplier', 'mehtaji'] as const
 type RoleId = typeof ROLE_IDS[number]
@@ -53,7 +54,12 @@ export default function RoleScreen() {
               {ROLE_IDS.map((id) => {
                 const isSelected = selected === id
                 return (
-                  <TouchableOpacity key={id} style={[s.roleCard, isSelected && s.roleCardSelected]} onPress={() => setSelected(id)} activeOpacity={0.8}>
+                  <TouchableOpacity
+                    key={id}
+                    style={[s.roleCard, isSelected && s.roleCardSelected]}
+                    onPress={() => setSelected(id)}
+                    activeOpacity={0.8}
+                  >
                     <View style={[s.roleIconBox, isSelected && s.roleIconBoxSelected]}>
                       <Text style={s.roleEmoji}>{ROLE_EMOJIS[id]}</Text>
                     </View>
@@ -69,7 +75,15 @@ export default function RoleScreen() {
               })}
             </View>
 
-            <TouchableOpacity style={[s.ctaBtn, !selected && s.ctaBtnDisabled]} onPress={handleContinue} activeOpacity={0.85} disabled={!selected}>
+            <TouchableOpacity
+              style={[
+                s.ctaBtn,
+                selected ? coloredShadow('#0d7a5f', 8, 0.5, 20) : noShadow,
+              ]}
+              onPress={handleContinue}
+              disabled={!selected}
+              activeOpacity={0.85}
+            >
               <View style={[s.ctaBtnInner, !selected && s.ctaBtnInnerDisabled]}>
                 <Text style={[s.ctaBtnText, !selected && s.ctaBtnTextMuted]}>
                   {selected
@@ -89,7 +103,11 @@ export default function RoleScreen() {
 
 const s = StyleSheet.create({
   bg: { flex: 1, backgroundColor: '#0a1628' },
-  bgCircle1: { position: 'absolute', top: -60, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(13,122,95,0.1)' },
+  bgCircle1: {
+    position: 'absolute', top: -60, right: -60,
+    width: 240, height: 240, borderRadius: 120,
+    backgroundColor: 'rgba(13,122,95,0.1)',
+  },
   safe: { flex: 1 },
   scroll: { padding: 24, gap: 24 },
   header: { gap: 8, paddingTop: 16 },
@@ -97,22 +115,43 @@ const s = StyleSheet.create({
   headerTitle: { fontSize: 36, fontWeight: '800', color: '#fff', letterSpacing: -0.5, lineHeight: 42 },
   headerSub: { fontSize: 14, color: 'rgba(255,255,255,0.4)', lineHeight: 22, marginTop: 4 },
   roleList: { gap: 10 },
-  roleCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 20, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.08)', padding: 16, minHeight: 80 },
+  roleCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 20, borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 16, minHeight: 80,
+  },
   roleCardSelected: { backgroundColor: 'rgba(13,122,95,0.12)', borderColor: theme.colors.primary },
-  roleIconBox: { width: 52, height: 52, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
+  roleIconBox: {
+    width: 52, height: 52, borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   roleIconBoxSelected: { backgroundColor: theme.colors.primary },
   roleEmoji: { fontSize: 26 },
   roleText: { flex: 1, gap: 4 },
   roleTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
   roleTitleSelected: { color: theme.colors.primaryLight },
   roleSub: { fontSize: 12, color: 'rgba(255,255,255,0.35)' },
-  roleArrow: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
+  roleArrow: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   roleArrowSelected: { backgroundColor: theme.colors.primary },
   roleArrowText: { fontSize: 18, color: '#fff', fontWeight: '700' },
-  ctaBtn: { borderRadius: 16, shadowColor: '#0d7a5f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 20, elevation: 10, marginTop: 8 },
-  ctaBtnDisabled: { shadowOpacity: 0, elevation: 0 },
-  ctaBtnInner: { height: 68, backgroundColor: theme.colors.primary, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.primaryLight },
-  ctaBtnInnerDisabled: { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)' },
+  // ⚠️ shadow* props removed — applied inline via coloredShadow() / noShadow
+  ctaBtn: { borderRadius: 16, marginTop: 8 },
+  ctaBtnInner: {
+    height: 68, backgroundColor: theme.colors.primary,
+    borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: theme.colors.primaryLight,
+  },
+  ctaBtnInnerDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
   ctaBtnText: { fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
   ctaBtnTextMuted: { color: 'rgba(255,255,255,0.2)' },
 })
