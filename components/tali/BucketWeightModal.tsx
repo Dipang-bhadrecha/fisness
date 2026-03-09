@@ -14,6 +14,7 @@ import Animated, {
     useSharedValue,
     withSpring,
 } from 'react-native-reanimated'
+import { theme } from '../../constants/theme'
 import { useLanguage } from '../../hooks/useLanguage'
 
 interface BucketWeightModalProps {
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#f5f0e8',
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -196,31 +197,31 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: '#ccc',
+    backgroundColor: theme.colors.borderStrong,
     borderRadius: 2,
   },
   fishName: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#1a1a1a',
+    color: theme.colors.textPrimary,
     textAlign: 'center',
   },
   fishGuj: {
     fontSize: 14,
-    color: '#888',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginTop: -8,
   },
   label: {
     fontSize: 13,
-    color: '#666',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   displayRow: {
     marginVertical: 4,
   },
   displayBox: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 20,
@@ -228,17 +229,17 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#e0d8cc',
+    borderColor: theme.colors.border,
     justifyContent: 'center',
   },
   displayNumber: {
     fontSize: 48,
     fontWeight: '800',
-    color: '#1a1a1a',
+    color: theme.colors.textPrimary,
   },
   displayUnit: {
     fontSize: 18,
-    color: '#888',
+    color: theme.colors.textSecondary,
     fontWeight: '600',
   },
   numpad: {
@@ -250,35 +251,35 @@ const styles = StyleSheet.create({
   },
   key: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#e8e0d0',
+    borderColor: theme.colors.border,
     minHeight: 60,
   },
   keyEnter: {
-    backgroundColor: '#1c1408',
-    borderColor: '#1c1408',
+    backgroundColor: theme.colors.primaryDark,
+    borderColor: theme.colors.primaryDark,
   },
   keyBackspace: {
-    backgroundColor: '#ede8df',
-    borderColor: '#ddd5c8',
+    backgroundColor: theme.colors.elevated,
+    borderColor: theme.colors.border,
   },
   keyText: {
     fontSize: 22,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: theme.colors.textPrimary,
   },
   keyTextEnter: {
-    color: '#fff',
+    color: theme.colors.textInverse,
     fontSize: 16,
     fontWeight: '700',
   },
   keyTextBackspace: {
-    color: '#555',
+    color: theme.colors.textSecondary,
     fontSize: 20,
   },
 })

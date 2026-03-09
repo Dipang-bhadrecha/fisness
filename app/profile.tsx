@@ -1,7 +1,9 @@
 import { router } from 'expo-router'
+import { reloadAsync } from 'expo-updates'
 import React from 'react'
 import {
     Alert,
+    DevSettings,
     ScrollView,
     StyleSheet,
     Text,
@@ -12,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../constants/theme'
 import { useLanguage } from '../hooks/useLanguage'
 import { useAuthStore } from '../store/authStore'
+import { useThemeStore } from '../store/themeStore'
 
 type SettingRowProps = {
   emoji: string
@@ -47,6 +50,7 @@ function SettingRow({ emoji, label, sub, value, onPress, danger, showArrow = tru
 export default function ProfileScreen() {
   const { language, setLanguage } = useLanguage()
   const { user, logout } = useAuthStore()
+  const { mode, setMode } = useThemeStore()
 
   const handleLogout = () => {
     Alert.alert(
@@ -68,6 +72,16 @@ export default function ProfileScreen() {
 
   const handleLanguageToggle = () => {
     setLanguage(language === 'en' ? 'gu' : 'en')
+  }
+
+  const handleThemeToggle = async () => {
+    const nextMode = mode === 'dark' ? 'light' : 'dark'
+    await setMode(nextMode)
+    try {
+      await reloadAsync()
+    } catch {
+      DevSettings.reload()
+    }
   }
 
   return (
@@ -144,6 +158,14 @@ export default function ProfileScreen() {
             sub="App display language"
             value={language === 'en' ? 'English' : 'ગુજરાતી'}
             onPress={handleLanguageToggle}
+          />
+          <View style={s.divider} />
+          <SettingRow
+            emoji={mode === 'dark' ? '🌙' : '☀️'}
+            label="Theme"
+            sub={`Tap to switch to ${mode === 'dark' ? 'Light' : 'Dark'}`}
+            value={mode === 'dark' ? 'Dark' : 'Light'}
+            onPress={handleThemeToggle}
           />
           <View style={s.divider} />
           <SettingRow
@@ -327,6 +349,9 @@ const s = StyleSheet.create({
     backgroundColor: theme.colors.elevated,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  rowEmoji: {
+    fontSize: 18,
   },
   rowIconDanger: {
     backgroundColor: 'rgba(239,68,68,0.12)',

@@ -177,7 +177,7 @@ export function AddFishModal({
                     value={search}
                     onChangeText={setSearch}
                     placeholder={t.tali.searchPlaceholder}
-                    placeholderTextColor="#aaa"
+                    placeholderTextColor={theme.colors.textDisabled}
                   />
 
                   {/* Fish Grid — only shows fish NOT yet added */}
@@ -213,7 +213,7 @@ export function AddFishModal({
                       value={customName}
                       onChangeText={setCustomName}
                       placeholder={`Enter custom fish name...`}
-                      placeholderTextColor="#aaa"
+                      placeholderTextColor={theme.colors.textDisabled}
                     />
                     <TouchableOpacity
                       onPress={handleCustomAdd}
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#f5f0e8',
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -263,29 +263,29 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: '#ccc',
+    backgroundColor: theme.colors.borderStrong,
     borderRadius: 2,
   },
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#1a1a1a',
+    color: theme.colors.textPrimary,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 13,
-    color: '#888',
+    color: theme.colors.textSecondary,
     marginBottom: 16,
   },
   searchInput: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 12,
     fontSize: 14,
-    color: '#1a1a1a',
+    color: theme.colors.textPrimary,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: theme.colors.border,
   },
   grid: {
     maxHeight: 320,
@@ -305,20 +305,20 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#aaa',
+    color: theme.colors.textDisabled,
     textAlign: 'center',
   },
 
   // ── Fish card ──────────────────────────────────
   fishCard: {
     width: '30%',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 6,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#e8e0d0',
+    borderColor: theme.colors.border,
     overflow: 'hidden',
   },
 
@@ -340,12 +340,12 @@ const styles = StyleSheet.create({
   fishName: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: theme.colors.textPrimary,
     textAlign: 'center',
   },
   fishGuj: {
     fontSize: 10,
-    color: '#999',
+    color: theme.colors.textSecondary,
     marginTop: 1,
     textAlign: 'center',
   },
@@ -359,13 +359,13 @@ const styles = StyleSheet.create({
   },
   customInput: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 12,
     fontSize: 14,
-    color: '#1a1a1a',
+    color: theme.colors.textPrimary,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: theme.colors.border,
     minHeight: 48,
   },
   addBtn: {
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   addBtnText: {
-    color: '#fff',
+    color: theme.colors.textInverse,
     fontWeight: '800',
     fontSize: 15,
   },
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     alignItems: 'center',
     padding: 14,
-    backgroundColor: '#1c1408',
+    backgroundColor: theme.colors.primaryDark,
     borderRadius: 12,
     minHeight: 52,
     justifyContent: 'center',
@@ -396,6 +396,6 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#faf6ee',
+    color: theme.colors.textInverse,
   },
 })

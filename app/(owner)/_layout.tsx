@@ -1,12 +1,11 @@
-import { Stack } from 'expo-router'
+import { Slot } from 'expo-router'
+import { View } from 'react-native'
+import { theme } from '../../constants/theme'
 
 export default function OwnerLayout() {
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: '#1c1408' },
-      }}
-    />
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <Slot />
+    </View>
   )
 }

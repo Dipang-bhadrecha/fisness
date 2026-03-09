@@ -24,7 +24,6 @@ export default function OwnerHomeScreen() {
   const [taliBoatModalVisible, setTaliBoatModalVisible] = useState(false)
   const [expenseBoatModalVisible, setExpenseBoatModalVisible] = useState(false)
   const [kharchiBoatModalVisible, setKharchiBoatModalVisible] = useState(false)
-  const [crewBoatModalVisible, setCrewBoatModalVisible] = useState(false)
 
   // ── Load boats ─────────────────────────────────────────────────────────────
   // TEMP: hardcoded for testing — replace with real API call later:
@@ -62,7 +61,19 @@ export default function OwnerHomeScreen() {
   const handleAddTaliPress = () => { loadBoats(); setTaliBoatModalVisible(true) }
   const handleAddExpensePress = () => { loadBoats(); setExpenseBoatModalVisible(true) }
   const handleAddKharchiPress = () => { loadBoats(); setKharchiBoatModalVisible(true) }
-  const handleCrewPress = () => { loadBoats(); setCrewBoatModalVisible(true) }
+  const handleCrewPress = () => {
+    loadBoats()
+    // Navigate directly to crew/kharchi screen without boat selection modal
+    router.push({
+      pathname: '/crew',
+      params: {
+        boatId: '1',
+        boatName: 'Bravo',
+        companyId: 'test-company-id',
+        companyName: 'Test Company'
+      }
+    })
+  }
 
   // ── Handlers: boat confirmed ───────────────────────────────────────────────
   const handleTaliBoatConfirmed = (boat: ApiRegisteredBoat) => {
@@ -79,11 +90,6 @@ export default function OwnerHomeScreen() {
   const handleKharchiBoatConfirmed = (boat: ApiRegisteredBoat) => {
     setKharchiBoatModalVisible(false)
     router.push({ pathname: '/kharchi', params: { boatId: boat.id, boatName: boat.name, companyId: companyId ?? '', companyName } })
-  }
-
-  const handleCrewBoatConfirmed = (boat: ApiRegisteredBoat) => {
-    setCrewBoatModalVisible(false)
-    router.push({ pathname: '/crew', params: { boatId: boat.id, boatName: boat.name, companyId: companyId ?? '', companyName } })
   }
 
   // ── Quick actions ──────────────────────────────────────────────────────────
@@ -194,47 +200,46 @@ export default function OwnerHomeScreen() {
       <SelectBoatModal visible={taliBoatModalVisible}    boats={boats} onClose={() => setTaliBoatModalVisible(false)}    onConfirm={handleTaliBoatConfirmed} />
       <SelectBoatModal visible={expenseBoatModalVisible} boats={boats} onClose={() => setExpenseBoatModalVisible(false)} onConfirm={handleExpenseBoatConfirmed} />
       <SelectBoatModal visible={kharchiBoatModalVisible} boats={boats} onClose={() => setKharchiBoatModalVisible(false)} onConfirm={handleKharchiBoatConfirmed} />
-      <SelectBoatModal visible={crewBoatModalVisible}    boats={boats} onClose={() => setCrewBoatModalVisible(false)}    onConfirm={handleCrewBoatConfirmed} />
     </>
   )
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: theme.colors.background },
+  safe: { flex: 1, backgroundColor: '#E8F9F8' },
   scroll: { padding: 16, gap: 14 },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingTop: 8 },
-  greeting: { fontSize: 28, fontWeight: '800', color: theme.colors.textPrimary, letterSpacing: -0.3 },
-  season: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 3 },
-  searchBtn: { width: 44, height: 44, backgroundColor: theme.colors.elevated, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  searchIcon: { fontSize: 20 },
-  statsCard: { backgroundColor: '#1a4fd6', borderRadius: 20, padding: 16, flexDirection: 'row', gap: 16, minHeight: 160 },
+  greeting: { fontSize: 28, fontWeight: '800', color: '#0097A7', letterSpacing: -0.3 },
+  season: { fontSize: 13, color: '#4DB8C4', marginTop: 3 },
+  searchBtn: { width: 44, height: 44, backgroundColor: '#FFFFFF', borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#B2EBF2' },
+  searchIcon: { fontSize: 20, color: '#00BCD4' },
+  statsCard: { backgroundColor: '#00BCD4', borderRadius: 20, padding: 16, flexDirection: 'row', gap: 16, minHeight: 160 },
   statsLeft: { flex: 1, gap: 3 },
-  statsSmLabel: { fontSize: 11, color: 'rgba(255,255,255,0.65)' },
+  statsSmLabel: { fontSize: 11, color: 'rgba(255,255,255,0.9)' },
   statsBigNum: { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
-  statsChange: { fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 6 },
-  statsDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginVertical: 6 },
+  statsChange: { fontSize: 11, color: 'rgba(255,255,255,0.8)', marginBottom: 6 },
+  statsDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.3)', marginVertical: 6 },
   statsRight: { gap: 3, alignItems: 'flex-end', justifyContent: 'center' },
-  statsRightLabel: { fontSize: 11, color: 'rgba(255,255,255,0.6)' },
+  statsRightLabel: { fontSize: 11, color: 'rgba(255,255,255,0.8)' },
   statsRightVal: { fontSize: 15, fontWeight: '700', color: '#fff', marginBottom: 4 },
-  statsRightDivider: { width: 80, height: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginVertical: 4 },
-  sectionTitle: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 4 },
+  statsRightDivider: { width: 80, height: 1, backgroundColor: 'rgba(255,255,255,0.3)', marginVertical: 4 },
+  sectionTitle: { fontSize: 12, fontWeight: '700', color: '#0097A7', letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 4 },
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  actionCard: { width: '47.5%', backgroundColor: theme.colors.surface, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.border, padding: 14, gap: 6, minHeight: 100 },
-  actionIconBox: { width: 44, height: 44, backgroundColor: theme.colors.elevated, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  actionCard: { width: '47.5%', backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#B2EBF2', padding: 14, gap: 6, minHeight: 100, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2, elevation: 2 },
+  actionIconBox: { width: 44, height: 44, backgroundColor: '#E0F7FA', borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   actionEmoji: { fontSize: 22 },
-  actionLabel: { fontSize: 14, fontWeight: '700', color: theme.colors.textPrimary },
-  actionSub: { fontSize: 11, color: theme.colors.textSecondary },
-  manageRow: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: theme.colors.surface, borderRadius: 14, borderWidth: 1, borderColor: theme.colors.border, padding: 14, minHeight: 64 },
-  manageRowIcon: { width: 40, height: 40, backgroundColor: theme.colors.elevated, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  actionLabel: { fontSize: 14, fontWeight: '700', color: '#0097A7' },
+  actionSub: { fontSize: 11, color: '#4DB8C4' },
+  manageRow: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#B2EBF2', padding: 14, minHeight: 64, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2, elevation: 2 },
+  manageRowIcon: { width: 40, height: 40, backgroundColor: '#E0F7FA', borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   manageRowEmoji: { fontSize: 20 },
   manageRowText: { flex: 1 },
-  manageRowLabel: { fontSize: 15, fontWeight: '600', color: theme.colors.textPrimary },
-  manageRowSub: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
-  manageRowArrow: { fontSize: 22, color: theme.colors.textDisabled, fontWeight: '700' },
-  bottomNav: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border, flexDirection: 'row', paddingBottom: 20, paddingTop: 10 },
+  manageRowLabel: { fontSize: 15, fontWeight: '600', color: '#0097A7' },
+  manageRowSub: { fontSize: 12, color: '#4DB8C4', marginTop: 2 },
+  manageRowArrow: { fontSize: 22, color: '#4DB8C4', fontWeight: '700' },
+  bottomNav: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#B2EBF2', flexDirection: 'row', paddingBottom: 20, paddingTop: 10 },
   navItem: { flex: 1, alignItems: 'center', gap: 2 },
   navEmoji: { fontSize: 22 },
-  navLabel: { fontSize: 11, color: theme.colors.textDisabled, fontWeight: '500' },
-  navLabelActive: { color: theme.colors.primary, fontWeight: '700' },
-  navDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: theme.colors.primary },
+  navLabel: { fontSize: 11, color: '#4DB8C4', fontWeight: '500' },
+  navLabelActive: { color: '#00BCD4', fontWeight: '700' },
+  navDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#00BCD4' },
 })

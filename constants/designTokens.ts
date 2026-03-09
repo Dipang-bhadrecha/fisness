@@ -51,39 +51,46 @@ export const darkColors = {
 } as const
 
 // ─────────────────────────────────────────────────────────────
-// COLOR PALETTE — LIGHT MODE (Secondary)
+// COLOR PALETTE — LIGHT OCEAN MODE (Clean, Subtle)
 // ─────────────────────────────────────────────────────────────
 export const lightColors = {
-  bgBase: '#F5F8FB',
-  bgSurface: '#FFFFFF',
-  bgElevated: '#EAF1F8',
-  bgOverlay: '#F5F8FBCC',
+  // Backgrounds — Light ocean palette
+  bgBase: '#F3FAFF',           // Soft ocean mist background
+  bgSurface: '#FFFFFF',        // White cards/surfaces
+  bgElevated: '#ECF6FF',       // Soft blue elevation layer
+  bgOverlay: '#F3FAFFCC',      // 80% opacity light overlay
 
-  primary: '#006D77',
-  primaryLight: '#00A3B8',
-  primaryDark: '#004D57',
-  primaryMuted: '#006D770D',
+  // Primary Brand Colors — Ocean Blue
+  primary: '#1B7FBF',          // Calm ocean blue
+  primaryLight: '#4A9ED4',     // Hover/pressed soft blue
+  primaryDark: '#135C8B',      // Deeper ocean blue
+  primaryMuted: '#1B7FBF14',   // Muted blue tint
 
-  gold: '#A0721A',
-  goldLight: '#B8892E',
-  goldDark: '#7A5A00',
-  goldMuted: '#A0721A0F',
+  // Secondary Accent — Seafoam
+  gold: '#2F9FA9',
+  goldLight: '#4FB7C0',
+  goldDark: '#237A82',
+  goldMuted: '#2F9FA914',
 
-  success: '#16A34A',
-  warning: '#D97706',
-  danger: '#DC2626',
+  // Status Colors
+  success: '#10B981',          // Green
+  warning: '#F59E0B',          // Amber
+  danger: '#EF4444',           // Red
 
-  textPrimary: '#0D1B2E',
-  textSecondary: '#4A6580',
-  textMuted: '#9DB5C8',
-  textInverse: '#F0F4F8',
+  // Text Hierarchy — Dark teal/ocean tones
+  textPrimary: '#12344A',      // Deep ocean text
+  textSecondary: '#4A6B82',    // Secondary muted blue
+  textMuted: '#7E9DB2',        // Muted blue
+  textInverse: '#FFFFFF',      // White on dark backgrounds
 
-  border: 'rgba(0, 109, 119, 0.12)',
-  borderStrong: 'rgba(0, 109, 119, 0.2)',
-  divider: 'rgba(74, 101, 128, 0.08)',
+  // Borders & Dividers — Subtle blue
+  border: 'rgba(27, 127, 191, 0.14)',
+  borderStrong: 'rgba(27, 127, 191, 0.22)',
+  divider: 'rgba(74, 107, 130, 0.10)',
 
-  disabled: 'rgba(157, 181, 200, 0.5)',
-  focus: 'rgba(0, 109, 119, 0.2)',
+  // Special States
+  disabled: 'rgba(74, 107, 130, 0.45)',
+  focus: 'rgba(27, 127, 191, 0.2)',
 } as const
 
 // ─────────────────────────────────────────────────────────────
@@ -202,17 +209,17 @@ export const shadows = {
 } as const
 
 // ─────────────────────────────────────────────────────────────
-// TEAL GLOW — used on primary CTA buttons
-// A coloured shadow that matches the brand
+// OCEAN CYAN GLOW — used on primary CTA buttons & highlights
+// A subtle shadow that matches the bright ocean cyan brand
 // ─────────────────────────────────────────────────────────────
 export const tealGlow = Platform.OS === 'web'
-  ? { boxShadow: '0px 8px 20px rgba(0, 194, 203, 0.4)' }
+  ? { boxShadow: '0px 4px 12px rgba(0, 188, 212, 0.2)' }
   : {
-      elevation: 10,
-      shadowColor: '#00C2CB',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.4,
-      shadowRadius: 20,
+      elevation: 4,
+      shadowColor: '#00BCD4',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
     }
 
 export const tealGlowOff = Platform.OS === 'web'
