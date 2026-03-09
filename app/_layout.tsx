@@ -3,11 +3,12 @@ import { StatusBar } from 'expo-status-bar'
 import { useEffect } from 'react'
 import { ActivityIndicator, View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { theme } from '../constants/theme'
+import { darkTheme, lightTheme } from '../constants/theme'
 import { useThemeStore } from '../store/themeStore'
 
 export default function RootLayout() {
   const { mode, isInitialised, initTheme } = useThemeStore()
+  const activeTheme = mode === 'dark' ? darkTheme : lightTheme
 
   useEffect(() => {
     initTheme()
@@ -20,12 +21,12 @@ export default function RootLayout() {
         <View
           style={{
             flex: 1,
-            backgroundColor: theme.colors.background,
+            backgroundColor: activeTheme.colors.background,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <ActivityIndicator size="small" color={activeTheme.colors.primary} />
         </View>
       </SafeAreaProvider>
     )
@@ -35,14 +36,14 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <StatusBar
         style={mode === 'dark' ? 'light' : 'dark'}
-        backgroundColor={theme.colors.background}
+        backgroundColor={activeTheme.colors.background}
         translucent={false}
       />
       <Stack
         screenOptions={{
           headerShown: false,
           contentStyle: {
-            backgroundColor: theme.colors.background,
+            backgroundColor: activeTheme.colors.background,
           },
         }}
       >

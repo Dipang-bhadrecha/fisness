@@ -1,9 +1,7 @@
 import { router } from 'expo-router'
-import { reloadAsync } from 'expo-updates'
 import React from 'react'
 import {
     Alert,
-    DevSettings,
     ScrollView,
     StyleSheet,
     Text,
@@ -11,7 +9,7 @@ import {
     View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { theme } from '../constants/theme'
+import { darkTheme, lightTheme } from '../constants/theme'
 import { useLanguage } from '../hooks/useLanguage'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
@@ -24,25 +22,35 @@ type SettingRowProps = {
   onPress?: () => void
   danger?: boolean
   showArrow?: boolean
+  styles: any
 }
 
-function SettingRow({ emoji, label, sub, value, onPress, danger, showArrow = true }: SettingRowProps) {
+function SettingRow({
+  emoji,
+  label,
+  sub,
+  value,
+  onPress,
+  danger,
+  showArrow = true,
+  styles,
+}: SettingRowProps) {
   return (
     <TouchableOpacity
-      style={s.row}
+      style={styles.row}
       onPress={onPress}
       activeOpacity={onPress ? 0.7 : 1}
       disabled={!onPress}
     >
-      <View style={[s.rowIcon, danger && s.rowIconDanger]}>
-        <Text style={s.rowEmoji}>{emoji}</Text>
+      <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
+        <Text style={styles.rowEmoji}>{emoji}</Text>
       </View>
-      <View style={s.rowText}>
-        <Text style={[s.rowLabel, danger && s.rowLabelDanger]}>{label}</Text>
-        {sub ? <Text style={s.rowSub}>{sub}</Text> : null}
+      <View style={styles.rowText}>
+        <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
+        {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
       </View>
-      {value ? <Text style={s.rowValue}>{value}</Text> : null}
-      {showArrow && onPress ? <Text style={s.rowArrow}>›</Text> : null}
+      {value ? <Text style={styles.rowValue}>{value}</Text> : null}
+      {showArrow && onPress ? <Text style={styles.rowArrow}>›</Text> : null}
     </TouchableOpacity>
   )
 }
@@ -51,6 +59,8 @@ export default function ProfileScreen() {
   const { language, setLanguage } = useLanguage()
   const { user, logout } = useAuthStore()
   const { mode, setMode } = useThemeStore()
+  const activeTheme = mode === 'dark' ? darkTheme : lightTheme
+  const s = React.useMemo(() => buildStyles(activeTheme), [activeTheme])
 
   const handleLogout = () => {
     Alert.alert(
@@ -77,11 +87,6 @@ export default function ProfileScreen() {
   const handleThemeToggle = async () => {
     const nextMode = mode === 'dark' ? 'light' : 'dark'
     await setMode(nextMode)
-    try {
-      await reloadAsync()
-    } catch {
-      DevSettings.reload()
-    }
   }
 
   return (
@@ -121,6 +126,7 @@ export default function ProfileScreen() {
         <Text style={s.sectionTitle}>ACCOUNT</Text>
         <View style={s.section}>
           <SettingRow
+            styles={s}
             emoji="👤"
             label="Edit Profile"
             sub="Name, phone number"
@@ -128,6 +134,7 @@ export default function ProfileScreen() {
           />
           <View style={s.divider} />
           <SettingRow
+            styles={s}
             emoji="🏢"
             label="Company"
             sub="Manage your company details"
@@ -135,6 +142,7 @@ export default function ProfileScreen() {
           />
           <View style={s.divider} />
           <SettingRow
+            styles={s}
             emoji="🚤"
             label="Boats"
             sub="Register & manage boats"
@@ -142,6 +150,7 @@ export default function ProfileScreen() {
           />
           <View style={s.divider} />
           <SettingRow
+            styles={s}
             emoji="🔐"
             label="Access"
             sub="Manage who can use your account"
@@ -153,6 +162,7 @@ export default function ProfileScreen() {
         <Text style={s.sectionTitle}>PREFERENCES</Text>
         <View style={s.section}>
           <SettingRow
+            styles={s}
             emoji="🌐"
             label="Language"
             sub="App display language"
@@ -161,6 +171,7 @@ export default function ProfileScreen() {
           />
           <View style={s.divider} />
           <SettingRow
+            styles={s}
             emoji={mode === 'dark' ? '🌙' : '☀️'}
             label="Theme"
             sub={`Tap to switch to ${mode === 'dark' ? 'Light' : 'Dark'}`}
@@ -169,6 +180,7 @@ export default function ProfileScreen() {
           />
           <View style={s.divider} />
           <SettingRow
+            styles={s}
             emoji="🔔"
             label="Notifications"
             sub="Manage alerts"
@@ -180,6 +192,7 @@ export default function ProfileScreen() {
         <Text style={s.sectionTitle}>SUPPORT</Text>
         <View style={s.section}>
           <SettingRow
+            styles={s}
             emoji="❓"
             label="Help & FAQ"
             sub="How to use Fishness"
@@ -187,6 +200,7 @@ export default function ProfileScreen() {
           />
           <View style={s.divider} />
           <SettingRow
+            styles={s}
             emoji="📞"
             label="Contact Support"
             sub="Reach out for help"
@@ -194,6 +208,7 @@ export default function ProfileScreen() {
           />
           <View style={s.divider} />
           <SettingRow
+            styles={s}
             emoji="ℹ️"
             label="App Version"
             value="v1.0.0"
@@ -205,6 +220,7 @@ export default function ProfileScreen() {
         <Text style={s.sectionTitle}>SESSION</Text>
         <View style={s.section}>
           <SettingRow
+            styles={s}
             emoji="🚪"
             label="Logout"
             sub="Sign out of your account"
@@ -225,7 +241,7 @@ export default function ProfileScreen() {
   )
 }
 
-const s = StyleSheet.create({
+const buildStyles = (theme: typeof lightTheme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

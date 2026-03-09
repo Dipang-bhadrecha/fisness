@@ -9,7 +9,8 @@ import {
     View
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { theme } from '../constants/theme'
+import { darkTheme, lightTheme } from '../constants/theme'
+import { useThemeStore } from '../store/themeStore'
 
 // ── TEMP boats ─────────────────────────────────────────
 const TEMP_BOATS = [
@@ -33,21 +34,29 @@ const TEMP_CREW = [
 
 const fmt = (n?: number) => n ? `₹ ${n.toLocaleString('en-IN')}` : '₹ 0'
 
-function CrewAdvanceRow({ member, onPress }: { member: typeof TEMP_CREW[0]; onPress: () => void }) {
+function CrewAdvanceRow({
+  member,
+  onPress,
+  styles,
+}: {
+  member: typeof TEMP_CREW[0]
+  onPress: () => void
+  styles: any
+}) {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={s.crewRow}>
-      <View style={s.crewRowLeft}>
-        <View style={s.crewAvatar}>
-          <Text style={s.crewAvatarEmoji}>👤</Text>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.crewRow}>
+      <View style={styles.crewRowLeft}>
+        <View style={styles.crewAvatar}>
+          <Text style={styles.crewAvatarEmoji}>👤</Text>
         </View>
-        <View style={s.crewInfo}>
-          <Text style={s.crewName}>{member.name}</Text>
-          <Text style={s.crewRole}>{member.role}</Text>
+        <View style={styles.crewInfo}>
+          <Text style={styles.crewName}>{member.name}</Text>
+          <Text style={styles.crewRole}>{member.role}</Text>
         </View>
       </View>
-      <View style={s.crewRowRight}>
-        <Text style={s.crewAmount}>{fmt(member.bahano)}</Text>
-        <Text style={s.crewDate}>{member.joiningDate}</Text>
+      <View style={styles.crewRowRight}>
+        <Text style={styles.crewAmount}>{fmt(member.bahano)}</Text>
+        <Text style={styles.crewDate}>{member.joiningDate}</Text>
       </View>
     </TouchableOpacity>
   )
@@ -63,6 +72,9 @@ export default function CrewScreen() {
   const [searchText, setSearchText] = useState('')
   const [boatSearchText, setBoatSearchText] = useState('')
   const [selectedBoat, setSelectedBoat] = useState(boatName || 'Bravo')
+  const { mode } = useThemeStore()
+  const activeTheme = mode === 'dark' ? darkTheme : lightTheme
+  const s = React.useMemo(() => createStyles(activeTheme), [activeTheme])
 
   const totalKharchi = TEMP_CREW.reduce((sum, member) => sum + (member.bahano || 0), 0)
 
@@ -105,7 +117,7 @@ export default function CrewScreen() {
           <TextInput
             style={s.boatSearchInput}
             placeholder="Search boat name..."
-            placeholderTextColor={theme.colors.textDisabled}
+            placeholderTextColor={activeTheme.colors.textDisabled}
             value={boatSearchText}
             onChangeText={setBoatSearchText}
           />
@@ -135,7 +147,7 @@ export default function CrewScreen() {
         <TextInput
           style={s.searchInput}
           placeholder="Search crew name..."
-          placeholderTextColor={theme.colors.textDisabled}
+          placeholderTextColor={activeTheme.colors.textDisabled}
           value={searchText}
           onChangeText={setSearchText}
         />
@@ -155,6 +167,7 @@ export default function CrewScreen() {
           <CrewAdvanceRow
             key={member.id}
             member={member}
+            styles={s}
             onPress={() => router.push({
               pathname: '/crew-detail',
               params: {
@@ -173,7 +186,7 @@ export default function CrewScreen() {
   )
 }
 
-const s = StyleSheet.create({
+const createStyles = (theme: typeof lightTheme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
