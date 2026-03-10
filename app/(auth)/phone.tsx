@@ -6,6 +6,7 @@
  * On failure → shows inline error with actionable message.
  */
 
+import { ApiError, sendOtp } from '@/services/api'
 import { router } from 'expo-router'
 import React, { useRef, useState } from 'react'
 import {
@@ -22,7 +23,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../constants/theme'
 import { useLanguage } from '../../hooks/useLanguage'
-import { ApiError, sendOtp } from '@/services/api'
 
 const { height: SCREEN_H } = Dimensions.get('window')
 
@@ -74,7 +74,7 @@ export default function PhoneScreen() {
           <View style={s.logoWrap}>
             <View style={s.glowRing}><View style={s.glowInner} /></View>
             <Text style={s.fish}>🐟</Text>
-            <Text style={s.appName}>MatsyaKosh</Text>
+            <Text style={s.appName}>Fishness</Text>
             <Text style={s.tagline}>{t.phone.appTagline}</Text>
           </View>
 
