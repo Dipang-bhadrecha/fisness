@@ -14,7 +14,7 @@
 
 // ─── Base config ──────────────────────────────────────────────────────────────
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://13.233.158.206:3001'
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://13.235.52.23:3001'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
