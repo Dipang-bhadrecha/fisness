@@ -355,7 +355,6 @@ function BoatOwnerBody({ entity }: { entity: Entity | null }) {
   return (
     <>
       <HomeHeader
-        title={entity?.label ?? 'My Fleet'}
         subtitle="Boat Owner · Personal"
         accent={accent}
         emoji="🚢"
@@ -393,7 +392,6 @@ function CompanyOwnerBody({ entity }: { entity: Entity | null }) {
   return (
     <>
       <HomeHeader
-        title={name}
         subtitle="Company Owner · Dango"
         accent={accent}
         emoji="🏢"
@@ -562,14 +560,17 @@ function ManagerOnlyBody({
 // SHARED COMPONENTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function HomeHeader({ title, subtitle, accent, emoji }: {
-  title: string; subtitle: string; accent: string; emoji: string
+function HomeHeader({ subtitle, accent, emoji }: {
+  subtitle: string; accent: string; emoji: string
 }) {
+  const { user } = useAuthStore()
+  const firstName = user?.name?.split(' ')[0] ?? 'there'
+
   return (
     <View style={[hh.wrap, { borderBottomColor: accent + '20' }]}>
       <View style={hh.left}>
         <Text style={hh.sub}>{subtitle}</Text>
-        <Text style={hh.title} numberOfLines={1}>{title}</Text>
+        <Text style={hh.title} numberOfLines={1}>Hi, {firstName} 👋</Text>
       </View>
       <View style={[hh.icon, { backgroundColor: accent + '18' }]}>
         <Text style={{ fontSize: 22 }}>{emoji}</Text>
