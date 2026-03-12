@@ -1,20 +1,20 @@
 /**
- * app/(home)/index.tsx  — The Universal Home Screen
+ * app/(home)/index.tsx — Universal Home Screen
  *
  * Reads homeVariant + activeContext from entityStore.
- * Renders one of 6 configurations. No separate files per role.
+ * All 6 role combinations render here. No separate dashboard files.
  *
- * Variants:
- *   BOAT_OWNER               → Boat stats, blue accent
- *   COMPANY_OWNER            → Company stats, green accent
- *   BOAT_AND_COMPANY         → Context switcher: Company (default) ↔ My Boats
- *   BOAT_AND_COMPANY_MANAGER → Context switcher: My Boat ↔ Company (manager, permission-gated)
- *   BOAT_AND_BOAT_MANAGER    → Context switcher: My Boat ↔ Managed Boat (permission-gated)
- *   MANAGER_ONLY             → Manager dashboard (permission-gated or waiting screen)
+ * Layout:
+ *   - Context switcher pill (only for dual-role variants)
+ *   - Header (name, role badge)
+ *   - Stats grid
+ *   - Quick actions 2×2
+ *   - Scrollable content
+ *   - Fixed bottom tab bar (4 tabs, role-driven)
  */
 
 import { router } from 'expo-router'
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
     ActivityIndicator,
     ScrollView,
@@ -35,67 +35,78 @@ import {
 } from '../../store/entityStore'
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
-const C = {
-  bg:     '#080F1A',
-  surf:   '#0D1B2E',
-  elev:   '#132640',
-  border: 'rgba(0,194,203,0.1)',
-  tp:     '#F0F4F8',
-  ts:     '#8BA3BC',
-  tm:     '#3D5A73',
-  BLUE:   '#1B7FBF',
-  GREEN:  '#059669',
-  TEAL:   '#0891b2',
-  ORANGE: '#d97706',
-  PURPLE: '#7c3aed',
-}
+const BG    = '#080F1A'
+const SURF  = '#0D1B2E'
+const ELEV  = '#132640'
+const BOR   = 'rgba(0,194,203,0.1)'
+const TP    = '#F0F4F8'
+const TS    = '#8BA3BC'
+const TM    = '#3D5A73'
+const BLUE  = '#1B7FBF'
+const GREEN = '#059669'
+const TEAL  = '#0891b2'
+const ORAN  = '#d97706'
 
-// ─── Permission constants ─────────────────────────────────────────────────────
+// ─── Permission keys ──────────────────────────────────────────────────────────
 const P = {
   CREATE_TALI:          'CREATE_TALI',
   VIEW_TALI:            'VIEW_TALI',
   FILL_FISH_PRICE:      'FILL_FISH_PRICE',
   VIEW_BILL:            'VIEW_BILL',
-  CREATE_BILL:          'CREATE_BILL',
   SEND_BILL:            'SEND_BILL',
   ADD_COMPANY_EXPENSE:  'ADD_COMPANY_EXPENSE',
   VIEW_COMPANY_EXPENSE: 'VIEW_COMPANY_EXPENSE',
   VIEW_EMPLOYEE_RECORDS:'VIEW_EMPLOYEE_RECORDS',
   MANAGE_EMPLOYEES:     'MANAGE_EMPLOYEES',
   VIEW_FINANCIAL_REPORT:'VIEW_FINANCIAL_REPORT',
-  VIEW_MEMBERS:         'VIEW_MEMBERS',
   ADD_BOAT_EXPENSE:     'ADD_BOAT_EXPENSE',
   VIEW_BOAT_EXPENSE:    'VIEW_BOAT_EXPENSE',
 }
 
-// ─── Temp stats (replace with API calls per variant) ─────────────────────────
-const BOAT_STATS = [
-  { label: 'Net Profit',    value: '₹4,20,000', sub: 'this season',   emoji: '💰' },
-  { label: 'Total Catch',   value: '18,400 kg', sub: 'this season',   emoji: '🐟' },
-  { label: 'Total Boats',   value: '5',         sub: 'active',        emoji: '🚢' },
-  { label: 'Advance Due',   value: '₹80,000',   sub: 'outstanding',   emoji: '📋' },
-  { label: 'Diesel',        value: '12,400 L',  sub: 'this season',   emoji: '⛽' },
-  { label: 'Maintenance',   value: '₹32,000',   sub: 'this season',   emoji: '🔧' },
-]
-const CO_STATS = [
-  { label: 'Fish Received', value: '84,000 kg', sub: 'this season',   emoji: '🐟' },
-  { label: 'Bills Generated',value: '₹62L',     sub: 'this season',   emoji: '🧾' },
-  { label: 'Advance Given', value: '₹18L',      sub: 'to boat owners',emoji: '💸' },
-  { label: 'Pending',       value: '3',         sub: 'sessions unpaid',emoji: '⏳' },
-  { label: 'Company Exp',   value: '₹4,20,000', sub: 'this season',   emoji: '🏢' },
-  { label: 'Active Boats',  value: '22',        sub: 'registered',    emoji: '⚓' },
-]
+// ─── Tab definitions per variant/context ─────────────────────────────────────
+type Tab = { id: string; emoji: string; label: string; onPress: () => void }
 
-// ─── Home Screen ──────────────────────────────────────────────────────────────
+function getBoatTabs(active: string): Tab[] {
+  return [
+    { id: 'home',   emoji: '🏠', label: 'Home',   onPress: () => {} },
+    { id: 'tali',   emoji: '⚓', label: 'Tali',   onPress: () => router.push('/tali' as any) },
+    { id: 'trips',  emoji: '📅', label: 'Trips',  onPress: () => router.push('/trips' as any) },
+    { id: 'ledger', emoji: '📒', label: 'Ledger', onPress: () => router.push('/ledger' as any) },
+    { id: 'profile',emoji: '👤', label: 'Profile',onPress: () => router.push('/profile' as any) },
+  ]
+}
+
+function getCompanyTabs(active: string): Tab[] {
+  return [
+    { id: 'home',   emoji: '🏠', label: 'Home',   onPress: () => {} },
+    { id: 'tali',   emoji: '⚓', label: 'Tali',   onPress: () => router.push('/tali' as any) },
+    { id: 'bills',  emoji: '🧾', label: 'Bills',  onPress: () => {} },
+    { id: 'boats',  emoji: '🚢', label: 'Boats',  onPress: () => {} },
+    { id: 'profile',emoji: '👤', label: 'Profile',onPress: () => router.push('/profile' as any) },
+  ]
+}
+
+function getManagerTabs(entity: Entity | null, active: string): Tab[] {
+  const can = (p: string) => hasPerm(entity, p)
+  const tabs: Tab[] = [{ id: 'home', emoji: '🏠', label: 'Home', onPress: () => {} }]
+  if (can(P.CREATE_TALI))
+    tabs.push({ id: 'tali', emoji: '⚓', label: 'Tali', onPress: () => router.push('/tali' as any) })
+  if (can(P.ADD_COMPANY_EXPENSE) || can(P.ADD_BOAT_EXPENSE))
+    tabs.push({ id: 'expenses', emoji: '💸', label: 'Expenses', onPress: () => {} })
+  tabs.push({ id: 'profile', emoji: '👤', label: 'Profile', onPress: () => router.push('/profile' as any) })
+  return tabs
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const { token } = useAuthStore()
   const {
     homeVariant, activeContext, activeEntity, secondaryEntity,
-    entities, isLoaded, isLoading, loadError,
-    loadEntities, setActiveContext,
+    isLoaded, isLoading, loadError, loadEntities, setActiveContext,
   } = useEntityStore()
 
-  // Load entities on mount for returning users
+  const [activeTab, setActiveTab] = useState('home')
+
   useEffect(() => {
     if (token && !isLoaded && !isLoading) loadEntities(token)
   }, [token])
@@ -103,8 +114,8 @@ export default function HomeScreen() {
   if (isLoading || !isLoaded) {
     return (
       <View style={s.center}>
-        <ActivityIndicator color={C.TEAL} size="large" />
-        <Text style={s.loadText}>Loading your workspace…</Text>
+        <ActivityIndicator color={TEAL} size="large" />
+        <Text style={s.loadTxt}>Loading your workspace…</Text>
       </View>
     )
   }
@@ -112,61 +123,138 @@ export default function HomeScreen() {
   if (loadError) {
     return (
       <View style={s.center}>
-        <Text style={s.errorEmoji}>⚠️</Text>
-        <Text style={s.errorText}>{loadError}</Text>
+        <Text style={{ fontSize: 36 }}>⚠️</Text>
+        <Text style={s.errTxt}>{loadError}</Text>
         <TouchableOpacity style={s.retryBtn} onPress={() => token && loadEntities(token)}>
-          <Text style={s.retryText}>Try Again</Text>
+          <Text style={s.retryTxt}>Try Again</Text>
         </TouchableOpacity>
       </View>
     )
   }
 
   const variant = homeVariant ?? 'BOAT_OWNER'
-
-  // Does this variant need a context switcher?
   const hasSwitcher =
     variant === 'BOAT_AND_COMPANY' ||
     variant === 'BOAT_AND_COMPANY_MANAGER' ||
     variant === 'BOAT_AND_BOAT_MANAGER'
 
+  // Resolve which entity and tabs to show
+  const ctx = activeContext === 'primary' ? activeEntity : secondaryEntity
+  const tabs = resolveTabs(variant, activeContext, ctx, activeTab)
+
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+      <StatusBar barStyle="light-content" backgroundColor={BG} />
       <SafeAreaView style={s.safe}>
-        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
-          {/* ── Context Switcher ── */}
-          {hasSwitcher && (
-            <ContextSwitcher
-              variant={variant}
-              activeContext={activeContext}
-              primary={activeEntity}
-              secondary={secondaryEntity}
-              onSwitch={setActiveContext}
-            />
-          )}
+        {/* Context switcher */}
+        {hasSwitcher && (
+          <ContextSwitcher
+            variant={variant}
+            activeContext={activeContext}
+            primary={activeEntity}
+            secondary={secondaryEntity}
+            onSwitch={setActiveContext}
+          />
+        )}
 
-          {/* ── Render the correct variant ── */}
-          <VariantContent
+        {/* Scrollable body */}
+        <ScrollView
+          style={s.scroll}
+          contentContainerStyle={s.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <VariantBody
             variant={variant}
             activeContext={activeContext}
             primary={activeEntity}
             secondary={secondaryEntity}
           />
-
+          <View style={{ height: 90 }} />
         </ScrollView>
+
+        {/* Fixed bottom tab bar */}
+        <BottomTabBar tabs={tabs} activeId={activeTab} onPress={(id, fn) => { setActiveTab(id); fn() }} />
+
       </SafeAreaView>
     </>
   )
 }
 
-// ─── Context Switcher Pill ────────────────────────────────────────────────────
+// ─── Resolve tabs ─────────────────────────────────────────────────────────────
+function resolveTabs(
+  variant: HomeVariant,
+  ctx: ActiveContext,
+  entity: Entity | null,
+  active: string,
+): Tab[] {
+  switch (variant) {
+    case 'BOAT_OWNER':
+      return getBoatTabs(active)
+    case 'COMPANY_OWNER':
+      return getCompanyTabs(active)
+    case 'BOAT_AND_COMPANY':
+      return ctx === 'primary' ? getCompanyTabs(active) : getBoatTabs(active)
+    case 'BOAT_AND_COMPANY_MANAGER':
+    case 'BOAT_AND_BOAT_MANAGER':
+      return ctx === 'primary' ? getBoatTabs(active) : getManagerTabs(entity, active)
+    case 'MANAGER_ONLY':
+      return getManagerTabs(entity, active)
+    default:
+      return getBoatTabs(active)
+  }
+}
+
+// ─── Bottom Tab Bar ───────────────────────────────────────────────────────────
+function BottomTabBar({
+  tabs,
+  activeId,
+  onPress,
+}: {
+  tabs: Tab[]
+  activeId: string
+  onPress: (id: string, fn: () => void) => void
+}) {
+  return (
+    <View style={tb.bar}>
+      {tabs.map(tab => {
+        const isActive = tab.id === activeId
+        return (
+          <TouchableOpacity
+            key={tab.id}
+            style={tb.item}
+            onPress={() => onPress(tab.id, tab.onPress)}
+            activeOpacity={0.7}
+          >
+            <Text style={[tb.emoji, isActive && tb.emojiActive]}>{tab.emoji}</Text>
+            <Text style={[tb.label, isActive && tb.labelActive]}>{tab.label}</Text>
+            {isActive && <View style={tb.dot} />}
+          </TouchableOpacity>
+        )
+      })}
+    </View>
+  )
+}
+
+const tb = StyleSheet.create({
+  bar: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    flexDirection: 'row',
+    backgroundColor: SURF,
+    borderTopWidth: 1, borderTopColor: BOR,
+    paddingTop: 10, paddingBottom: 28,
+  },
+  item:        { flex: 1, alignItems: 'center', gap: 3 },
+  emoji:       { fontSize: 22, opacity: 0.45 },
+  emojiActive: { opacity: 1 },
+  label:       { fontSize: 10, fontWeight: '500', color: TM },
+  labelActive: { color: TEAL, fontWeight: '700' },
+  dot:         { width: 4, height: 4, borderRadius: 2, backgroundColor: TEAL, marginTop: 1 },
+})
+
+// ─── Context Switcher ─────────────────────────────────────────────────────────
 function ContextSwitcher({
-  variant,
-  activeContext,
-  primary,
-  secondary,
-  onSwitch,
+  variant, activeContext, primary, secondary, onSwitch,
 }: {
   variant: HomeVariant
   activeContext: ActiveContext
@@ -176,11 +264,8 @@ function ContextSwitcher({
 }) {
   const isPrimary = activeContext === 'primary'
 
-  // Label helpers
   const primaryLabel =
-    variant === 'BOAT_AND_COMPANY'
-      ? (primary?.companyName ?? 'Company')
-      : 'My Boat'
+    variant === 'BOAT_AND_COMPANY' ? (primary?.companyName ?? 'Company') : 'My Boat'
 
   const secondaryLabel =
     variant === 'BOAT_AND_COMPANY'
@@ -189,203 +274,166 @@ function ContextSwitcher({
       ? (secondary?.companyName ?? 'Company')
       : (secondary?.boatName ?? secondary?.label ?? 'Managed Boat')
 
-  const activeAccent = isPrimary
-    ? (primary?.accent ?? C.BLUE)
-    : (secondary?.accent ?? C.TEAL)
+  const accent = isPrimary ? (primary?.accent ?? BLUE) : (secondary?.accent ?? TEAL)
 
   return (
-    <View style={sw.pill}>
+    <View style={cs.pill}>
       <TouchableOpacity
-        style={[sw.tab, isPrimary && [sw.tabActive, { backgroundColor: activeAccent + '22', borderColor: activeAccent }]]}
+        style={[cs.tab, isPrimary && [cs.tabActive, { backgroundColor: accent + '22', borderColor: accent }]]}
         onPress={() => onSwitch('primary')}
       >
-        <Text style={[sw.tabText, isPrimary && { color: activeAccent, fontWeight: '800' }]}>
-          {primaryLabel}
-        </Text>
+        <Text style={[cs.tabTxt, isPrimary && { color: accent, fontWeight: '800' }]}>{primaryLabel}</Text>
       </TouchableOpacity>
-
       <TouchableOpacity
-        style={[sw.tab, !isPrimary && [sw.tabActive, { backgroundColor: activeAccent + '22', borderColor: activeAccent }]]}
+        style={[cs.tab, !isPrimary && [cs.tabActive, { backgroundColor: accent + '22', borderColor: accent }]]}
         onPress={() => onSwitch('secondary')}
       >
-        <Text style={[sw.tabText, !isPrimary && { color: activeAccent, fontWeight: '800' }]}>
-          {secondaryLabel}
-        </Text>
-        {/* Manager badge */}
-        {(variant === 'BOAT_AND_COMPANY_MANAGER' || variant === 'BOAT_AND_BOAT_MANAGER') && (
-          <View style={sw.badge}><Text style={sw.badgeText}>MGR</Text></View>
+        <Text style={[cs.tabTxt, !isPrimary && { color: accent, fontWeight: '800' }]}>{secondaryLabel}</Text>
+        {variant !== 'BOAT_AND_COMPANY' && (
+          <View style={cs.badge}><Text style={cs.badgeTxt}>MGR</Text></View>
         )}
       </TouchableOpacity>
     </View>
   )
 }
 
-const sw = StyleSheet.create({
+const cs = StyleSheet.create({
   pill: {
-    flexDirection: 'row', backgroundColor: C.surf,
-    borderRadius: 14, borderWidth: 1, borderColor: C.border,
-    padding: 4, marginHorizontal: 16, marginTop: 12, marginBottom: 4,
-    gap: 4,
+    flexDirection: 'row', backgroundColor: SURF,
+    borderRadius: 14, borderWidth: 1, borderColor: BOR,
+    padding: 4, marginHorizontal: 16, marginTop: 12, marginBottom: 4, gap: 4,
   },
   tab: {
     flex: 1, paddingVertical: 10, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center',
-    flexDirection: 'row', gap: 6,
+    alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6,
     borderWidth: 1, borderColor: 'transparent',
   },
   tabActive: {},
-  tabText: { fontSize: 14, fontWeight: '600', color: C.ts },
-  badge: {
-    backgroundColor: C.TEAL + '30', borderRadius: 4,
-    paddingHorizontal: 5, paddingVertical: 2,
-  },
-  badgeText: { fontSize: 9, fontWeight: '800', color: C.TEAL, letterSpacing: 0.5 },
+  tabTxt:    { fontSize: 14, fontWeight: '600', color: TS },
+  badge:     { backgroundColor: TEAL + '30', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 },
+  badgeTxt:  { fontSize: 9, fontWeight: '800', color: TEAL, letterSpacing: 0.5 },
 })
 
-// ─── Variant Content Router ───────────────────────────────────────────────────
-function VariantContent({
-  variant,
-  activeContext,
-  primary,
-  secondary,
+// ─── Variant Body Router ──────────────────────────────────────────────────────
+function VariantBody({
+  variant, activeContext, primary, secondary,
 }: {
   variant: HomeVariant
   activeContext: ActiveContext
   primary: Entity | null
   secondary: Entity | null
 }) {
-  const ctx = activeContext === 'primary' ? primary : secondary
-
   switch (variant) {
     case 'BOAT_OWNER':
-      return <BoatOwnerHome entity={primary} />
-
+      return <BoatOwnerBody entity={primary} />
     case 'COMPANY_OWNER':
-      return <CompanyOwnerHome entity={primary} />
-
+      return <CompanyOwnerBody entity={primary} />
     case 'BOAT_AND_COMPANY':
-      // Primary = company (default), secondary = my boats
       return activeContext === 'primary'
-        ? <CompanyOwnerHome entity={primary} />
-        : <BoatOwnerHome entity={secondary} />
-
+        ? <CompanyOwnerBody entity={primary} />
+        : <BoatOwnerBody entity={secondary} />
     case 'BOAT_AND_COMPANY_MANAGER':
-      // Primary = my boat, secondary = managed company
       return activeContext === 'primary'
-        ? <BoatOwnerHome entity={primary} />
-        : <ManagerHome entity={secondary} managerType="company" />
-
+        ? <BoatOwnerBody entity={primary} />
+        : <ManagerBody entity={secondary} managerType="company" />
     case 'BOAT_AND_BOAT_MANAGER':
-      // Primary = my boat, secondary = managed boat
       return activeContext === 'primary'
-        ? <BoatOwnerHome entity={primary} />
-        : <ManagerHome entity={secondary} managerType="boat" />
-
+        ? <BoatOwnerBody entity={primary} />
+        : <ManagerBody entity={secondary} managerType="boat" />
     case 'MANAGER_ONLY':
-      return <ManagerOnlyHome primary={primary} secondary={secondary} />
-
+      return <ManagerOnlyBody primary={primary} secondary={secondary} />
     default:
-      return <BoatOwnerHome entity={primary} />
+      return <BoatOwnerBody entity={primary} />
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// VARIANT 1 — BOAT OWNER
+// BOAT OWNER BODY
 // ═══════════════════════════════════════════════════════════════════════════════
-function BoatOwnerHome({ entity }: { entity: Entity | null }) {
-  const accent = entity?.accent ?? C.BLUE
-
+function BoatOwnerBody({ entity }: { entity: Entity | null }) {
+  const accent = entity?.accent ?? BLUE
   return (
-    <View style={s.variantWrap}>
+    <>
       <HomeHeader
         title={entity?.label ?? 'My Fleet'}
         subtitle="Boat Owner · Personal"
         accent={accent}
         emoji="🚢"
       />
+      <BoatStatsCard accent={accent} />
+      <QuickActionsGrid accent={accent} actions={[
+        { emoji: '⚓', label: 'Add Tali',    onPress: () => router.push('/tali' as any) },
+        { emoji: '💸', label: 'Add Expense', onPress: () => router.push('/kharchi' as any) },
+        { emoji: '👥', label: 'Add Kharchi', onPress: () => router.push('/crew' as any) },
+        { emoji: '🚢', label: 'My Boats',    onPress: () => router.push('/boats' as any) },
+      ]} />
 
-      <StatsGrid stats={BOAT_STATS} accent={accent} />
-
-      <QuickActionsGrid
-        accent={accent}
-        actions={[
-          { emoji: '⚓', label: 'Add Tali',    onPress: () => router.push('/tali' as any) },
-          { emoji: '💸', label: 'Add Expense', onPress: () => router.push('/kharchi' as any) },
-          { emoji: '👥', label: 'Add Kharchi', onPress: () => router.push('/crew' as any) },
-          { emoji: '➕', label: 'More',        onPress: () => {} },
-        ]}
-      />
-
-      <ManageSection
-        accent={accent}
-        rows={[
-          { emoji: '📅', label: 'Trips',  sub: 'All your boat trips',   onPress: () => router.push('/trips' as any) },
-          { emoji: '🚢', label: 'Boats',  sub: 'Fleet & maintenance',   onPress: () => router.push('/boats' as any) },
-          { emoji: '👥', label: 'Crew',   sub: 'Members & kharchi',     onPress: () => router.push('/crew' as any) },
-          { emoji: '📒', label: 'Ledger', sub: 'Income & expenses',     onPress: () => router.push('/ledger' as any) },
-        ]}
-      />
-    </View>
+      {/* Onboarding prompt if no boats set up yet */}
+      {(!entity?.boatCount || entity.boatCount === 0) && entity?.id === 'personal_boats' && (
+        <OnboardingPrompt
+          emoji="🚢"
+          title="Add your first boat"
+          subtitle="Tap here to add your boat name and start tracking trips."
+          accent={accent}
+          onPress={() => router.push('/boats' as any)}
+        />
+      )}
+    </>
   )
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// VARIANT 2 — COMPANY OWNER
+// COMPANY OWNER BODY
 // ═══════════════════════════════════════════════════════════════════════════════
-function CompanyOwnerHome({ entity }: { entity: Entity | null }) {
-  const accent = entity?.accent ?? C.GREEN
+function CompanyOwnerBody({ entity }: { entity: Entity | null }) {
+  const accent = entity?.accent ?? GREEN
   const name   = entity?.companyName ?? entity?.label ?? 'My Company'
+  const isNew  = entity?.id === 'my_company'
 
   return (
-    <View style={s.variantWrap}>
+    <>
       <HomeHeader
         title={name}
         subtitle="Company Owner · Dango"
         accent={accent}
         emoji="🏢"
       />
+      <CompanyStatsCard accent={accent} />
+      <QuickActionsGrid accent={accent} actions={[
+        { emoji: '⚓', label: 'New Tali',    onPress: () => router.push('/tali' as any) },
+        { emoji: '🏷️', label: 'Fill Price',  onPress: () => {} },
+        { emoji: '💸', label: 'Add Expense', onPress: () => {} },
+        { emoji: '📤', label: 'Send Bill',   onPress: () => {} },
+      ]} />
 
-      <StatsGrid stats={CO_STATS} accent={accent} />
-
-      <QuickActionsGrid
-        accent={accent}
-        actions={[
-          { emoji: '⚓', label: 'New Tali',    onPress: () => router.push('/tali' as any) },
-          { emoji: '🏷️', label: 'Fill Price',  onPress: () => {} },
-          { emoji: '💸', label: 'Add Expense', onPress: () => {} },
-          { emoji: '📤', label: 'Send Bill',   onPress: () => {} },
-        ]}
-      />
-
-      <ManageSection
-        accent={accent}
-        rows={[
-          { emoji: '📋', label: 'Sessions',         sub: 'All tali sessions',       onPress: () => {} },
-          { emoji: '🧾', label: 'Bills',             sub: 'Generated & sent',        onPress: () => {} },
-          { emoji: '⚓', label: 'Registered Boats',  sub: 'Boats at your company',   onPress: () => {} },
-          { emoji: '👥', label: 'Employees',         sub: 'Staff & permissions',     onPress: () => router.push('/access' as any) },
-        ]}
-      />
-    </View>
+      {/* Onboarding prompt for new company owners */}
+      {isNew && (
+        <OnboardingPrompt
+          emoji="🏢"
+          title="Set up your company"
+          subtitle="Add your company name and register your first boat."
+          accent={accent}
+          onPress={() => router.push('/profile' as any)}
+        />
+      )}
+    </>
   )
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// VARIANTS 4 & 5 — MANAGER (Company or Boat)
+// MANAGER BODY (company or boat)
 // ═══════════════════════════════════════════════════════════════════════════════
-function ManagerHome({
+function ManagerBody({
   entity,
   managerType,
 }: {
   entity: Entity | null
   managerType: 'company' | 'boat'
 }) {
-  const accent = entity?.accent ?? (managerType === 'company' ? C.TEAL : C.ORANGE)
+  const accent = entity?.accent ?? (managerType === 'company' ? TEAL : ORAN)
   const name   = entity?.companyName ?? entity?.boatName ?? entity?.label ?? 'My Workspace'
+  const can    = (p: string) => hasPerm(entity, p)
 
-  const can = (perm: string) => hasPerm(entity, perm)
-
-  // Build permitted quick actions
   const actions = []
   if (can(P.CREATE_TALI))
     actions.push({ emoji: '⚓', label: 'Add Tali',    onPress: () => router.push('/tali' as any) })
@@ -396,136 +444,117 @@ function ManagerHome({
   if (can(P.SEND_BILL))
     actions.push({ emoji: '📤', label: 'Send Bill',   onPress: () => {} })
 
-  // Build permitted manage rows
-  const rows = []
-  if (can(P.VIEW_TALI))
-    rows.push({ emoji: '📋', label: 'Sessions',   sub: 'Tali sessions',        onPress: () => {} })
-  if (can(P.VIEW_BILL))
-    rows.push({ emoji: '🧾', label: 'Bills',      sub: 'Bills & receipts',     onPress: () => {} })
-  if (can(P.VIEW_EMPLOYEE_RECORDS))
-    rows.push({ emoji: '👥', label: 'Employees',  sub: 'Staff records',        onPress: () => router.push('/access' as any) })
-  if (can(P.VIEW_COMPANY_EXPENSE) || can(P.VIEW_BOAT_EXPENSE))
-    rows.push({ emoji: '💰', label: 'Expenses',   sub: 'Expense records',      onPress: () => {} })
-
-  const hasNothing = actions.length === 0 && rows.length === 0
+  const isPending = entity?.id.includes('pending')
 
   return (
-    <View style={s.variantWrap}>
+    <>
       {/* Manager header card */}
-      <View style={[s.mgrCard, { borderColor: accent + '30' }]}>
-        <View style={[s.mgrBadge, { backgroundColor: accent + '18' }]}>
-          <Text style={[s.mgrBadgeText, { color: accent }]}>
+      <View style={[mb.card, { borderColor: accent + '30' }]}>
+        <View style={[mb.badge, { backgroundColor: accent + '18' }]}>
+          <Text style={[mb.badgeTxt, { color: accent }]}>
             {managerType === 'company' ? '👔 COMPANY MANAGER' : '⚓ BOAT MANAGER'}
           </Text>
         </View>
-        <Text style={s.mgrName}>{name}</Text>
-        {entity?.ownerName && (
-          <Text style={s.mgrOwner}>Owner: {entity.ownerName}</Text>
-        )}
-        <Text style={s.mgrNote}>Your access is set by the owner</Text>
+        <Text style={mb.name}>{name}</Text>
+        {entity?.ownerName && <Text style={mb.owner}>Owner: {entity.ownerName}</Text>}
+        <Text style={mb.note}>Your access is set by the owner</Text>
       </View>
 
-      {/* Permission chips */}
-      {entity && entity.permissions.length > 0 && (
-        <View style={s.permRow}>
-          {entity.permissions.slice(0, 5).map(p => (
-            <View key={p} style={[s.permChip, { borderColor: accent + '40', backgroundColor: accent + '12' }]}>
-              <Text style={[s.permChipText, { color: accent }]}>✓ {p.replace(/_/g, ' ')}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {hasNothing ? (
-        <View style={s.noPermsBox}>
-          <Text style={s.noPermsEmoji}>🔒</Text>
-          <Text style={s.noPermsTitle}>No permissions granted yet</Text>
-          <Text style={s.noPermsSub}>Ask your owner to grant you access from their Settings → Access.</Text>
+      {isPending ? (
+        <View style={mb.waitBox}>
+          <Text style={mb.waitEmoji}>⏳</Text>
+          <Text style={mb.waitTitle}>Waiting for connection</Text>
+          <Text style={mb.waitSub}>Your owner needs to add you from their Access screen.</Text>
         </View>
       ) : (
         <>
-          {actions.length > 0 && (
-            <QuickActionsGrid accent={accent} actions={actions} />
+          {/* Permission chips */}
+          {entity && entity.permissions.length > 0 && (
+            <View style={mb.permRow}>
+              {entity.permissions.slice(0, 5).map(p => (
+                <View key={p} style={[mb.permChip, { borderColor: accent + '40', backgroundColor: accent + '12' }]}>
+                  <Text style={[mb.permTxt, { color: accent }]}>✓ {p.replace(/_/g, ' ')}</Text>
+                </View>
+              ))}
+            </View>
           )}
-          {rows.length > 0 && (
-            <ManageSection accent={accent} rows={rows} />
-          )}
+          {actions.length > 0 && <QuickActionsGrid accent={accent} actions={actions} />}
         </>
       )}
-    </View>
+    </>
   )
 }
 
+const mb = StyleSheet.create({
+  card:     { margin: 16, padding: 18, backgroundColor: SURF, borderRadius: 16, borderWidth: 1, gap: 6 },
+  badge:    { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginBottom: 4 },
+  badgeTxt: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  name:     { fontSize: 20, fontWeight: '800', color: TP },
+  owner:    { fontSize: 13, color: TS },
+  note:     { fontSize: 12, color: TM, marginTop: 4, fontStyle: 'italic' },
+  permRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginHorizontal: 16, marginBottom: 8 },
+  permChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+  permTxt:  { fontSize: 10, fontWeight: '600' },
+  waitBox:  { margin: 24, padding: 24, backgroundColor: SURF, borderRadius: 16, alignItems: 'center', gap: 10 },
+  waitEmoji:{ fontSize: 40 },
+  waitTitle:{ fontSize: 17, fontWeight: '800', color: TP },
+  waitSub:  { fontSize: 13, color: TS, textAlign: 'center', lineHeight: 19 },
+})
+
 // ═══════════════════════════════════════════════════════════════════════════════
-// VARIANT 6 — MANAGER ONLY (no ownership)
+// MANAGER ONLY BODY
 // ═══════════════════════════════════════════════════════════════════════════════
-function ManagerOnlyHome({
-  primary,
-  secondary,
+function ManagerOnlyBody({
+  primary, secondary,
 }: {
   primary: Entity | null
   secondary: Entity | null
 }) {
   const { activeContext, setActiveContext } = useEntityStore()
 
-  // Only one entity
   if (!secondary) {
-    // Waiting state
-    if (!primary || (primary.permissions.length === 0 && primary.id.includes('pending'))) {
+    if (!primary) {
       return (
-        <View style={s.variantWrap}>
-          <View style={s.waitBox}>
-            <Text style={s.waitEmoji}>⏳</Text>
-            <Text style={s.waitTitle}>Waiting for your owner</Text>
-            <Text style={s.waitSub}>
-              Once your owner adds you from their Access Management screen, your dashboard will appear here.
-            </Text>
-            <View style={[s.waitHint, { borderColor: C.TEAL + '30' }]}>
-              <Text style={s.waitHintText}>
-                Tell your owner: Settings → Access → Add Member → your phone number
-              </Text>
-            </View>
-          </View>
+        <View style={s.center}>
+          <Text style={{ fontSize: 40 }}>⏳</Text>
+          <Text style={s.errTxt}>Waiting for owner to connect you.</Text>
         </View>
       )
     }
-    // Single manager context
     return (
-      <ManagerHome
+      <ManagerBody
         entity={primary}
         managerType={primary.type === 'MANAGER_BOAT' ? 'boat' : 'company'}
       />
     )
   }
 
-  // Two manager contexts — show mini switcher
+  // Two manager contexts
   return (
-    <View style={s.variantWrap}>
-      {/* Mini context tabs */}
-      <View style={sw.pill}>
+    <>
+      <View style={cs.pill}>
         <TouchableOpacity
-          style={[sw.tab, activeContext === 'primary' && [sw.tabActive, { backgroundColor: primary!.accent + '20', borderColor: primary!.accent }]]}
+          style={[cs.tab, activeContext === 'primary' && [cs.tabActive, { backgroundColor: primary!.accent + '20', borderColor: primary!.accent }]]}
           onPress={() => setActiveContext('primary')}
         >
-          <Text style={[sw.tabText, activeContext === 'primary' && { color: primary!.accent, fontWeight: '800' }]}>
-            {primary?.type === 'MANAGER_BOAT' ? primary.boatName ?? 'Boat' : primary?.companyName ?? 'Company'}
+          <Text style={[cs.tabTxt, activeContext === 'primary' && { color: primary!.accent, fontWeight: '800' }]}>
+            {primary?.type === 'MANAGER_BOAT' ? primary?.boatName ?? 'Boat' : primary?.companyName ?? 'Company'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[sw.tab, activeContext === 'secondary' && [sw.tabActive, { backgroundColor: secondary.accent + '20', borderColor: secondary.accent }]]}
+          style={[cs.tab, activeContext === 'secondary' && [cs.tabActive, { backgroundColor: secondary.accent + '20', borderColor: secondary.accent }]]}
           onPress={() => setActiveContext('secondary')}
         >
-          <Text style={[sw.tabText, activeContext === 'secondary' && { color: secondary.accent, fontWeight: '800' }]}>
+          <Text style={[cs.tabTxt, activeContext === 'secondary' && { color: secondary.accent, fontWeight: '800' }]}>
             {secondary.type === 'MANAGER_BOAT' ? secondary.boatName ?? 'Boat' : secondary.companyName ?? 'Company'}
           </Text>
         </TouchableOpacity>
       </View>
-
       {activeContext === 'primary'
-        ? <ManagerHome entity={primary} managerType={primary?.type === 'MANAGER_BOAT' ? 'boat' : 'company'} />
-        : <ManagerHome entity={secondary} managerType={secondary.type === 'MANAGER_BOAT' ? 'boat' : 'company'} />
+        ? <ManagerBody entity={primary} managerType={primary?.type === 'MANAGER_BOAT' ? 'boat' : 'company'} />
+        : <ManagerBody entity={secondary} managerType={secondary.type === 'MANAGER_BOAT' ? 'boat' : 'company'} />
       }
-    </View>
+    </>
   )
 }
 
@@ -542,85 +571,153 @@ function HomeHeader({ title, subtitle, accent, emoji }: {
         <Text style={hh.sub}>{subtitle}</Text>
         <Text style={hh.title} numberOfLines={1}>{title}</Text>
       </View>
-      <View style={[hh.iconBox, { backgroundColor: accent + '18' }]}>
-        <Text style={hh.icon}>{emoji}</Text>
+      <View style={[hh.icon, { backgroundColor: accent + '18' }]}>
+        <Text style={{ fontSize: 22 }}>{emoji}</Text>
       </View>
-      <TouchableOpacity
-        style={hh.profileBtn}
-        onPress={() => router.push('/profile' as any)}
-      >
-        <Text style={hh.profileIcon}>👤</Text>
+      <TouchableOpacity style={hh.profile} onPress={() => router.push('/profile' as any)}>
+        <Text style={{ fontSize: 18 }}>👤</Text>
       </TouchableOpacity>
     </View>
   )
 }
 const hh = StyleSheet.create({
-  wrap: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 18, paddingVertical: 18,
-    borderBottomWidth: 1, gap: 10,
-  },
-  left:  { flex: 1 },
-  sub:   { fontSize: 11, color: C.ts, fontWeight: '600', letterSpacing: 0.3, marginBottom: 2 },
-  title: { fontSize: 22, fontWeight: '800', color: C.tp, letterSpacing: -0.4 },
-  iconBox: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  icon: { fontSize: 22 },
-  profileBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.surf, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
-  profileIcon: { fontSize: 18 },
+  wrap:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 18, borderBottomWidth: 1, gap: 10 },
+  left:    { flex: 1 },
+  sub:     { fontSize: 11, color: TS, fontWeight: '600', letterSpacing: 0.3, marginBottom: 2 },
+  title:   { fontSize: 22, fontWeight: '800', color: TP, letterSpacing: -0.4 },
+  icon:    { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  profile: { width: 38, height: 38, borderRadius: 19, backgroundColor: SURF, borderWidth: 1, borderColor: BOR, alignItems: 'center', justifyContent: 'center' },
 })
 
-function StatsGrid({ stats, accent }: {
-  stats: { label: string; value: string; sub: string; emoji: string }[]
-  accent: string
-}) {
+// ─── Compact Stats Card (replaces the 6-cell grid) ───────────────────────────
+// Left column: 2 hero numbers (profit + catch). Right column: 3 small rows.
+// Everything fits in one card, no scrolling needed.
+
+function BoatStatsCard({ accent }: { accent: string }) {
   return (
-    <View style={sg.wrap}>
-      <Text style={[sg.title, { color: accent }]}>THIS SEASON</Text>
-      <View style={sg.grid}>
-        {stats.map(stat => (
-          <View key={stat.label} style={sg.cell}>
-            <Text style={sg.emoji}>{stat.emoji}</Text>
-            <Text style={[sg.value, { color: accent }]}>{stat.value}</Text>
-            <Text style={sg.label}>{stat.label}</Text>
-            <Text style={sg.sub}>{stat.sub}</Text>
-          </View>
-        ))}
+    <View style={[sc.card, { backgroundColor: accent }]}>
+      {/* Left column */}
+      <View style={sc.left}>
+        <View style={sc.leftTop}>
+          <Text style={sc.leftLabel}>Total profit this year</Text>
+          <Text style={sc.leftBig}>₹4,20,000</Text>
+          <Text style={sc.leftGrowth}>+13%</Text>
+        </View>
+        <View style={sc.divider} />
+        <View style={sc.leftBot}>
+          <Text style={sc.leftLabel}>Total catch this year</Text>
+          <Text style={sc.leftBig}>4,20,000 kg</Text>
+          <Text style={sc.leftGrowth}>+8%</Text>
+        </View>
+      </View>
+
+      {/* Right column */}
+      <View style={sc.right}>
+        <View style={sc.rightRow}>
+          <Text style={sc.rightLabel}>Total Boats</Text>
+          <Text style={sc.rightVal}>5</Text>
+        </View>
+        <View style={sc.rightDivider} />
+        <View style={sc.rightRow}>
+          <Text style={sc.rightLabel}>Season Advance</Text>
+          <Text style={sc.rightVal}>7,20,000</Text>
+        </View>
+        <View style={sc.rightDivider} />
+        <View style={sc.rightRow}>
+          <Text style={sc.rightLabel}>Maintenance</Text>
+          <Text style={sc.rightVal}>1,50,000</Text>
+        </View>
+        <View style={sc.rightDivider} />
+        <View style={sc.rightRow}>
+          <Text style={sc.rightLabel}>Diesel</Text>
+          <Text style={[sc.rightVal, sc.rightValHighlight]}>1,00,000 ltr</Text>
+        </View>
       </View>
     </View>
   )
 }
-const sg = StyleSheet.create({
-  wrap:  { marginHorizontal: 16, marginTop: 16 },
-  title: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, marginBottom: 10 },
-  grid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  cell:  {
-    width: '47%', backgroundColor: C.surf,
-    borderRadius: 14, borderWidth: 1, borderColor: C.border,
-    padding: 14, gap: 3,
+
+function CompanyStatsCard({ accent }: { accent: string }) {
+  return (
+    <View style={[sc.card, { backgroundColor: accent }]}>
+      <View style={sc.left}>
+        <View style={sc.leftTop}>
+          <Text style={sc.leftLabel}>Total bills this year</Text>
+          <Text style={sc.leftBig}>₹62,00,000</Text>
+          <Text style={sc.leftGrowth}>+18%</Text>
+        </View>
+        <View style={sc.divider} />
+        <View style={sc.leftBot}>
+          <Text style={sc.leftLabel}>Fish received this year</Text>
+          <Text style={sc.leftBig}>84,000 kg</Text>
+          <Text style={sc.leftGrowth}>+11%</Text>
+        </View>
+      </View>
+      <View style={sc.right}>
+        <View style={sc.rightRow}>
+          <Text style={sc.rightLabel}>Active Boats</Text>
+          <Text style={sc.rightVal}>22</Text>
+        </View>
+        <View style={sc.rightDivider} />
+        <View style={sc.rightRow}>
+          <Text style={sc.rightLabel}>Advance Given</Text>
+          <Text style={sc.rightVal}>₹18,00,000</Text>
+        </View>
+        <View style={sc.rightDivider} />
+        <View style={sc.rightRow}>
+          <Text style={sc.rightLabel}>Company Exp</Text>
+          <Text style={sc.rightVal}>₹4,20,000</Text>
+        </View>
+        <View style={sc.rightDivider} />
+        <View style={sc.rightRow}>
+          <Text style={sc.rightLabel}>Pending Sessions</Text>
+          <Text style={[sc.rightVal, sc.rightValHighlight]}>3 unfilled</Text>
+        </View>
+      </View>
+    </View>
+  )
+}
+
+const sc = StyleSheet.create({
+  card: {
+    marginHorizontal: 16, marginTop: 14,
+    borderRadius: 18, padding: 18,
+    flexDirection: 'row', gap: 16,
+    minHeight: 160,
   },
-  emoji: { fontSize: 20, marginBottom: 2 },
-  value: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
-  label: { fontSize: 12, fontWeight: '700', color: C.tp },
-  sub:   { fontSize: 11, color: C.ts },
+
+  // Left: two stacked hero numbers
+  left:      { flex: 1.1, justifyContent: 'space-between' },
+  leftTop:   { flex: 1, justifyContent: 'center', gap: 2 },
+  leftBot:   { flex: 1, justifyContent: 'center', gap: 2 },
+  leftLabel: { fontSize: 11, color: 'rgba(255,255,255,0.65)', fontWeight: '500' },
+  leftBig:   { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.5, lineHeight: 26 },
+  leftGrowth:{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
+  divider:   { height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginVertical: 8 },
+
+  // Right: 4 compact rows
+  right:            { flex: 0.9, justifyContent: 'space-between' },
+  rightRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flex: 1 },
+  rightDivider:     { height: 1, backgroundColor: 'rgba(255,255,255,0.15)' },
+  rightLabel:       { fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: '500', flex: 1 },
+  rightVal:         { fontSize: 13, color: '#fff', fontWeight: '700', textAlign: 'right' },
+  rightValHighlight:{ color: '#FFD166', fontWeight: '800' },
 })
 
 function QuickActionsGrid({ actions, accent }: {
   actions: { emoji: string; label: string; onPress: () => void }[]
   accent: string
 }) {
-  // Pad to 4 for consistent 2x2 grid
   const padded = [...actions]
   while (padded.length < 4) padded.push({ emoji: '➕', label: 'More', onPress: () => {} })
-  const grid = padded.slice(0, 4)
-
   return (
     <View style={qa.wrap}>
       <Text style={[qa.title, { color: accent }]}>QUICK ACTIONS</Text>
       <View style={qa.grid}>
-        {grid.map((a, i) => (
+        {padded.slice(0, 4).map((a, i) => (
           <TouchableOpacity key={i} style={qa.cell} onPress={a.onPress} activeOpacity={0.75}>
-            <View style={[qa.iconBox, { backgroundColor: accent + '18' }]}>
-              <Text style={qa.emoji}>{a.emoji}</Text>
+            <View style={[qa.icon, { backgroundColor: accent + '18' }]}>
+              <Text style={{ fontSize: 26 }}>{a.emoji}</Text>
             </View>
             <Text style={qa.label}>{a.label}</Text>
           </TouchableOpacity>
@@ -630,99 +727,46 @@ function QuickActionsGrid({ actions, accent }: {
   )
 }
 const qa = StyleSheet.create({
-  wrap:    { marginHorizontal: 16, marginTop: 20 },
-  title:   { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, marginBottom: 10 },
-  grid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  cell:    {
-    width: '47%', backgroundColor: C.surf,
-    borderRadius: 14, borderWidth: 1, borderColor: C.border,
-    padding: 16, alignItems: 'center', gap: 8,
-  },
-  iconBox: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  emoji:   { fontSize: 26 },
-  label:   { fontSize: 13, fontWeight: '700', color: C.tp, textAlign: 'center' },
+  wrap:  { marginHorizontal: 16, marginTop: 20 },
+  title: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, marginBottom: 10, color: TM },
+  grid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  cell:  { width: '47%', backgroundColor: SURF, borderRadius: 14, borderWidth: 1, borderColor: BOR, padding: 16, alignItems: 'center', gap: 8 },
+  icon:  { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  label: { fontSize: 13, fontWeight: '700', color: TP, textAlign: 'center' },
 })
 
-function ManageSection({ rows, accent }: {
-  rows: { emoji: string; label: string; sub: string; onPress: () => void }[]
-  accent: string
+function OnboardingPrompt({ emoji, title, subtitle, accent, onPress }: {
+  emoji: string; title: string; subtitle: string; accent: string; onPress: () => void
 }) {
   return (
-    <View style={ms.wrap}>
-      <Text style={[ms.title, { color: accent }]}>MANAGE</Text>
-      <View style={ms.card}>
-        {rows.map((row, i) => (
-          <TouchableOpacity
-            key={row.label}
-            style={[ms.row, i < rows.length - 1 && ms.rowBorder]}
-            onPress={row.onPress}
-            activeOpacity={0.75}
-          >
-            <View style={[ms.icon, { backgroundColor: accent + '14' }]}>
-              <Text style={{ fontSize: 18 }}>{row.emoji}</Text>
-            </View>
-            <View style={ms.text}>
-              <Text style={ms.label}>{row.label}</Text>
-              <Text style={ms.sub}>{row.sub}</Text>
-            </View>
-            <Text style={[ms.arrow, { color: accent }]}>›</Text>
-          </TouchableOpacity>
-        ))}
+    <TouchableOpacity
+      style={[op.wrap, { borderColor: accent + '40', backgroundColor: accent + '08' }]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <Text style={{ fontSize: 28 }}>{emoji}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={[op.title, { color: accent }]}>{title}</Text>
+        <Text style={op.sub}>{subtitle}</Text>
       </View>
-    </View>
+      <Text style={[{ fontSize: 20, color: accent }]}>›</Text>
+    </TouchableOpacity>
   )
 }
-const ms = StyleSheet.create({
-  wrap:      { marginHorizontal: 16, marginTop: 20, marginBottom: 24 },
-  title:     { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, marginBottom: 10, color: C.ts },
-  card:      { backgroundColor: C.surf, borderRadius: 16, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
-  row:       { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
-  rowBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
-  icon:      { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  text:      { flex: 1 },
-  label:     { fontSize: 15, fontWeight: '700', color: C.tp },
-  sub:       { fontSize: 12, color: C.ts, marginTop: 1 },
-  arrow:     { fontSize: 22, fontWeight: '300' },
+const op = StyleSheet.create({
+  wrap:  { flexDirection: 'row', alignItems: 'center', gap: 12, margin: 16, padding: 16, borderRadius: 14, borderWidth: 1 },
+  title: { fontSize: 14, fontWeight: '800' },
+  sub:   { fontSize: 12, color: TS, marginTop: 2, lineHeight: 17 },
 })
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Base styles ──────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe:        { flex: 1, backgroundColor: C.bg },
-  scroll:      { flexGrow: 1 },
-  center:      { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 },
-  loadText:    { color: C.ts, fontSize: 14 },
-  errorEmoji:  { fontSize: 40 },
-  errorText:   { color: C.ts, fontSize: 14, textAlign: 'center' },
-  retryBtn:    { backgroundColor: C.TEAL, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
-  retryText:   { color: '#fff', fontWeight: '700', fontSize: 15 },
-
-  variantWrap: { flex: 1 },
-
-  // Manager card
-  mgrCard: {
-    margin: 16, padding: 18, backgroundColor: C.surf,
-    borderRadius: 16, borderWidth: 1, gap: 6,
-  },
-  mgrBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginBottom: 4 },
-  mgrBadgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
-  mgrName:  { fontSize: 20, fontWeight: '800', color: C.tp },
-  mgrOwner: { fontSize: 13, color: C.ts },
-  mgrNote:  { fontSize: 12, color: C.tm, marginTop: 4, fontStyle: 'italic' },
-
-  permRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginHorizontal: 16, marginBottom: 8 },
-  permChip:     { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
-  permChipText: { fontSize: 10, fontWeight: '600' },
-
-  noPermsBox:   { margin: 16, padding: 24, backgroundColor: C.surf, borderRadius: 16, alignItems: 'center', gap: 10 },
-  noPermsEmoji: { fontSize: 36 },
-  noPermsTitle: { fontSize: 17, fontWeight: '800', color: C.tp },
-  noPermsSub:   { fontSize: 13, color: C.ts, textAlign: 'center', lineHeight: 19 },
-
-  // Manager only waiting
-  waitBox:      { margin: 24, padding: 28, backgroundColor: C.surf, borderRadius: 20, alignItems: 'center', gap: 12 },
-  waitEmoji:    { fontSize: 48 },
-  waitTitle:    { fontSize: 20, fontWeight: '800', color: C.tp },
-  waitSub:      { fontSize: 14, color: C.ts, textAlign: 'center', lineHeight: 20 },
-  waitHint:     { marginTop: 8, padding: 14, borderRadius: 12, borderWidth: 1, backgroundColor: 'rgba(8,145,178,0.07)' },
-  waitHintText: { fontSize: 12, color: C.TEAL, lineHeight: 18, textAlign: 'center' },
+  safe:        { flex: 1, backgroundColor: BG },
+  scroll:      { flex: 1 },
+  scrollContent: {},
+  center:      { flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 },
+  loadTxt:     { color: TS, fontSize: 14 },
+  errTxt:      { color: TS, fontSize: 14, textAlign: 'center' },
+  retryBtn:    { backgroundColor: TEAL, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  retryTxt:    { color: '#fff', fontWeight: '700', fontSize: 15 },
 })

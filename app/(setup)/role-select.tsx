@@ -27,6 +27,7 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useAuthStore } from '../../store/authStore'
 import { SelectedRole, useEntityStore } from '../../store/entityStore'
 
 type RoleId = 'boat_owner' | 'company_owner' | 'manager_company' | 'manager_boat'
@@ -88,19 +89,18 @@ function getRoute(selected: Set<RoleId>): string {
   const hasOwner   = hasBoat || hasCompany
   const hasMgr     = hasMgrCo || hasMgrBoat
 
-  let ownerRole = ''
-  if (hasBoat && hasCompany) ownerRole = 'both_owner'
-  else if (hasBoat)          ownerRole = 'boat_owner'
-  else if (hasCompany)       ownerRole = 'company_owner'
+  // Any owner role (alone or combined with manager) → skip ALL intermediate screens → go straight to home
+  // Home dashboard has onboarding prompts to add boat/company details
+  if (hasOwner) return '/(home)'
 
+  // Pure manager only → invite code screen
   let mgrType = ''
   if (hasMgrCo && hasMgrBoat) mgrType = 'both'
   else if (hasMgrCo)           mgrType = 'company'
   else if (hasMgrBoat)         mgrType = 'boat'
 
-  if (hasOwner && hasMgr) return `/(setup)/quick-setup?role=${ownerRole}&managerType=${mgrType}`
-  if (hasOwner)            return `/(setup)/quick-setup?role=${ownerRole}`
-  if (hasMgr)              return `/(setup)/invite-code?type=${mgrType}`
+  if (hasMgr) return `/(setup)/invite-code?type=${mgrType}`
+
   return ''
 }
 
@@ -117,7 +117,8 @@ function getContinueLabel(selected: Set<RoleId>): string {
 
 export default function RoleSelectScreen() {
   const [selected, setSelected] = useState<Set<RoleId>>(new Set())
-  const { setSelectedRoles } = useEntityStore()
+  const { setSelectedRoles, finishSetup } = useEntityStore()
+  const { setSetupComplete } = useAuthStore()
 
   const toggle = (id: RoleId) => {
     setSelected(prev => {
@@ -134,10 +135,23 @@ export default function RoleSelectScreen() {
 
   const handleContinue = () => {
     if (selected.size === 0) return
-    // Save selected roles to store BEFORE navigating
-    setSelectedRoles([...selected] as SelectedRole[])
+    const roles = [...selected] as SelectedRole[]
+    // Save roles to store
+    setSelectedRoles(roles)
     const route = getRoute(selected)
-    if (route) router.push(route as any)
+    if (!route) return
+
+    // Owners go straight to home — no quick-setup screen needed
+    // They add company/boat details from within the dashboard
+    if (route === '/(home)') {
+      finishSetup({ roles })
+      setSetupComplete([])
+      router.replace('/(home)' as any)
+      return
+    }
+
+    // Managers → invite-code screen
+    router.push(route as any)
   }
 
   return (
