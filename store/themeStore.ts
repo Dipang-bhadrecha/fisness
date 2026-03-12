@@ -22,18 +22,15 @@ export const useThemeStore = create<ThemeState>((set) => ({
     try {
       const saved = await AsyncStorage.getItem(THEME_KEY)
       const mode: ColorMode = saved === 'light' || saved === 'dark' ? saved : initialMode
-      Appearance.setColorScheme(mode)
       setThemeMode(mode)
       set({ mode, isInitialised: true })
     } catch {
-      Appearance.setColorScheme(initialMode)
       setThemeMode(initialMode)
       set({ mode: initialMode, isInitialised: true })
     }
   },
 
   setMode: async (mode) => {
-    Appearance.setColorScheme(mode)
     setThemeMode(mode)
     set({ mode })
     await AsyncStorage.setItem(THEME_KEY, mode)

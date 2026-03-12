@@ -19,14 +19,15 @@
 import { router } from 'expo-router'
 import React, { useState } from 'react'
 import {
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { SelectedRole, useEntityStore } from '../../store/entityStore'
 
 type RoleId = 'boat_owner' | 'company_owner' | 'manager_company' | 'manager_boat'
 
@@ -116,6 +117,7 @@ function getContinueLabel(selected: Set<RoleId>): string {
 
 export default function RoleSelectScreen() {
   const [selected, setSelected] = useState<Set<RoleId>>(new Set())
+  const { setSelectedRoles } = useEntityStore()
 
   const toggle = (id: RoleId) => {
     setSelected(prev => {
@@ -129,6 +131,14 @@ export default function RoleSelectScreen() {
   const ownerRoles   = ROLES.filter(r => r.group === 'owner')
   const managerRoles = ROLES.filter(r => r.group === 'manager')
   const showMgrNote  = selected.has('manager_company') || selected.has('manager_boat')
+
+  const handleContinue = () => {
+    if (selected.size === 0) return
+    // Save selected roles to store BEFORE navigating
+    setSelectedRoles([...selected] as SelectedRole[])
+    const route = getRoute(selected)
+    if (route) router.push(route as any)
+  }
 
   return (
     <>
@@ -216,7 +226,7 @@ export default function RoleSelectScreen() {
 
             <TouchableOpacity
               style={[s.btn, selected.size === 0 && s.btnOff]}
-              onPress={() => { if (selected.size > 0) router.push(getRoute(selected) as any) }}
+              onPress={handleContinue}
               disabled={selected.size === 0}
               activeOpacity={0.85}
             >

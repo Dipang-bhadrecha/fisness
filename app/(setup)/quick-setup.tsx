@@ -18,21 +18,21 @@ import { ApiError, completeSetup } from '@/services/api'
 import { router, useLocalSearchParams } from 'expo-router'
 import React, { useRef, useState } from 'react'
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../constants/theme'
 import { useAuthStore } from '../../store/authStore'
-import { Entity, ENTITY_ACCENTS, useEntityStore } from '../../store/entityStore'
+import { useEntityStore } from '../../store/entityStore'
 
 type RoleParam = 'boat_owner' | 'company_owner' | 'both_owner'
 
@@ -104,7 +104,7 @@ export default function QuickSetupScreen() {
   const config = ROLE_CONFIG[roleKey] ?? ROLE_CONFIG.company_owner
 
   const { token, setSetupComplete } = useAuthStore()
-  const { setActiveEntity } = useEntityStore()
+  const { finishSetup } = useEntityStore()
 
   const [companyName, setCompanyName] = useState('')
   const [boatName, setBoatName] = useState('')
@@ -142,20 +142,15 @@ export default function QuickSetupScreen() {
       const { workspaces } = await completeSetup(token, payload)
       await setSetupComplete(workspaces)
 
-      // Build a local entity and set it active so entityStore is populated
-      // before dashboard loads (avoids flicker)
-      const localEntity: Entity = buildLocalEntity(roleKey, companyName.trim(), boatName.trim())
-      setActiveEntity(localEntity)
+      // Populate entityStore and resolve homeVariant in one call
+      const roles = roleKey === 'boat_owner'    ? ['boat_owner' as const]
+                  : roleKey === 'company_owner'  ? ['company_owner' as const]
+                  : ['boat_owner' as const, 'company_owner' as const]
 
-      // Route to correct dashboard
-      const route =
-        roleKey === 'boat_owner'
-          ? '/(boat)/home'
-          : roleKey === 'company_owner'
-          ? '/(company)/home'
-          : '/(company)/home'  // both_owner: default to company, switch via EntitySwitcher
+      finishSetup({ roles, companyName: companyName.trim(), boatName: boatName.trim() })
 
-      router.replace(route as any)
+      // All variants now route to (home) — context switcher handles the rest
+      router.replace('/(home)' as any)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.')
       setSaving(false)

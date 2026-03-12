@@ -14,20 +14,20 @@ import { ApiError } from '@/services/api'
 import { router, useLocalSearchParams } from 'expo-router'
 import React, { useRef, useState } from 'react'
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../constants/theme'
 import { useAuthStore } from '../../store/authStore'
-import { Entity, ENTITY_ACCENTS, useEntityStore } from '../../store/entityStore'
+import { useEntityStore } from '../../store/entityStore'
 
 const ACCENT = '#0891b2'
 
@@ -38,7 +38,7 @@ export default function InviteCodeScreen() {
   const isCompany = type !== 'boat'
 
   const { token, setSetupComplete } = useAuthStore()
-  const { setActiveEntity } = useEntityStore()
+  const { finishSetup } = useEntityStore()
 
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
@@ -58,22 +58,14 @@ export default function InviteCodeScreen() {
       // For now — mock accept and route to manager dashboard
       await new Promise(r => setTimeout(r, 1000)) // simulate API call
 
-      // Mock: build a local entity representing the manager context
-      const localEntity: Entity = {
-        id: `manager_${code}`,
-        type: 'MANAGER_COMPANY',
-        label: isCompany ? 'Company (Manager)' : 'Boat (Manager)',
-        sublabel: `Manager access · code ${code.toUpperCase()}`,
-        accent: ENTITY_ACCENTS.MANAGER_COMPANY,
-        role: 'manager',
-        permissions: isCompany
-          ? ['CREATE_TALI', 'VIEW_TALI', 'VIEW_BILL', 'ADD_COMPANY_EXPENSE', 'VIEW_EMPLOYEE_RECORDS']
-          : ['ADD_BOAT_EXPENSE', 'VIEW_BOAT_EXPENSE', 'CREATE_TALI', 'VIEW_TALI'],
-      }
-      setActiveEntity(localEntity)
+      // Build manager entity via finishSetup so homeVariant is set correctly
+      const roles = isCompany
+        ? (['manager_company'] as const)
+        : (['manager_boat'] as const)
+      finishSetup({ roles: [...roles] })
       await setSetupComplete([])
 
-      router.replace('/(manager)/home' as any)
+      router.replace('/(home)' as any)
     } catch (err) {
       setError(
         err instanceof ApiError

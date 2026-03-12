@@ -16,29 +16,28 @@
 import { router } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import {
-    ActivityIndicator,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../constants/theme'
 import { useAuthStore } from '../../store/authStore'
 import {
-    DASHBOARD_ROUTES,
-    ENTITY_EMOJIS,
-    Entity,
-    useEntityStore,
+  ENTITY_EMOJIS,
+  Entity,
+  useEntityStore
 } from '../../store/entityStore'
 
 // ─── Route helper ─────────────────────────────────────────────────────────────
 
-function routeToDashboard(entity: Entity) {
-  const route = DASHBOARD_ROUTES[entity.type]
-  router.replace(route as any)
+function routeToDashboard(_entity: Entity) {
+  // All variants now use the universal home screen
+  router.replace('/(home)' as any)
 }
 
 // ─── Entity Card ──────────────────────────────────────────────────────────────
