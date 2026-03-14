@@ -47,19 +47,25 @@ export default function RootLayout() {
           },
         }}
       >
-        <Stack.Screen name="index"   options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)"  options={{ headerShown: false }} />
-        <Stack.Screen name="(setup)" options={{ headerShown: false, gestureEnabled: false }} />
-        <Stack.Screen name="(owner)" options={{ headerShown: false }} />
-        <Stack.Screen name="tali"    options={{ headerShown: false }} />
-        <Stack.Screen name="summary" options={{ headerShown: false }} />
-        <Stack.Screen name="bill"    options={{ headerShown: false }} />
-        <Stack.Screen name="crew"    options={{ headerShown: false }} />
-        <Stack.Screen name="kharchi" options={{ headerShown: false }} />
+        <Stack.Screen name="index"        options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)"       options={{ headerShown: false }} />
+        <Stack.Screen name="(setup)"      options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="(owner)"      options={{ headerShown: false }} />
+        <Stack.Screen name="(home)"       options={{ headerShown: false }} />
+        <Stack.Screen name="(dashboard)"  options={{ headerShown: false }} />
+        <Stack.Screen name="tali"         options={{ headerShown: false }} />
+        <Stack.Screen name="summary"      options={{ headerShown: false }} />
+        <Stack.Screen name="bill"         options={{ headerShown: false }} />
+        <Stack.Screen name="crew"         options={{ headerShown: false }} />
+        <Stack.Screen name="kharchi"      options={{ headerShown: false }} />
+        <Stack.Screen name="boats"        options={{ headerShown: false }} />
         <Stack.Screen name="profile"      options={{ headerShown: false }} />
         <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="access"       options={{ headerShown: false }} />
-        <Stack.Screen name="crew-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="crew-detail"  options={{ headerShown: false }} />
+        <Stack.Screen name="boat-detail"  options={{ headerShown: false }} />
+        <Stack.Screen name="trips"        options={{ headerShown: false }} />
+        <Stack.Screen name="ledger"       options={{ headerShown: false }} />
       </Stack>
     </SafeAreaProvider>
   )

@@ -15,22 +15,22 @@
  */
 
 import { ApiError, completeSetup } from '@/services/api'
+import { useTheme } from '@/store/themeStore'
 import { router, useLocalSearchParams } from 'expo-router'
-import React, { useRef, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { theme } from '../../constants/theme'
 import { useAuthStore } from '../../store/authStore'
 import { useEntityStore } from '../../store/entityStore'
 
@@ -99,6 +99,8 @@ const ROLE_CONFIG: Record<RoleParam, {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function QuickSetupScreen() {
+  const theme = useTheme()
+  const s = useMemo(() => createStyles(theme), [theme])
   const { role } = useLocalSearchParams<{ role: string }>()
   const roleKey = (role as RoleParam) ?? 'company_owner'
   const config = ROLE_CONFIG[roleKey] ?? ROLE_CONFIG.company_owner
@@ -265,45 +267,6 @@ export default function QuickSetupScreen() {
   )
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function buildLocalEntity(role: RoleParam, companyName: string, boatName: string): Entity {
-  if (role === 'boat_owner') {
-    return {
-      id: 'personal_boats',
-      type: 'BOAT_BUNDLE',
-      label: boatName || 'My Boats',
-      sublabel: 'Personal fleet · Owner',
-      accent: ENTITY_ACCENTS.BOAT_BUNDLE,
-      role: 'owner',
-      permissions: [],
-    }
-  }
-  if (role === 'company_owner') {
-    return {
-      id: 'temp_company',
-      type: 'COMPANY',
-      label: companyName || 'My Company',
-      sublabel: 'Your company · Owner',
-      accent: ENTITY_ACCENTS.COMPANY,
-      role: 'owner',
-      permissions: [],
-      companyName,
-    }
-  }
-  // both_owner — default to company entity
-  return {
-    id: 'temp_company',
-    type: 'COMPANY',
-    label: companyName || 'My Company',
-    sublabel: 'Your company · Owner',
-    accent: ENTITY_ACCENTS.COMPANY,
-    role: 'owner',
-    permissions: [],
-    companyName,
-  }
-}
-
 function getFeatures(role: RoleParam): string[] {
   switch (role) {
     case 'boat_owner':
@@ -335,80 +298,82 @@ function getFeatures(role: RoleParam): string[] {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  bg: { flex: 1, backgroundColor: '#0a1628' },
-  bgCircle: {
-    position: 'absolute', top: -80, right: -60,
-    width: 260, height: 260, borderRadius: 130,
-  },
-  safe: { flex: 1 },
-  scroll: { padding: 20, gap: 20 },
+function createStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    bg: { flex: 1, backgroundColor: '#0a1628' },
+    bgCircle: {
+      position: 'absolute', top: -80, right: -60,
+      width: 260, height: 260, borderRadius: 130,
+    },
+    safe: { flex: 1 },
+    scroll: { padding: 20, gap: 20 },
 
-  backBtn: {
-    alignSelf: 'flex-start', paddingVertical: 4,
-    paddingHorizontal: 2, marginBottom: 4,
-  },
-  backText: { color: theme.colors.textSecondary, fontSize: 15, fontWeight: '600' },
+    backBtn: {
+      alignSelf: 'flex-start', paddingVertical: 4,
+      paddingHorizontal: 2, marginBottom: 4,
+    },
+    backText: { color: theme.colors.textSecondary, fontSize: 15, fontWeight: '600' },
 
-  hero: { alignItems: 'center', gap: 10, paddingVertical: 8 },
-  heroIcon: {
-    width: 80, height: 80, borderRadius: 40,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  heroEmoji: { fontSize: 38 },
-  heroTitle: {
-    fontSize: 26, fontWeight: '800',
-    color: theme.colors.textPrimary, letterSpacing: -0.4,
-  },
-  heroSub: { fontSize: 14, color: theme.colors.textSecondary },
+    hero: { alignItems: 'center', gap: 10, paddingVertical: 8 },
+    heroIcon: {
+      width: 80, height: 80, borderRadius: 40,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    heroEmoji: { fontSize: 38 },
+    heroTitle: {
+      fontSize: 26, fontWeight: '800',
+      color: theme.colors.textPrimary, letterSpacing: -0.4,
+    },
+    heroSub: { fontSize: 14, color: theme.colors.textSecondary },
 
-  fieldsCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    overflow: 'hidden',
-  },
-  fieldBlock: { padding: 18, gap: 8 },
-  fieldBlockBorder: { borderTopWidth: 1, borderTopColor: theme.colors.border },
-  fieldLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
-  fieldInput: {
-    height: 52, backgroundColor: theme.colors.elevated,
-    borderRadius: 12, paddingHorizontal: 16,
-    fontSize: 16, fontWeight: '600', color: theme.colors.textPrimary,
-    borderWidth: 1, borderColor: theme.colors.border,
-  },
-  fieldHint: { fontSize: 12, color: theme.colors.textMuted },
+    fieldsCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      overflow: 'hidden',
+    },
+    fieldBlock: { padding: 18, gap: 8 },
+    fieldBlockBorder: { borderTopWidth: 1, borderTopColor: theme.colors.border },
+    fieldLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+    fieldInput: {
+      height: 52, backgroundColor: theme.colors.elevated,
+      borderRadius: 12, paddingHorizontal: 16,
+      fontSize: 16, fontWeight: '600', color: theme.colors.textPrimary,
+      borderWidth: 1, borderColor: theme.colors.border,
+    },
+    fieldHint: { fontSize: 12, color: theme.colors.textMuted },
 
-  errorBox: {
-    backgroundColor: 'rgba(239,68,68,0.1)',
-    borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: 'rgba(239,68,68,0.25)',
-  },
-  errorText: { color: '#f87171', fontSize: 13 },
+    errorBox: {
+      backgroundColor: 'rgba(239,68,68,0.1)',
+      borderRadius: 12, padding: 14,
+      borderWidth: 1, borderColor: 'rgba(239,68,68,0.25)',
+    },
+    errorText: { color: '#f87171', fontSize: 13 },
 
-  previewCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: 16, gap: 10,
-  },
-  previewTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
-  previewList: { gap: 8 },
-  previewRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  previewDot: { fontSize: 13, fontWeight: '800', marginTop: 1 },
-  previewText: { flex: 1, fontSize: 13, color: theme.colors.textSecondary, lineHeight: 18 },
+    previewCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      padding: 16, gap: 10,
+    },
+    previewTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+    previewList: { gap: 8 },
+    previewRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+    previewDot: { fontSize: 13, fontWeight: '800', marginTop: 1 },
+    previewText: { flex: 1, fontSize: 13, color: theme.colors.textSecondary, lineHeight: 18 },
 
-  stickyBottom: {
-    paddingHorizontal: 20, paddingVertical: 14, paddingBottom: 28,
-    backgroundColor: 'rgba(10,22,40,0.97)',
-    borderTopWidth: 1, borderTopColor: theme.colors.border,
-  },
-  submitBtn: {
-    height: 56, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  submitBtnText: { fontSize: 16, fontWeight: '800', color: '#fff' },
-  submitBtnTextOff: { color: 'rgba(255,255,255,0.3)' },
-})
+    stickyBottom: {
+      paddingHorizontal: 20, paddingVertical: 14, paddingBottom: 28,
+      backgroundColor: 'rgba(10,22,40,0.97)',
+      borderTopWidth: 1, borderTopColor: theme.colors.border,
+    },
+    submitBtn: {
+      height: 56, borderRadius: 16,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    submitBtnText: { fontSize: 16, fontWeight: '800', color: '#fff' },
+    submitBtnTextOff: { color: 'rgba(255,255,255,0.3)' },
+  })
+}

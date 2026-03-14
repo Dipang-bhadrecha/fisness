@@ -9,28 +9,29 @@
  *   await updateProfile(token!, { name: name.trim() })
  */
 
+import { useTheme } from '@/store/themeStore'
 import { router } from 'expo-router'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { theme } from '../constants/theme'
 import { useAuthStore } from '../store/authStore'
 
 export default function EditProfileScreen() {
   const { user } = useAuthStore()
-
+  const theme = useTheme()
+  const s = useMemo(() => createStyles(theme), [theme])
   const [name, setName] = useState(user?.name ?? '')
   const [nameFocused, setNameFocused] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -224,18 +225,19 @@ export default function EditProfileScreen() {
   )
 }
 
-const TEAL = theme.colors.primary
-const BG   = theme.colors.background
-const SURF = theme.colors.surface
-const ELEV = theme.colors.elevated
-const BOR  = theme.colors.border
-const TP   = theme.colors.textPrimary
-const TS   = theme.colors.textSecondary
-const TD   = theme.colors.textDisabled
-const ERR  = theme.colors.danger
-const RAD  = theme.radius
+function createStyles(theme: ReturnType<typeof useTheme>) {
+  const TEAL = theme.colors.primary
+  const BG   = theme.colors.background
+  const SURF = theme.colors.surface
+  const ELEV = theme.colors.elevated
+  const BOR  = theme.colors.border
+  const TP   = theme.colors.textPrimary
+  const TS   = theme.colors.textSecondary
+  const TD   = theme.colors.textDisabled
+  const ERR  = theme.colors.danger
+  const RAD  = theme.radius
 
-const s = StyleSheet.create({
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: BG },
 
   // ── Header ──────────────────────────────────────────
@@ -399,4 +401,5 @@ const s = StyleSheet.create({
   },
   infoEmoji: { fontSize: 15, marginTop: 1 },
   infoText: { flex: 1, fontSize: 13, color: TS, lineHeight: 19 },
-})
+  })
+}

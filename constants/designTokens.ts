@@ -2,95 +2,136 @@ import { Platform } from 'react-native'
 
 /**
  * ══════════════════════════════════════════════════════════════
- * MATSYAKOSH — DESIGN TOKENS v1.1
- * Professional Design System for Fisherman-First Engagement
+ * MATSYAKOSH — DESIGN TOKENS v2.1
+ * Fisherman-First Design System
+ * Updated: Light/Dark colors aligned to outdoor readability guide
  * ══════════════════════════════════════════════════════════════
  */
 
 // ─────────────────────────────────────────────────────────────
-// COLOR PALETTE — DARK MODE (Primary)
+// COLOR PALETTE — DARK MODE
+// Guide: avoid pure black — use layered charcoal for depth
+// No shadows in dark mode — elevation via bg color steps only
 // ─────────────────────────────────────────────────────────────
 export const darkColors = {
-  // Backgrounds — Layered Depth
-  bgBase: '#080F1A',          // Primary background (WCAG AAA)
-  bgSurface: '#0D1B2E',       // Cards, surfaces
-  bgElevated: '#132640',      // Elevated/modal backgrounds
-  bgOverlay: '#080F1A99',     // 60% opacity overlay
+  // Backgrounds — three-layer depth (guide: #121212 / #1E1E1E / #2A2A2A)
+  bgBase:     '#121212',        // Page background — dark charcoal, not pure black
+  bgSurface:  '#1E1E1E',        // Cards — one step lighter
+  bgElevated: '#2A2A2A',        // Modals, bottom sheets — two steps lighter
+  bgOverlay:  '#12121299',      // 60% opacity overlay
 
-  // Primary Brand Colors
-  primary: '#00C2CB',         // Primary teal
-  primaryLight: '#1FD7E0',    // Hover state
-  primaryDark: '#0A8A93',     // Active/pressed state
-  primaryMuted: '#00C2CB1A',  // 10% opacity for backgrounds
+  // Primary Brand — lightened for dark bg (guide: glow, not absorb)
+  primary:      '#4D9EFF',      // Blue lighter variant for dark mode
+  primaryLight: '#80BBFF',
+  primaryDark:  '#0066CC',
+  primaryMuted: '#4D9EFF1A',
 
-  // Secondary Accent (Gold)
-  gold: '#C9A84C',
-  goldLight: '#D9B86A',
-  goldDark: '#A0721A',
-  goldMuted: '#C9A84C0F',
+  // Action / CTA Orange (guide: #FF9933 dark)
+  action:      '#FF9933',
+  actionLight: '#FFB366',
+  actionDark:  '#FF7C00',
+  actionMuted: '#FF99331A',
 
-  // Status Colors
-  success: '#22C55E',
+  // Success / Income (guide: #33BB66 — lighter for dark bg visibility)
+  success:      '#33BB66',
+  successMuted: '#33BB661A',
+
+  // Danger / Expense (guide: #FF5555 — lighter for dark bg visibility)
+  danger:      '#FF5555',
+  dangerMuted: '#FF55551A',
+
+  // Warning
   warning: '#F59E0B',
-  danger: '#EF4444',
 
-  // Text Hierarchy
-  textPrimary: '#F0F4F8',
-  textSecondary: '#8BA3BC',
-  textMuted: '#3D5A73',
-  textInverse: '#080F1A',
+  // Text (guide: never pure white — use #E8E8E6 warm off-white)
+  textPrimary:   '#E8E8E6',     // Warm off-white — easier on eyes at night
+  textSecondary: '#9A9A98',     // Secondary labels
+  textMuted:     '#5A5A58',     // Disabled / placeholder
+  textInverse:   '#121212',
 
-  // Borders & Dividers
-  border: 'rgba(0, 194, 203, 0.1)',
-  borderStrong: 'rgba(0, 194, 203, 0.2)',
-  divider: 'rgba(139, 163, 188, 0.08)',
+  // Borders (guide: #333331 cards, #2C2C2A dividers — very subtle)
+  border:       '#333331',
+  borderStrong: '#444442',
+  divider:      '#2C2C2A',
 
   // Special States
-  disabled: 'rgba(61, 90, 115, 0.5)',
-  focus: 'rgba(0, 194, 203, 0.3)',
+  disabled: 'rgba(90, 90, 88, 0.5)',
+  focus:    'rgba(77, 158, 255, 0.35)',
+
+  // Pause / Hold
+  pause:     '#E8B800',
+  pauseBg:   '#2A2510',
+  pauseText: '#E8B800',
 } as const
 
 // ─────────────────────────────────────────────────────────────
-// COLOR PALETTE — LIGHT OCEAN MODE (Clean, Subtle)
+// COLOR PALETTE — LIGHT MODE
+// Guide: anti-glare warm off-white, NOT pure white bg
+// Deep enough blues/greens/reds to pass 7:1 on white in sun
 // ─────────────────────────────────────────────────────────────
 export const lightColors = {
-  // Backgrounds — Light ocean palette
-  bgBase: '#F3FAFF',           // Soft ocean mist background
-  bgSurface: '#FFFFFF',        // White cards/surfaces
-  bgElevated: '#ECF6FF',       // Soft blue elevation layer
-  bgOverlay: '#F3FAFFCC',      // 80% opacity light overlay
+  // Backgrounds (guide: #F2F2F0 — warm off-white, not pure #FFFFFF)
+  bgBase:     '#F2F2F0',        // Warm off-white — no sun glare
+  bgSurface:  '#FFFFFF',        // Cards on top of base
+  bgElevated: '#F8F8F6',        // Modals, bottom sheets
+  bgOverlay:  '#F2F2F0CC',
 
-  // Primary Brand Colors — Ocean Blue
-  primary: '#1B7FBF',          // Calm ocean blue
-  primaryLight: '#4A9ED4',     // Hover/pressed soft blue
-  primaryDark: '#135C8B',      // Deeper ocean blue
-  primaryMuted: '#1B7FBF14',   // Muted blue tint
+  // Primary Brand (guide: #0055BB — deeper blue for sunlight legibility)
+  primary:      '#0055BB',      // Deeper than standard blue — legible in sun
+  primaryLight: '#4D9EFF',
+  primaryDark:  '#003D8A',
+  primaryMuted: '#0055BB14',
 
-  // Secondary Accent — Seafoam
-  gold: '#2F9FA9',
-  goldLight: '#4FB7C0',
-  goldDark: '#237A82',
-  goldMuted: '#2F9FA914',
+  // Action / CTA Orange (guide: #E06F00 — dark enough for white text at 7:1)
+  action:      '#E06F00',
+  actionLight: '#FF9933',
+  actionDark:  '#B85800',
+  actionMuted: '#E06F0014',
 
-  // Status Colors
-  success: '#10B981',          // Green
-  warning: '#F59E0B',          // Amber
-  danger: '#EF4444',           // Red
+  // Success / Income (guide: #007A36 — deep green for sun legibility)
+  success:      '#007A36',
+  successMuted: '#007A361A',
 
-  // Text Hierarchy — Dark teal/ocean tones
-  textPrimary: '#12344A',      // Deep ocean text
-  textSecondary: '#4A6B82',    // Secondary muted blue
-  textMuted: '#7E9DB2',        // Muted blue
-  textInverse: '#FFFFFF',      // White on dark backgrounds
+  // Danger / Expense (guide: #BB0000 — deep red for sun legibility)
+  danger:      '#BB0000',
+  dangerMuted: '#BB00001A',
 
-  // Borders & Dividers — Subtle blue
-  border: 'rgba(27, 127, 191, 0.14)',
-  borderStrong: 'rgba(27, 127, 191, 0.22)',
-  divider: 'rgba(74, 107, 130, 0.10)',
+  // Warning
+  warning: '#D97706',
+
+  // Text (guide: #111111 — near-black, not pure black)
+  textPrimary:   '#111111',     // Near-black — less harsh than #000000
+  textSecondary: '#555555',     // Medium gray labels
+  textMuted:     '#999999',     // Placeholder / disabled
+  textInverse:   '#FFFFFF',
+
+  // Borders (guide: #D8D8D6 cards, #EBEBEA dividers — never pure black)
+  border:       '#D8D8D6',
+  borderStrong: '#C0C0BE',
+  divider:      '#EBEBEA',
 
   // Special States
-  disabled: 'rgba(74, 107, 130, 0.45)',
-  focus: 'rgba(27, 127, 191, 0.2)',
+  disabled: 'rgba(153, 153, 153, 0.5)',
+  focus:    'rgba(0, 85, 187, 0.25)',
+
+  // Pause / Hold
+  pause:     '#D97706',
+  pauseBg:   '#FEF3C7',
+  pauseText: '#92400E',
+} as const
+
+// ─────────────────────────────────────────────────────────────
+// FIXED COLORS — Never change between light/dark
+// Guide: WhatsApp, status badges always stay constant for recognition
+// ─────────────────────────────────────────────────────────────
+export const fixedColors = {
+  whatsapp:      '#25D366',     // WhatsApp share — always this, always recognized
+  whatsappText:  '#FFFFFF',
+  incomeArrow:   '#007A36',     // ↑ income arrow — fixed (not color alone, also has ↑ icon)
+  expenseArrow:  '#BB0000',     // ↓ expense arrow — fixed (not color alone, also has ↓ icon)
+  tripActive:    '#0055BB',     // "Trip Active" badge — fixed
+  statusSold:    '#007A36',     // "Sold" badge — fixed
+  statusPending: '#D97706',     // "Pending" badge — fixed amber
 } as const
 
 // ─────────────────────────────────────────────────────────────
@@ -98,11 +139,12 @@ export const lightColors = {
 // ─────────────────────────────────────────────────────────────
 export const typography = {
   fontSize: {
-    xs:   10,
-    sm:   12,
-    md:   14,
-    lg:   16,
-    xl:   18,
+    xs:    10,
+    sm:    12,
+    md:    14,
+    lg:    16,
+    xl:    18,
+    xxl:   20,
     '2xl': 20,
     '3xl': 24,
     '4xl': 28,
@@ -123,10 +165,11 @@ export const typography = {
     black:     '900' as const,
   },
   fontFamily: {
-    sans:  undefined, // System default
-    mono:  'Courier New',
+    sans:    undefined,
+    display: undefined,
+    mono:    'Courier New',
   },
-}
+} as const
 
 // ─────────────────────────────────────────────────────────────
 // SPACING — 8pt Grid
@@ -144,7 +187,6 @@ export const spacing = {
   10:  40,
   12:  48,
   16:  64,
-  // Named aliases
   xs:  4,
   sm:  8,
   md:  16,
@@ -167,11 +209,9 @@ export const borderRadius = {
 } as const
 
 // ─────────────────────────────────────────────────────────────
-// SHADOWS — Cross-platform (iOS/Android + Web)
-//
-// On web (Expo SDK 53+), React Native deprecated shadow* props
-// in favour of boxShadow (CSS string). This helper returns the
-// right shape for the current platform so there are zero warnings.
+// SHADOWS
+// Guide: NO shadows in dark mode — depth via bg color steps only
+//        Light mode: single subtle layer max 0.10 opacity
 // ─────────────────────────────────────────────────────────────
 function makeShadow(
   elevation: number,
@@ -181,13 +221,8 @@ function makeShadow(
   radius: number,
 ) {
   if (Platform.OS === 'web') {
-    // CSS boxShadow string — no deprecated warnings on web
-    const hex = color === '#000000' ? '0,0,0' : '0,0,0'
-    return {
-      boxShadow: `0px ${offsetY}px ${radius}px rgba(${hex}, ${opacity})`,
-    }
+    return { boxShadow: `0px ${offsetY}px ${radius}px rgba(0,0,0,${opacity})` }
   }
-  // Native (iOS elevation handled by shadowColor/Offset/Opacity/Radius; Android by elevation)
   return {
     elevation,
     shadowColor: color,
@@ -197,48 +232,56 @@ function makeShadow(
   }
 }
 
-export const shadows = {
-  none: Platform.OS === 'web'
-    ? { boxShadow: 'none' }
-    : { elevation: 0, shadowColor: 'transparent', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0 },
+const noShadow = Platform.OS === 'web'
+  ? { boxShadow: 'none' }
+  : { elevation: 0, shadowColor: 'transparent', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0 }
 
-  sm:  makeShadow(1,  '#000000', 1,  0.08, 2),
-  md:  makeShadow(2,  '#000000', 2,  0.12, 4),
-  lg:  makeShadow(4,  '#000000', 4,  0.15, 8),
-  xl:  makeShadow(8,  '#000000', 8,  0.20, 16),
+// Light mode — subtle single-layer shadows only (guide: max 0.10 opacity)
+export const lightShadows = {
+  none: noShadow,
+  sm:   makeShadow(1, '#000000', 1, 0.08, 2),
+  md:   makeShadow(2, '#000000', 1, 0.10, 3),
+  lg:   makeShadow(3, '#000000', 2, 0.10, 6),
+  xl:   makeShadow(4, '#000000', 2, 0.12, 8),
 } as const
 
-// ─────────────────────────────────────────────────────────────
-// OCEAN CYAN GLOW — used on primary CTA buttons & highlights
-// A subtle shadow that matches the bright ocean cyan brand
-// ─────────────────────────────────────────────────────────────
-export const tealGlow = Platform.OS === 'web'
-  ? { boxShadow: '0px 4px 12px rgba(0, 188, 212, 0.2)' }
-  : {
-      elevation: 4,
-      shadowColor: '#00BCD4',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 12,
-    }
+// Dark mode — NO shadows at all (guide: elevation = bg color only)
+export const darkShadows = {
+  none: noShadow,
+  sm:   noShadow,
+  md:   noShadow,
+  lg:   noShadow,
+  xl:   noShadow,
+} as const
 
-export const tealGlowOff = Platform.OS === 'web'
-  ? { boxShadow: 'none' }
-  : { elevation: 0, shadowOpacity: 0 }
+// Static default (dark) — used by non-reactive static theme import
+export const shadows = darkShadows
+
+// CTA button glows — light mode only, meaningful brand highlights
+export const actionGlow = Platform.OS === 'web'
+  ? { boxShadow: '0px 3px 10px rgba(224, 111, 0, 0.28)' }
+  : { elevation: 4, shadowColor: '#E06F00', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.28, shadowRadius: 10 }
+
+export const primaryGlow = Platform.OS === 'web'
+  ? { boxShadow: '0px 3px 10px rgba(0, 85, 187, 0.22)' }
+  : { elevation: 3, shadowColor: '#0055BB', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.22, shadowRadius: 10 }
 
 // ─────────────────────────────────────────────────────────────
-// ACCESSIBILITY
+// ACCESSIBILITY — WCAG AAA 7:1
 // ─────────────────────────────────────────────────────────────
 export const accessibility = {
-  touchTargetMin:       48,
+  touchTargetMin:       56,
   touchTargetPreferred: 64,
+  iconSizeMin:          28,
+  iconSizePreferred:    36,
+  tapSpacingMin:        12,
   focusRing:            2,
-  contrastMinimum:      4.5,
+  contrastMinimum:      7,
   contrastEnhanced:     7,
 } as const
 
 // ─────────────────────────────────────────────────────────────
-// MOTION / ANIMATION
+// MOTION
 // ─────────────────────────────────────────────────────────────
 export const motion = {
   fast:   150,
@@ -252,26 +295,62 @@ export const motion = {
 // ─────────────────────────────────────────────────────────────
 export const componentTokens = {
   input: {
-    height:        56,
-    borderRadius:  12,
-    paddingH:      16,
-    fontSize:      16,
+    height:       56,
+    borderRadius: 12,
+    paddingH:     16,
+    fontSize:     16,
   },
   card: {
-    borderRadius:  16,
-    padding:       16,
-    borderWidth:   1,
+    borderRadius: 16,
+    padding:      16,
+    borderWidth:  1,
   },
   button: {
-    heightSm:  40,
-    heightMd:  56,
-    heightLg:  64,
+    heightSm:     48,
+    heightMd:     56,
+    heightLg:     64,
     borderRadius: 12,
   },
   bottomNav: {
-    height:      64,
+    height:        64,
     paddingBottom: 8,
   },
+  header:    { height: 52 },
+  statusBar: { height: 28 },
+} as const
+
+// ─────────────────────────────────────────────────────────────
+// BILINGUAL LABELS — English + Romanized Gujarati
+// Guide: color is never the only signal — labels include ↑↓ arrows too
+// ─────────────────────────────────────────────────────────────
+export const labels = {
+  home:          { en: 'Home',              gu: 'Ghar' },
+  records:       { en: 'Records',           gu: 'Nondh' },
+  expenses:      { en: 'Expenses',          gu: 'Kharch' },
+  profile:       { en: 'Profile',           gu: 'Parichy' },
+  addCatch:      { en: 'Add Catch',         gu: 'Pakad Uksero' },
+  sell:          { en: 'Sell',              gu: 'Vecho' },
+  addExpense:    { en: 'Add Expense',       gu: 'Kharch Uksero' },
+  totalCatch:    { en: 'Total Catch',       gu: 'Kul Pakad' },
+  totalSale:     { en: 'Total Sold',        gu: 'Kul Vechel' },
+  totalSpent:    { en: 'Total Spent',       gu: 'Kul Kharch' },
+  netIncome:     { en: 'Net Income',        gu: 'Net Aavak' },
+  weight:        { en: 'Weight (kg)',       gu: 'Vajan (kg)' },
+  price:         { en: 'Price (₹/kg)',      gu: 'Bhav (₹/kg)' },
+  date:          { en: 'Date',              gu: 'Tarik' },
+  boat:          { en: 'Boat',              gu: 'Naav' },
+  trip:          { en: 'Trip',              gu: 'Safar' },
+  pomfret:       { en: 'Pomfret',           gu: 'Paplet' },
+  surmai:        { en: 'Surmai',            gu: 'Surmai' },
+  bombil:        { en: 'Bombay Duck',       gu: 'Bombil' },
+  rawas:         { en: 'Rawas',             gu: 'Rawas' },
+  other:         { en: 'Other',             gu: 'Biju' },
+  // Arrow icons alongside color — guide: never color alone
+  income:        { en: '↑ Income',          gu: '↑ Aavak' },
+  expense:       { en: '↓ Expense',         gu: '↓ Kharch' },
+  offline:       { en: 'Offline — saved locally', gu: 'Offline — locally sachu' },
+  synced:        { en: 'Synced ✓',          gu: 'Sync thyu ✓' },
+  shareWhatsApp: { en: 'Share on WhatsApp', gu: 'WhatsApp par moklo' },
 } as const
 
 // ─────────────────────────────────────────────────────────────
@@ -281,10 +360,14 @@ export const designTokens = {
   typography,
   spacing,
   borderRadius,
+  lightShadows,
+  darkShadows,
   shadows,
-  tealGlow,
-  tealGlowOff,
+  actionGlow,
+  primaryGlow,
   accessibility,
   motion,
   componentTokens,
+  labels,
+  fixedColors,
 }

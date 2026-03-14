@@ -7,8 +7,10 @@
  * On success → marks setup complete in authStore → routes to dashboard.
  */
 
+import { ApiError, WorkspaceSetupPayload, completeSetup } from '@/services/api'
+import { useTheme } from '@/store/themeStore'
 import { router, useLocalSearchParams } from 'expo-router'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
     ActivityIndicator,
     Animated,
@@ -19,11 +21,11 @@ import {
     View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { theme } from '../../constants/theme'
 import { useAuthStore } from '../../store/authStore'
-import { ApiError, WorkspaceSetupPayload, completeSetup } from '@/services/api'
 
 function Particle({ x, color, delay }: { x: number; color: string; delay: number }) {
+  const theme = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
   const anim = useRef(new Animated.Value(0)).current
   useEffect(() => {
     Animated.timing(anim, { toValue: 1, duration: 1400, delay, useNativeDriver: true }).start()
@@ -36,14 +38,9 @@ function Particle({ x, color, delay }: { x: number; color: string; delay: number
   )
 }
 
-const PARTICLE_COLORS = [theme.colors.primary, theme.colors.primaryLight, '#C9A84C', '#22c55e', '#f59e0b', '#fff']
-const PARTICLES = Array.from({ length: 24 }, (_, i) => ({
-  x: (i / 24) * 100 + Math.random() * 3,
-  color: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
-  delay: Math.random() * 400,
-}))
-
 export default function SetupDoneScreen() {
+  const theme = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
   const params = useLocalSearchParams<{
     primaryRole?: string
     ownerType?: string
@@ -54,6 +51,13 @@ export default function SetupDoneScreen() {
   }>()
 
   const { token, setSetupComplete } = useAuthStore()
+
+  const PARTICLE_COLORS = useMemo(() => [theme.colors.primary, theme.colors.primaryLight, '#C9A84C', '#22c55e', '#f59e0b', '#fff'], [theme])
+  const PARTICLES = useMemo(() => Array.from({ length: 24 }, (_, i) => ({
+    x: (i / 24) * 100 + Math.random() * 3,
+    color: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
+    delay: Math.random() * 400,
+  })), [PARTICLE_COLORS])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -162,40 +166,42 @@ export default function SetupDoneScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  bg: { flex: 1, backgroundColor: '#0a1628' },
-  confettiLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden' },
-  particle: { position: 'absolute', top: -20, width: 8, height: 8, borderRadius: 2 },
-  progressTrack: { height: 3, backgroundColor: 'rgba(255,255,255,0.08)' },
-  progressFill: { height: 3, backgroundColor: theme.colors.primaryLight, borderRadius: 2 },
-  safe: { flex: 1 },
-  container: { flex: 1, paddingHorizontal: 24, paddingTop: 60, paddingBottom: 32, alignItems: 'center', gap: 28 },
+function createStyles(theme: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    bg: { flex: 1, backgroundColor: '#0a1628' },
+    confettiLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden' },
+    particle: { position: 'absolute', top: -20, width: 8, height: 8, borderRadius: 2 },
+    progressTrack: { height: 3, backgroundColor: 'rgba(255,255,255,0.08)' },
+    progressFill: { height: 3, backgroundColor: theme.colors.primaryLight, borderRadius: 2 },
+    safe: { flex: 1 },
+    container: { flex: 1, paddingHorizontal: 24, paddingTop: 60, paddingBottom: 32, alignItems: 'center', gap: 28 },
 
-  heroSection: { alignItems: 'center', gap: 14, position: 'relative' },
-  glowRing: { position: 'absolute', top: -20, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(0,194,203,0.07)', alignItems: 'center', justifyContent: 'center' },
-  glowInner: { width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(0,194,203,0.09)' },
-  heroEmoji: { fontSize: 72 },
-  heroTitle: { fontSize: 36, fontWeight: '800', color: '#fff', letterSpacing: -0.5, textAlign: 'center' },
-  heroSub: { fontSize: 15, color: 'rgba(255,255,255,0.4)', textAlign: 'center', lineHeight: 22 },
+    heroSection: { alignItems: 'center', gap: 14, position: 'relative' },
+    glowRing: { position: 'absolute', top: -20, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(0,194,203,0.07)', alignItems: 'center', justifyContent: 'center' },
+    glowInner: { width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(0,194,203,0.09)' },
+    heroEmoji: { fontSize: 72 },
+    heroTitle: { fontSize: 36, fontWeight: '800', color: '#fff', letterSpacing: -0.5, textAlign: 'center' },
+    heroSub: { fontSize: 15, color: 'rgba(255,255,255,0.4)', textAlign: 'center', lineHeight: 22 },
 
-  summaryCard: { width: '100%', backgroundColor: 'rgba(0,194,203,0.08)', borderRadius: 18, borderWidth: 1.5, borderColor: 'rgba(0,194,203,0.2)', padding: 16, gap: 12 },
-  summaryLabel: { fontSize: 10, fontWeight: '700', color: theme.colors.primaryLight, letterSpacing: 2 },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  summaryEmoji: { fontSize: 28 },
-  summaryInfo: { flex: 1 },
-  summaryName: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  summarySub: { fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
-  summaryCheck: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#22c55e', alignItems: 'center', justifyContent: 'center' },
-  summaryCheckText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+    summaryCard: { width: '100%', backgroundColor: 'rgba(0,194,203,0.08)', borderRadius: 18, borderWidth: 1.5, borderColor: 'rgba(0,194,203,0.2)', padding: 16, gap: 12 },
+    summaryLabel: { fontSize: 10, fontWeight: '700', color: theme.colors.primaryLight, letterSpacing: 2 },
+    summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    summaryEmoji: { fontSize: 28 },
+    summaryInfo: { flex: 1 },
+    summaryName: { fontSize: 16, fontWeight: '700', color: '#fff' },
+    summarySub: { fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+    summaryCheck: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#22c55e', alignItems: 'center', justifyContent: 'center' },
+    summaryCheckText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 
-  errorBox: { width: '100%', backgroundColor: 'rgba(239,68,68,0.12)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', padding: 14 },
-  errorText: { fontSize: 13, color: '#fca5a5', lineHeight: 19, textAlign: 'center' },
+    errorBox: { width: '100%', backgroundColor: 'rgba(239,68,68,0.12)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', padding: 14 },
+    errorText: { fontSize: 13, color: '#fca5a5', lineHeight: 19, textAlign: 'center' },
 
-  ctaArea: { width: '100%', gap: 14 },
-  ctaBtn: { borderRadius: 16, shadowColor: '#00C2CB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.45, shadowRadius: 20, elevation: 12 },
-  ctaBtnLoading: { shadowOpacity: 0.1 },
-  ctaInner: { height: 64, backgroundColor: theme.colors.primary, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.primaryLight },
-  ctaInnerLoading: { backgroundColor: 'rgba(0,194,203,0.5)' },
-  ctaText: { fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
-  ctaHint: { fontSize: 12, color: 'rgba(255,255,255,0.25)', textAlign: 'center', lineHeight: 18 },
-})
+    ctaArea: { width: '100%', gap: 14 },
+    ctaBtn: { borderRadius: 16, shadowColor: '#00C2CB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.45, shadowRadius: 20, elevation: 12 },
+    ctaBtnLoading: { shadowOpacity: 0.1 },
+    ctaInner: { height: 64, backgroundColor: theme.colors.primary, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.primaryLight },
+    ctaInnerLoading: { backgroundColor: 'rgba(0,194,203,0.5)' },
+    ctaText: { fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
+    ctaHint: { fontSize: 12, color: 'rgba(255,255,255,0.25)', textAlign: 'center', lineHeight: 18 },
+  })
+}

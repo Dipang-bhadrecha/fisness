@@ -14,24 +14,24 @@
  */
 
 import { router } from 'expo-router'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
-  ActivityIndicator,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { theme } from '../../constants/theme'
 import { useAuthStore } from '../../store/authStore'
 import {
-  ENTITY_EMOJIS,
-  Entity,
-  useEntityStore
+    ENTITY_EMOJIS,
+    Entity,
+    useEntityStore
 } from '../../store/entityStore'
+import { useTheme } from '../../store/themeStore'
 
 // ─── Route helper ─────────────────────────────────────────────────────────────
 
@@ -45,9 +45,11 @@ function routeToDashboard(_entity: Entity) {
 function EntityCard({
   entity,
   onPress,
+  theme,
 }: {
   entity: Entity
   onPress: () => void
+  theme: any
 }) {
   const emoji = ENTITY_EMOJIS[entity.type]
 
@@ -90,8 +92,109 @@ function EntityCard({
 
 export default function DashboardEntryScreen() {
   const { token } = useAuthStore()
+  const theme = useTheme()
   const { entities, activeEntity, isLoaded, isLoading, loadError, loadEntities, setActiveEntity } =
     useEntityStore()
+
+  const s = useMemo(() => {
+    const styles = StyleSheet.create({
+      safe: { flex: 1, backgroundColor: theme.colors.background },
+
+      loadingScreen: {
+        flex: 1,
+        backgroundColor: theme.colors.background,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 14,
+        padding: 24,
+      },
+      loadingText: {
+        fontSize: 14,
+        color: theme.colors.textSecondary,
+        marginTop: 8,
+      },
+      errorEmoji: { fontSize: 48 },
+      errorText: {
+        fontSize: 15,
+        color: theme.colors.textSecondary,
+        textAlign: 'center',
+        lineHeight: 22,
+      },
+      retryBtn: {
+        backgroundColor: theme.colors.primary,
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 24,
+        marginTop: 8,
+      },
+      retryBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+      entityRouteEmoji: { fontSize: 56 },
+      entityRouteLabel: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: theme.colors.textPrimary,
+      },
+
+      header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        paddingHorizontal: 20,
+        paddingVertical: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.border,
+      },
+      headerEmoji: { fontSize: 36 },
+      headerTitle: { fontSize: 22, fontWeight: '800', color: theme.colors.textPrimary },
+      headerSub: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 2 },
+
+      list: { padding: 16, gap: 12 },
+      listHint: {
+        fontSize: 11,
+        color: theme.colors.textMuted,
+        fontWeight: '700',
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+        marginBottom: 4,
+      },
+
+      entityCard: {
+        backgroundColor: theme.colors.surface,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        overflow: 'hidden',
+        flexDirection: 'row',
+      },
+      accentBar: { width: 5 },
+      entityCardInner: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        gap: 12,
+      },
+      entityIconWrap: {
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+      entityEmoji: { fontSize: 24 },
+      entityText: { flex: 1 },
+      entityLabel: { fontSize: 16, fontWeight: '800', color: theme.colors.textPrimary },
+      entitySublabel: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 3 },
+      roleBadge: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 20,
+      },
+      roleText: { fontSize: 11, fontWeight: '700' },
+      entityArrow: { fontSize: 18, fontWeight: '700' },
+    })
+    return styles
+  }, [theme])
 
   const [hasRouted, setHasRouted] = useState(false)
 
@@ -200,6 +303,7 @@ export default function DashboardEntryScreen() {
               key={entity.id}
               entity={entity}
               onPress={() => handleEntitySelect(entity)}
+              theme={theme}
             />
           ))}
 
@@ -209,100 +313,3 @@ export default function DashboardEntryScreen() {
     </>
   )
 }
-
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: theme.colors.background },
-
-  loadingScreen: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 14,
-    padding: 24,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    marginTop: 8,
-  },
-  errorEmoji: { fontSize: 48 },
-  errorText: {
-    fontSize: 15,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  retryBtn: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-    marginTop: 8,
-  },
-  retryBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  entityRouteEmoji: { fontSize: 56 },
-  entityRouteLabel: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: theme.colors.textPrimary,
-  },
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  headerEmoji: { fontSize: 36 },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: theme.colors.textPrimary },
-  headerSub: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 2 },
-
-  list: { padding: 16, gap: 12 },
-  listHint: {
-    fontSize: 11,
-    color: theme.colors.textMuted,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-
-  entityCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    overflow: 'hidden',
-    flexDirection: 'row',
-  },
-  accentBar: { width: 5 },
-  entityCardInner: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    gap: 12,
-  },
-  entityIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  entityEmoji: { fontSize: 24 },
-  entityText: { flex: 1 },
-  entityLabel: { fontSize: 16, fontWeight: '800', color: theme.colors.textPrimary },
-  entitySublabel: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 3 },
-  roleBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  roleText: { fontSize: 11, fontWeight: '700' },
-  entityArrow: { fontSize: 18, fontWeight: '700' },
-})

@@ -7,7 +7,6 @@ import {
     TouchableOpacity,
     ViewStyle,
 } from 'react-native'
-import { theme } from '../../constants/theme'
 
 interface ButtonProps {
   label: string
@@ -35,6 +34,92 @@ export function Button({
   style,
   textStyle,
 }: ButtonProps) {
+  const theme = useTheme()
+  const styles = useMemo(() => StyleSheet.create({
+    base: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: theme.radius.md,
+      overflow: 'hidden',
+    },
+    primary: {
+      backgroundColor: theme.colors.primary,
+      ...theme.shadows.md,
+    },
+    secondary: {
+      backgroundColor: theme.colors.surface,
+      borderWidth: 2,
+      borderColor: theme.colors.primary,
+      ...theme.shadows.sm,
+    },
+    danger: {
+      backgroundColor: theme.colors.danger,
+      ...theme.shadows.md,
+    },
+    pause: {
+      backgroundColor: theme.colors.pause,
+      ...theme.shadows.sm,
+    },
+    tertiary: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    size_sm: {
+      paddingHorizontal: theme.spacing[3],
+      minHeight: 40,
+    },
+    size_md: {
+      paddingHorizontal: theme.spacing[4],
+      minHeight: theme.touchTarget,
+    },
+    size_lg: {
+      paddingHorizontal: theme.spacing[6],
+      minHeight: 56,
+    },
+    disabled: {
+      opacity: 0.5,
+    },
+    label: {
+      fontweight: theme.fontWeight.semibold,
+      letterSpacing: 0.3,
+    },
+    label_primary: {
+      color: theme.colors.textPrimary,
+      fontSize: theme.fontSize.lg,
+      fontWeight: theme.fontWeight.semibold,
+    },
+    label_secondary: {
+      color: theme.colors.primary,
+      fontSize: theme.fontSize.lg,
+      fontWeight: theme.fontWeight.semibold,
+    },
+    label_danger: {
+      color: theme.colors.textPrimary,
+      fontSize: theme.fontSize.lg,
+      fontWeight: theme.fontWeight.semibold,
+    },
+    label_pause: {
+      color: theme.colors.pauseText,
+      fontSize: theme.fontSize.lg,
+      fontWeight: theme.fontWeight.semibold,
+    },
+    label_tertiary: {
+      color: theme.colors.textPrimary,
+      fontSize: theme.fontSize.lg,
+      fontWeight: theme.fontWeight.semibold,
+    },
+    label_sm: {
+      fontSize: theme.fontSize.md,
+    },
+    label_md: {
+      fontSize: theme.fontSize.lg,
+    },
+    label_lg: {
+      fontSize: theme.fontSize.xl,
+    },
+  }), [theme])
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -73,127 +158,3 @@ export function Button({
   )
 }
 
-const styles = StyleSheet.create({
-  base: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: theme.radius.md,
-    overflow: 'hidden',
-  },
-
-  // ─────────────────────────════════════════════════════
-  // VARIANTS — Professional color system with accessibility
-  // ─────────────────────────════════════════════════════
-
-  // Primary: Teal background (primary action)
-  // Contrast: 19.5:1 with dark bg ✓ WCAG AAA
-  primary: {
-    backgroundColor: theme.colors.primary,
-    ...theme.shadows.md,
-  },
-
-  // Secondary: Outlined style (secondary action)
-  secondary: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 2,
-    borderColor: theme.colors.primary,
-    ...theme.shadows.sm,
-  },
-
-  // Danger: Red for destructive actions
-  // Contrast: 4.5:1 with dark bg ✓ WCAG AA
-  danger: {
-    backgroundColor: theme.colors.danger,
-    ...theme.shadows.md,
-  },
-
-  // Pause: Gold/amber for pause state
-  // Contrast: 5.5:1 with dark bg ✓ WCAG AA
-  pause: {
-    backgroundColor: theme.colors.pause,
-    ...theme.shadows.sm,
-  },
-
-  // Tertiary: Minimal style for less important actions
-  tertiary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-
-  // ─────────────────────────────────════════════════════
-  // SIZES — 8pt grid based, accessibility optimized
-  // ─────────────────────────────────════════════════════
-
-  // Small: 40px — Compact UIs
-  size_sm: {
-    paddingHorizontal: theme.spacing[3],
-    minHeight: 40,
-  },
-
-  // Medium: 64px — Default, optimized for wet hands
-  size_md: {
-    paddingHorizontal: theme.spacing[4],
-    minHeight: theme.touchTarget,
-  },
-
-  // Large: 56px+ — Primary CTAs, high-emphasis
-  size_lg: {
-    paddingHorizontal: theme.spacing[6],
-    minHeight: 56,
-  },
-
-  // ─────────────────────────────────════════════════════
-  // DISABLED STATE
-  // ─────────────────────────────────════════════════────
-
-  disabled: {
-    opacity: 0.5,
-  },
-
-  // ─────────────────────────────────════════════════════
-  // LABELS — Typography hierarchy
-  // ─────────────────────────────────════════════════════
-
-  label: {
-    fontweight: theme.fontWeight.semibold,
-    letterSpacing: 0.3,
-  },
-
-  label_primary: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
-  },
-  label_secondary: {
-    color: theme.colors.primary,
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
-  },
-  label_danger: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
-  },
-  label_pause: {
-    color: theme.colors.pauseText,
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
-  },
-  label_tertiary: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
-  },
-
-  // Size-specific font weights
-  label_sm: {
-    fontSize: theme.fontSize.md,
-  },
-  label_md: {
-    fontSize: theme.fontSize.lg,
-  },
-  label_lg: {
-    fontSize: theme.fontSize.xl,
-  },
-})

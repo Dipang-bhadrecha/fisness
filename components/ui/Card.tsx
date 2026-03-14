@@ -4,14 +4,14 @@
  * Supports multiple variants: default, elevated, bordered
  */
 
-import React from 'react'
+import { useTheme } from '@/store/themeStore'
+import React, { useMemo } from 'react'
 import {
     Pressable,
     StyleSheet,
     View,
     ViewStyle,
 } from 'react-native'
-import { theme } from '../../constants/theme'
 
 interface CardProps {
   children: React.ReactNode
@@ -37,6 +37,39 @@ export function Card({
   style,
   testID,
 }: CardProps) {
+  const theme = useTheme()
+  const styles = useMemo(() => StyleSheet.create({
+    base: {
+      overflow: 'hidden',
+    },
+    default: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.lg,
+      ...theme.shadows.md,
+    },
+    elevated: {
+      backgroundColor: theme.colors.elevated,
+      borderRadius: theme.radius.lg,
+      ...theme.shadows.lg,
+    },
+    bordered: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      ...theme.shadows.sm,
+    },
+    ghost: {
+      backgroundColor: 'transparent',
+      borderRadius: theme.radius.lg,
+    },
+    padding_none: { padding: 0 },
+    padding_sm: { padding: theme.spacing[2] },
+    padding_md: { padding: theme.spacing[3] },
+    padding_lg: { padding: theme.spacing[4] },
+    pressed: { opacity: 0.95 },
+  }), [theme])
+  
   const content = (
     <View style={[styles.base, styles[variant], styles[`padding_${padding}`], style]}>
       {children}
@@ -63,70 +96,3 @@ export function Card({
 
   return <View testID={testID}>{content}</View>
 }
-
-const styles = StyleSheet.create({
-  base: {
-    overflow: 'hidden',
-  },
-
-  // ─────────────────────────────────────════════════════
-  // VARIANTS — Semantic elevation and styling
-  // ─────────────────────────────────────────────────────
-
-  // Standard surface with subtle shadow
-  // Used for: Fish list items, catch summaries, standard content
-  default: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    ...theme.shadows.md,
-  },
-
-  // Elevated surface for emphasis
-  // Used for: Featured content, important sections, highlights
-  elevated: {
-    backgroundColor: theme.colors.elevated,
-    borderRadius: theme.radius.lg,
-    ...theme.shadows.lg,
-  },
-
-  // Outlined variant for secondary content
-  bordered: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    ...theme.shadows.sm,
-  },
-
-  // Minimal style without background
-  // Used for: Content containers, transparent overlays
-  ghost: {
-    backgroundColor: 'transparent',
-    borderRadius: theme.radius.lg,
-  },
-
-  // ─────────────────────────────────────────────────────
-  // PADDING — 8pt grid based spacing
-  // ─────────────────────────────────────────────────────
-
-  padding_none: {},
-  padding_sm: {
-    padding: theme.spacing[3],
-  },
-  padding_md: {
-    padding: theme.spacing[4],
-  },
-  padding_lg: {
-    padding: theme.spacing[6],
-  },
-
-  // ─────────────────────────────────────────────────────
-  // INTERACTIVE STATES
-  // ─────────────────────────────────────────────────────
-
-  pressed: {
-    opacity: 0.8,
-  },
-})
-
-export default Card

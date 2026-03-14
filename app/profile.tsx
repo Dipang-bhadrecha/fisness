@@ -1,18 +1,18 @@
 import { router } from 'expo-router'
 import React from 'react'
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { darkTheme, lightTheme } from '../constants/theme'
 import { useLanguage } from '../hooks/useLanguage'
 import { useAuthStore } from '../store/authStore'
-import { useThemeStore } from '../store/themeStore'
+import { useTheme, useThemeStore } from '../store/themeStore'
 
 type SettingRowProps = {
   emoji: string
@@ -59,6 +59,7 @@ export default function ProfileScreen() {
   const { language, setLanguage } = useLanguage()
   const { user, logout } = useAuthStore()
   const { mode, setMode } = useThemeStore()
+  const theme = useTheme() 
   const activeTheme = mode === 'dark' ? darkTheme : lightTheme
   const s = React.useMemo(() => buildStyles(activeTheme), [activeTheme])
 

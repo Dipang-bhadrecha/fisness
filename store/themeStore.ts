@@ -1,7 +1,16 @@
+/**
+ * store/themeStore.ts
+ *
+ * Global theme state — Zustand store.
+ * Exposes useTheme() so ANY screen gets reactive theme in one line:
+ *
+ *   const theme = useTheme()   ← replaces static import { theme }
+ */
+
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Appearance } from 'react-native'
 import { create } from 'zustand'
-import { ColorMode, setThemeMode } from '../constants/theme'
+import { ColorMode, darkTheme, lightTheme, setThemeMode } from '../constants/theme'
 
 const THEME_KEY = 'fishness_theme_mode'
 
@@ -36,3 +45,17 @@ export const useThemeStore = create<ThemeState>((set) => ({
     await AsyncStorage.setItem(THEME_KEY, mode)
   },
 }))
+
+/**
+ * useTheme()
+ *
+ * Drop-in replacement for `import { theme } from '../constants/theme'`
+ * Returns the live theme object — re-renders the screen when mode changes.
+ *
+ * Use inside any screen or component:
+ *   const theme = useTheme()
+ */
+export function useTheme() {
+  const mode = useThemeStore((s) => s.mode)
+  return mode === 'dark' ? darkTheme : lightTheme
+}

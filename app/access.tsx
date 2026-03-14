@@ -14,23 +14,23 @@
  *   DELETE /api/v1/memberships/:id      — remove member
  */
 
+import { useTheme } from '@/store/themeStore'
 import { router } from 'expo-router'
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { theme } from '../constants/theme'
 
 // ─── Permission definitions ────────────────────────────────────────────────────
 
@@ -151,6 +151,8 @@ const TEMP_MEMBERS: Member[] = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AccessScreen() {
+  const theme = useTheme()
+  const s = useMemo(() => createStyles(theme), [theme])
   const [members, setMembers] = useState<Member[]>(TEMP_MEMBERS)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
@@ -258,6 +260,8 @@ export default function AccessScreen() {
 // ─── Member Card ──────────────────────────────────────────────────────────────
 
 function MemberCard({ member, onEdit, onRemove }: { member: Member; onEdit: () => void; onRemove: () => void }) {
+  const theme = useTheme()
+  const s = useMemo(() => createStyles(theme), [theme])
   const preset = PRESETS.find(p => p.id === member.preset)
   const initials = member.name !== 'Unknown'
     ? member.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -305,6 +309,8 @@ function InviteModal({ onClose, onSend }: {
   onClose: () => void
   onSend: (phone: string, perms: PermKey[], preset: Preset) => void
 }) {
+  const theme = useTheme()
+  const m = useMemo(() => createModalStyles(theme), [theme])
   const [phone, setPhone] = useState('')
   const [selectedPreset, setSelectedPreset] = useState<Preset>('manager')
   const [perms, setPerms] = useState<Set<PermKey>>(new Set(PRESETS[1].perms))
@@ -453,6 +459,8 @@ function EditModal({ member, onClose, onSave }: {
   onClose: () => void
   onSave: (m: Member) => void
 }) {
+  const theme = useTheme()
+  const m = useMemo(() => createModalStyles(theme), [theme])
   const [perms, setPerms] = useState<Set<PermKey>>(new Set(member.perms))
   const [selectedPreset, setSelectedPreset] = useState<Preset>(member.preset)
 
@@ -553,16 +561,17 @@ function EditModal({ member, onClose, onSave }: {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const BG   = theme.colors.background
-const SURF = theme.colors.surface
-const ELEV = theme.colors.elevated
-const BOR  = theme.colors.border
-const TP   = theme.colors.textPrimary
-const TS   = theme.colors.textSecondary
-const TD   = theme.colors.textDisabled
-const TEAL = theme.colors.primary
+function createStyles(theme: ReturnType<typeof useTheme>) {
+  const BG   = theme.colors.background
+  const SURF = theme.colors.surface
+  const ELEV = theme.colors.elevated
+  const BOR  = theme.colors.border
+  const TP   = theme.colors.textPrimary
+  const TS   = theme.colors.textSecondary
+  const TD   = theme.colors.textDisabled
+  const TEAL = theme.colors.primary
 
-const s = StyleSheet.create({
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: BG },
 
   header: {
@@ -647,11 +656,22 @@ const s = StyleSheet.create({
   emptyEmoji: { fontSize: 40 },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: TS },
   emptySub: { fontSize: 13, color: TD },
-})
+  })
+}
 
 // ─── Modal styles ─────────────────────────────────────────────────────────────
 
-const m = StyleSheet.create({
+function createModalStyles(theme: ReturnType<typeof useTheme>) {
+  const BG   = theme.colors.background
+  const SURF = theme.colors.surface
+  const ELEV = theme.colors.elevated
+  const BOR  = theme.colors.border
+  const TP   = theme.colors.textPrimary
+  const TS   = theme.colors.textSecondary
+  const TD   = theme.colors.textDisabled
+  const TEAL = theme.colors.primary
+
+  return StyleSheet.create({
   overlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
@@ -760,4 +780,5 @@ const m = StyleSheet.create({
   nextBtnOff: { backgroundColor: ELEV },
   nextBtnText: { fontSize: 16, fontWeight: '800', color: '#080F1A' },
   nextBtnTextOff: { color: TD },
-})
+  })
+}

@@ -1,432 +1,332 @@
 import { router, useLocalSearchParams } from 'expo-router'
 import React, { useState } from 'react'
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { darkTheme, lightTheme } from '../constants/theme'
 import { useThemeStore } from '../store/themeStore'
 
-// ── TEMP boats ─────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 const TEMP_BOATS = [
-  { id: '1', name: 'Bravo', registration: 'GJ-01' },
-  { id: '2', name: 'Alpha', registration: 'GJ-02' },
+  { id: '1', name: 'Bravo',   registration: 'GJ-01' },
+  { id: '2', name: 'Alpha',   registration: 'GJ-02' },
   { id: '3', name: 'Charlie', registration: 'GJ-03' },
-  { id: '4', name: 'Delta', registration: 'GJ-04' },
-  { id: '5', name: 'Echo', registration: 'GJ-05' },
+  { id: '4', name: 'Delta',   registration: 'GJ-04' },
+  { id: '5', name: 'Echo',    registration: 'GJ-05' },
 ]
 
-// ── TEMP hardcoded crew — replace with API call later ─────────────────────────
 const TEMP_CREW = [
-  { id: '1', name: 'Suraj Tandel', role: 'Pilot / Caption', aadhaar: '123456789011213', joiningDate: '03 - Jul - 2026', bahano: 30000, attendedDays: 18, fixedSalary: 15000, totalDaysJoined: 180, tripsCompleted: 12, pagar: 9000, projectedSalary: 90000, upad: 150000, jama: 119000 },
-  { id: '2', name: 'Raju Makwana', role: 'Sailor', aadhaar: '123456789011213', joiningDate: '03 - Jul - 2026', bahano: 25000, attendedDays: 20, fixedSalary: 12000, totalDaysJoined: 180, tripsCompleted: 12, pagar: 8000, projectedSalary: 72000, upad: 100000, jama: 80000 },
-  { id: '3', name: 'Bharat Gohil', role: 'Sailor', aadhaar: '123456789011213', joiningDate: '03 - Jul - 2026', bahano: 20000, attendedDays: 15, fixedSalary: 10000, totalDaysJoined: 180, tripsCompleted: 12, pagar: 5000, projectedSalary: 60000, upad: 75000, jama: 50000 },
-  { id: '4', name: 'Kanji Patel', role: 'Helper', aadhaar: '123456789011213', joiningDate: '03 - Jul - 2026', bahano: 15000, attendedDays: 10, fixedSalary: 8000, totalDaysJoined: 180, tripsCompleted: 12, pagar: 2666, projectedSalary: 48000, upad: 50000, jama: 25000 },
-  { id: '5', name: 'Suraj Tandel', role: 'Pilot / Caption', aadhaar: '123456789011213', joiningDate: '03 - Jul - 2026', bahano: 30000, attendedDays: 18, fixedSalary: 15000, totalDaysJoined: 180, tripsCompleted: 12, pagar: 9000, projectedSalary: 90000, upad: 150000, jama: 119000 },
-  { id: '6', name: 'Raju Makwana', role: 'Sailor', aadhaar: '123456789011213', joiningDate: '03 - Jul - 2026', bahano: 25000, attendedDays: 20, fixedSalary: 12000, totalDaysJoined: 180, tripsCompleted: 12, pagar: 8000, projectedSalary: 72000, upad: 100000, jama: 80000 },
-  { id: '7', name: 'Bharat Gohil', role: 'Sailor', aadhaar: '123456789011213', joiningDate: '03 - Jul - 2026', bahano: 20000, attendedDays: 15, fixedSalary: 10000, totalDaysJoined: 180, tripsCompleted: 12, pagar: 5000, projectedSalary: 60000, upad: 75000, jama: 50000 },
+  { id: '1', name: 'Suraj Tandel',   role: 'Pilot / Captain', date: '03 Jul 2026', amount: 30000 },
+  { id: '2', name: 'Raju Makwana',   role: 'Sailor',          date: '03 Jul 2026', amount: 25000 },
+  { id: '3', name: 'Bharat Gohil',   role: 'Sailor',          date: '03 Jul 2026', amount: 20000 },
+  { id: '4', name: 'Kanji Patel',    role: 'Helper',          date: '03 Jul 2026', amount: 15000 },
+  { id: '5', name: 'Mahesh Solanki', role: 'Engineer',        date: '03 Jul 2026', amount: 18000 },
+  { id: '6', name: 'Dinesh Parmar',  role: 'Cook',            date: '03 Jul 2026', amount: 12000 },
+  { id: '7', name: 'Pravin Baria',   role: 'Deck Hand',       date: '03 Jul 2026', amount: 10000 },
 ]
 
-const fmt = (n?: number) => n ? `₹ ${n.toLocaleString('en-IN')}` : '₹ 0'
+const MAX_CREW  = 7
+const OCEAN     = '#0077B6'
+const OCEAN_DK  = '#005F92'
+const fmt = (n: number) => `₹ ${n.toLocaleString('en-IN')}`
 
-function CrewAdvanceRow({
-  member,
-  onPress,
-  styles,
-}: {
-  member: typeof TEMP_CREW[0]
-  onPress: () => void
-  styles: any
-}) {
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.crewRow}>
-      <View style={styles.crewRowLeft}>
-        <View style={styles.crewAvatar}>
-          <Text style={styles.crewAvatarEmoji}>👤</Text>
-        </View>
-        <View style={styles.crewInfo}>
-          <Text style={styles.crewName}>{member.name}</Text>
-          <Text style={styles.crewRole}>{member.role}</Text>
-        </View>
-      </View>
-      <View style={styles.crewRowRight}>
-        <Text style={styles.crewAmount}>{fmt(member.bahano)}</Text>
-        <Text style={styles.crewDate}>{member.joiningDate}</Text>
-      </View>
-    </TouchableOpacity>
-  )
-}
-
+// ─────────────────────────────────────────────────────────────────────────────
 export default function CrewScreen() {
   const { boatId, boatName } = useLocalSearchParams<{
-    boatId: string
-    boatName: string
-    companyId: string
+    boatId: string; boatName: string; companyId: string
   }>()
 
-  const [searchText, setSearchText] = useState('')
-  const [boatSearchText, setBoatSearchText] = useState('')
   const [selectedBoat, setSelectedBoat] = useState(boatName || 'Bravo')
+  const [searchOpen, setSearchOpen]     = useState(false)
+  const [searchText, setSearchText]     = useState('')
+
   const { mode } = useThemeStore()
-  const activeTheme = mode === 'dark' ? darkTheme : lightTheme
-  const s = React.useMemo(() => createStyles(activeTheme), [activeTheme])
+  const theme = mode === 'dark' ? darkTheme : lightTheme
+  const s = React.useMemo(() => makeStyles(theme), [theme])
 
-  const totalKharchi = TEMP_CREW.reduce((sum, member) => sum + (member.bahano || 0), 0)
+  const q = searchText.toLowerCase().trim()
+  const boats = q
+    ? TEMP_BOATS.filter(b => b.name.toLowerCase().includes(q) || b.registration.toLowerCase().includes(q))
+    : TEMP_BOATS
+  const crew = (q
+    ? TEMP_CREW.filter(m => m.name.toLowerCase().includes(q) || m.role.toLowerCase().includes(q))
+    : TEMP_CREW
+  ).slice(0, MAX_CREW)
 
-  const filteredBoats = TEMP_BOATS.filter(boat =>
-    boat.name.toLowerCase().includes(boatSearchText.toLowerCase())
-  )
-
-  const filteredCrew = TEMP_CREW.filter(member =>
-    member.name.toLowerCase().includes(searchText.toLowerCase())
-  )
+  const total = TEMP_CREW.reduce((sum, m) => sum + m.amount, 0)
 
   return (
-    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={s.root} edges={['top', 'bottom']}>
+
+      {/* ── Header ── */}
       <View style={s.header}>
-        <TouchableOpacity
-          style={s.backBtn}
-          onPress={() => router.canGoBack() ? router.back() : null}
-        >
-          <Text style={s.backText}>←</Text>
+        <TouchableOpacity style={s.backBtn} onPress={() => router.canGoBack() && router.back()}>
+          <Text style={s.backIco}>←</Text>
         </TouchableOpacity>
-        <View style={s.headerCenter}>
-          <Text style={s.headerTitle}>Kharchi</Text>
-          <Text style={s.headerSub}>{selectedBoat}</Text>
+        <View style={s.hCenter}>
+          <Text style={s.hTitle}>Kharchi</Text>
+          <Text style={s.hSub}>{selectedBoat}</Text>
         </View>
+        <TouchableOpacity style={s.hIconBtn} onPress={() => { setSearchOpen(v => !v); setSearchText('') }}>
+          <Text style={s.hIconTxt}>{searchOpen ? '✕' : '🔍'}</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={s.addBtn}>
-          <Text style={s.addBtnText}>+ Add</Text>
+          <Text style={s.addTxt}>+ Add</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={s.totalCard}>
-        <Text style={s.totalLabel}>TOTAL KHARCHI</Text>
-        <Text style={s.totalValue}>{fmt(totalKharchi)}</Text>
-        <Text style={s.totalSub}>{TEMP_CREW.length} entries</Text>
-      </View>
-
-      <View style={s.boatSelectorHeader}>
-        <Text style={s.boatSearchLabel}>SELECT BOAT</Text>
-        <View style={s.boatSearchContainer}>
-          <Text style={s.boatSearchIcon}>🔍</Text>
+      {/* ── Search drop ── */}
+      {searchOpen && (
+        <View style={s.searchDrop}>
           <TextInput
-            style={s.boatSearchInput}
-            placeholder="Search boat name..."
-            placeholderTextColor={activeTheme.colors.textDisabled}
-            value={boatSearchText}
-            onChangeText={setBoatSearchText}
+            autoFocus
+            style={s.searchInput}
+            placeholder="Search boat or crew..."
+            placeholderTextColor="rgba(255,255,255,0.4)"
+            value={searchText}
+            onChangeText={setSearchText}
           />
-        </View>
-      </View>
-
-      <View style={s.boatSelector}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.boatScroll}>
-          {filteredBoats.map(boat => (
-            <TouchableOpacity
-              key={boat.id}
-              style={[s.boatOption, selectedBoat === boat.name && s.boatOptionActive]}
-              onPress={() => setSelectedBoat(boat.name)}
-            >
-              <Text style={s.boatIcon}>🚢</Text>
-              <Text style={[s.boatName, selectedBoat === boat.name && s.boatNameActive]}>
-                {boat.name}
-              </Text>
-              <Text style={s.boatReg}>{boat.registration}</Text>
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchText('')}>
+              <Text style={s.searchX}>✕</Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+          )}
+        </View>
+      )}
 
-      <View style={s.searchContainer}>
-        <Text style={s.searchIcon}>🔍</Text>
-        <TextInput
-          style={s.searchInput}
-          placeholder="Search crew name..."
-          placeholderTextColor={activeTheme.colors.textDisabled}
-          value={searchText}
-          onChangeText={setSearchText}
-        />
-      </View>
-
-      <View style={s.noteBox}>
-        <Text style={s.noteText}>
-          Note: This is the port to list all crew members on port
-        </Text>
-      </View>
-
+      {/* ── Everything scrolls together ── */}
       <ScrollView
-        contentContainerStyle={s.crewList}
+        style={s.scroll}
+        contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
+        bounces={false}
       >
-        {filteredCrew.map(member => (
-          <CrewAdvanceRow
-            key={member.id}
-            member={member}
-            styles={s}
+        {/* Total card */}
+        <View style={s.totalCard}>
+          <View>
+            <Text style={s.totalLbl}>TOTAL KHARCHI</Text>
+            <Text style={s.totalVal}>{fmt(total)}</Text>
+          </View>
+          <View style={s.totalPill}>
+            <Text style={s.pillNum}>{TEMP_CREW.length}</Text>
+            <Text style={s.pillSub}>crew</Text>
+          </View>
+        </View>
+
+        {/* Boat chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.boatRow}
+        >
+          {boats.map(b => {
+            const active = selectedBoat === b.name
+            return (
+              <TouchableOpacity
+                key={b.id}
+                style={[s.boatChip, active && s.boatChipOn]}
+                onPress={() => setSelectedBoat(b.name)}
+                activeOpacity={0.75}
+              >
+                <Text style={s.boatIco}>🚢</Text>
+                <Text style={[s.boatNm, active && s.boatNmOn]}>{b.name}</Text>
+                <Text style={[s.boatReg, active && s.boatRegOn]}>{b.registration}</Text>
+              </TouchableOpacity>
+            )
+          })}
+        </ScrollView>
+
+        {/* Divider + count */}
+        <View style={s.crewHeader}>
+          <Text style={s.crewHeaderTxt}>CREW  ·  {selectedBoat}</Text>
+          <Text style={s.crewHeaderCount}>{crew.length}/{MAX_CREW}</Text>
+        </View>
+
+        {/* Crew rows */}
+        {crew.map((m, i) => (
+          <TouchableOpacity
+            key={m.id}
+            style={s.crewRow}
+            activeOpacity={0.72}
             onPress={() => router.push({
               pathname: '/crew-detail',
-              params: {
-                memberId: member.id,
-                memberName: member.name,
-                memberRole: member.role,
-                boatId: boatId ?? '',
-                boatName: boatName ?? '',
-              },
+              params: { memberId: m.id, memberName: m.name, memberRole: m.role, boatId: boatId ?? '', boatName: selectedBoat },
             })}
-          />
+          >
+            {/* rank number */}
+            <Text style={s.crewNum}>{i + 1}</Text>
+
+            {/* avatar */}
+            <View style={s.avatar}>
+              <Text style={s.avatarIco}>👤</Text>
+            </View>
+
+            {/* info */}
+            <View style={s.crewInfo}>
+              <Text style={s.crewName}>{m.name}</Text>
+              <Text style={s.crewRole}>{m.role}</Text>
+            </View>
+
+            {/* amount */}
+            <View style={s.crewRight}>
+              <Text style={s.crewAmt}>{fmt(m.amount)}</Text>
+              <Text style={s.crewDate}>{m.date}</Text>
+            </View>
+          </TouchableOpacity>
         ))}
-        <View style={{ height: 24 }} />
+
+        {/* Empty slots */}
+        {Array.from({ length: MAX_CREW - crew.length }).map((_, i) => (
+          <View key={`e${i}`} style={s.emptyRow}>
+            <Text style={s.emptyNum}>{crew.length + i + 1}</Text>
+            <Text style={s.emptyTxt}>Empty slot</Text>
+          </View>
+        ))}
+
+        <View style={{ height: 16 }} />
       </ScrollView>
+
     </SafeAreaView>
   )
 }
 
-const createStyles = (theme: typeof lightTheme) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
+// ─────────────────────────────────────────────────────────────────────────────
+const makeStyles = (theme: typeof lightTheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: theme.colors.background },
+
+  // Header
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: OCEAN,
+    paddingHorizontal: 14, paddingVertical: 11, gap: 8,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.28)',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  backText: {
-    color: theme.colors.textInverse,
-    fontSize: 18,
-    fontWeight: '700',
+  backIco: { color: '#fff', fontSize: 18, fontWeight: '800', marginTop: -1 },
+  hCenter: { flex: 1 },
+  hTitle:  { fontSize: 17, fontWeight: '800', color: '#fff' },
+  hSub:    { fontSize: 11, color: 'rgba(255,255,255,0.72)', marginTop: 1 },
+  hIconBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.28)',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  headerCenter: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.colors.textInverse,
-  },
-  headerSub: {
-    fontSize: 13,
-    color: theme.colors.textInverse,
-    marginTop: 2,
-  },
+  hIconTxt: { fontSize: 15 },
   addBtn: {
-    backgroundColor: theme.colors.primaryLight,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingHorizontal: 13, paddingVertical: 6, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
   },
-  addBtnText: {
-    color: theme.colors.textInverse,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  totalCard: {
-    backgroundColor: theme.colors.primaryDark,
-    marginHorizontal: 12,
-    marginVertical: 12,
-    borderRadius: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  totalLabel: {
-    fontSize: 12,
-    color: theme.colors.textInverse,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  totalValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: theme.colors.textInverse,
-    marginTop: 6,
-  },
-  totalSub: {
-    fontSize: 12,
-    color: theme.colors.textInverse,
-    marginTop: 4,
-  },
-  boatSelector: {
-    paddingHorizontal: 12,
-    marginBottom: 12,
-  },
-  boatScroll: {
-    flexGrow: 0,
-  },
-  boatOption: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    padding: 12,
-    marginRight: 8,
-    alignItems: 'center',
-    minWidth: 80,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  boatOptionActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  boatIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  boatName: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-  },
-  boatNameActive: {
-    color: theme.colors.textInverse,
-  },
-  boatReg: {
-    fontSize: 10,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-  },
-  boatSelectorHeader: {
-    marginHorizontal: 12,
-    marginBottom: 10,
-    gap: 10,
-  },
-  boatSearchLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: theme.colors.primary,
-    letterSpacing: 0.5,
-  },
-  boatSearchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  boatSearchIcon: {
-    fontSize: 16,
-    marginRight: 8,
-    color: theme.colors.primary,
-  },
-  boatSearchInput: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 0,
-    color: theme.colors.textPrimary,
-    fontSize: 14,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 12,
-    marginBottom: 10,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  searchIcon: {
-    fontSize: 16,
-    marginRight: 8,
-    color: theme.colors.primary,
+  addTxt: { color: '#fff', fontSize: 13, fontWeight: '700' },
+
+  // Search drop
+  searchDrop: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: OCEAN_DK,
+    paddingHorizontal: 14, paddingVertical: 8, gap: 8,
   },
   searchInput: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 0,
-    color: theme.colors.textPrimary,
-    fontSize: 14,
+    flex: 1, backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7,
+    color: '#fff', fontSize: 13,
   },
-  noteBox: {
-    marginHorizontal: 12,
-    marginBottom: 10,
-    backgroundColor: theme.colors.primaryMuted,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: theme.colors.primary,
+  searchX: { color: 'rgba(255,255,255,0.5)', fontSize: 16, paddingHorizontal: 4 },
+
+  // Scroll
+  scroll: { flex: 1 },
+  scrollContent: { paddingBottom: 16 },
+
+  // Total card
+  totalCard: {
+    backgroundColor: OCEAN,
+    marginHorizontal: 12, marginTop: 12, marginBottom: 12,
+    borderRadius: 14,
+    paddingVertical: 12, paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    shadowColor: OCEAN_DK,
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
+    elevation: 6,
   },
-  noteText: {
-    fontSize: 12,
-    color: theme.colors.textPrimary,
-    fontWeight: '500',
+  totalLbl: { fontSize: 10, color: 'rgba(255,255,255,0.72)', fontWeight: '700', letterSpacing: 1 },
+  totalVal: { fontSize: 26, fontWeight: '900', color: '#fff', marginTop: 2 },
+  totalPill: {
+    backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 8, alignItems: 'center',
   },
-  crewList: {
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-    gap: 8,
-  },
-  crewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  pillNum: { fontSize: 22, fontWeight: '900', color: '#fff' },
+  pillSub: { fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
+
+  // Boat chips
+  boatRow: { paddingHorizontal: 12, gap: 8, paddingBottom: 4 },
+  boatChip: {
+    width: 70, paddingVertical: 8,
     backgroundColor: theme.colors.surface,
+    borderRadius: 10, alignItems: 'center',
+    borderWidth: 1, borderColor: theme.colors.border,
+  },
+  boatChipOn:  { backgroundColor: OCEAN, borderColor: OCEAN },
+  boatIco:     { fontSize: 20, marginBottom: 3 },
+  boatNm:      { fontSize: 11, fontWeight: '700', color: theme.colors.textPrimary },
+  boatNmOn:    { color: '#fff' },
+  boatReg:     { fontSize: 9, color: theme.colors.textSecondary, marginTop: 1 },
+  boatRegOn:   { color: 'rgba(255,255,255,0.7)' },
+
+  // Crew section header
+  crewHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginHorizontal: 12, marginTop: 14, marginBottom: 6,
+  },
+  crewHeaderTxt:   { fontSize: 11, fontWeight: '700', color: theme.colors.textSecondary, letterSpacing: 0.5 },
+  crewHeaderCount: { fontSize: 11, fontWeight: '700', color: OCEAN },
+
+  // Crew row
+  crewRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    marginHorizontal: 12, marginBottom: 5,
     borderRadius: 12,
-    padding: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: theme.colors.primary,
-    ...theme.shadows.sm,
+    paddingVertical: 10, paddingHorizontal: 12,
+    borderLeftWidth: 3, borderLeftColor: OCEAN,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3,
+    elevation: 2,
   },
-  crewRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 12,
+  crewNum: {
+    width: 20, fontSize: 11, fontWeight: '700',
+    color: theme.colors.textMuted, textAlign: 'center', marginRight: 6,
   },
-  crewAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  avatar: {
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: theme.colors.elevated,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center', marginRight: 10,
   },
-  crewAvatarEmoji: {
-    fontSize: 20,
+  avatarIco: { fontSize: 16 },
+  crewInfo:  { flex: 1 },
+  crewName:  { fontSize: 13, fontWeight: '700', color: theme.colors.textPrimary },
+  crewRole:  { fontSize: 11, color: theme.colors.textSecondary, marginTop: 1 },
+  crewRight: { alignItems: 'flex-end' },
+  crewAmt:   { fontSize: 13, fontWeight: '800', color: OCEAN },
+  crewDate:  { fontSize: 10, color: theme.colors.textSecondary, marginTop: 2 },
+
+  // Empty row
+  emptyRow: {
+    flexDirection: 'row', alignItems: 'center',
+    marginHorizontal: 12, marginBottom: 5,
+    borderRadius: 12, height: 58,
+    borderWidth: 1, borderStyle: 'dashed', borderColor: theme.colors.border,
+    paddingHorizontal: 18, gap: 10,
   },
-  crewInfo: {
-    flex: 1,
-  },
-  crewName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-  },
-  crewRole: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-  },
-  crewRowRight: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  crewAmount: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.colors.primaryDark,
-  },
-  crewDate: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-  },
+  emptyNum: { fontSize: 11, fontWeight: '700', color: theme.colors.border },
+  emptyTxt: { fontSize: 12, color: theme.colors.textMuted, opacity: 0.6 },
 })

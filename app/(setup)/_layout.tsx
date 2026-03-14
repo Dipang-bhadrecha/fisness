@@ -1,8 +1,8 @@
-// app/(setup)/_layout.tsx
+import { useTheme } from '@/store/themeStore'
 import { Stack } from 'expo-router'
-import { theme } from '../../constants/theme'
 
 export default function SetupLayout() {
+  const theme = useTheme()
   return (
     <Stack
       screenOptions={{

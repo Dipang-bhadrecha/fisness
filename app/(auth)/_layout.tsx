@@ -1,7 +1,8 @@
+import { useTheme } from '@/store/themeStore'
 import { Stack } from 'expo-router'
-import { theme } from '../../constants/theme'
 
 export default function AuthLayout() {
+  const theme = useTheme()
   return (
     <Stack
       screenOptions={{
