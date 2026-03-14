@@ -362,11 +362,7 @@ export default function TripsScreen() {
       </View>
 
       {/* Filter chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.filterRow}
-      >
+      <View style={s.filterRow}>
         {FILTERS.map(f => (
           <TouchableOpacity
             key={f.id}
@@ -378,7 +374,7 @@ export default function TripsScreen() {
             </Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </View>
 
       {/* Trip list */}
       <ScrollView
@@ -438,10 +434,24 @@ const s = StyleSheet.create({
   clearBtn: { color: TS, fontSize: 16, paddingLeft: 8 },
 
   // Filter chips
-  filterRow: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, flexDirection: 'row' },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: SURF, borderWidth: 1.5, borderColor: BOR },
+  filterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  filterChip: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: SURF,
+    borderWidth: 1.5,
+    borderColor: BOR,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   filterChipActive: { backgroundColor: TEAL + '20', borderColor: TEAL },
-  filterText: { fontSize: 13, color: TS, fontWeight: '600' },
+  filterText: { fontSize: 12, color: TS, fontWeight: '600' },
   filterTextActive: { color: TEAL, fontWeight: '700' },
 
   // List

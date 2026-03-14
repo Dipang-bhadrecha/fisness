@@ -51,7 +51,8 @@ export default function CompanyDashboardHome() {
   const handleStartTali = () => setBoatModalVisible(true)
   const handleTaliBoatConfirmed = (boat: ApiRegisteredBoat) => {
     setBoatModalVisible(false)
-    router.push({ pathname: '/tali', params: { boatId: boat.id, boatName: boat.name, companyId, companyName } })
+    // router.push({ pathname: '/tali', params: { boatId: boat.id, boatName: boat.name, companyId, companyName } })
+    router.push({ pathname: '/tali-fish-select', params: { boatId: boat.id, boatName: boat.name, companyId: companyId ?? '', companyName } })
   }
 
   const QUICK_ACTIONS = [

@@ -5,7 +5,7 @@ import {
   getRegisteredBoats,
 } from '@/services/api'
 import { router, useLocalSearchParams } from 'expo-router'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Modal,
@@ -31,17 +31,31 @@ import { useAuthStore } from '../store/authStore'
 import { FishCategory } from '../types'
 import { formatKg, generateSessionId } from '../utils/calculations'
 
+interface PreSelectedFish {
+  id: string
+  name: string
+  nameGujarati: string
+  bucketWeight: number
+}
+
 export default function TaliScreen() {
   const { t } = useLanguage()
   const { token } = useAuthStore()
 
-  // ── Params passed from home screen boat selection ──────────────────────────
-  const { boatId, boatName, companyId, companyName } = useLocalSearchParams<{
-    boatId: string
-    boatName: string
-    companyId: string
-    companyName: string
-  }>()
+  const { boatId, boatName, companyId, companyName, selectedFish } =
+    useLocalSearchParams<{
+      boatId: string
+      boatName: string
+      companyId: string
+      companyName: string
+      selectedFish?: string
+    }>()
+
+  const parsedSelectedFish = useMemo<PreSelectedFish[]>(() => {
+    if (!selectedFish) return []
+    try { return JSON.parse(selectedFish) as PreSelectedFish[] }
+    catch { return [] }
+  }, [selectedFish])
 
   const {
     session,
@@ -57,11 +71,15 @@ export default function TaliScreen() {
     endSession,
   } = useTaliSession()
 
+  const addPreSelectedFish = (fish: PreSelectedFish[]) => {
+    if (fish.length === 0) return
+    fish.forEach(f => addFishToSession(f.id, f.bucketWeight))
+  }
+
   useEffect(() => {
     if (session) return
 
     const startSession = async () => {
-      // ── Path 1: navigated from home with a pre-selected boat ──────────────
       if (boatId && boatName && companyId) {
         if (token) {
           try {
@@ -71,25 +89,21 @@ export default function TaliScreen() {
               registeredBoatId: boatId,
               clientId,
             })
-            createSession(
-              boatName,
-              companyName ?? 'કંપની',
-              apiSession.id
-            )
+            createSession(boatName, companyName ?? 'કંપની', apiSession.id)
+            addPreSelectedFish(parsedSelectedFish)
             return
           } catch (_) {
-            // API failed — still start a local session for the selected boat
             createSession(boatName, companyName ?? 'કંપની')
+            addPreSelectedFish(parsedSelectedFish)
             return
           }
         } else {
-          // No token — local only
           createSession(boatName, companyName ?? 'કંપની')
+          addPreSelectedFish(parsedSelectedFish)
           return
         }
       }
 
-      // ── Path 2: fallback — auto-pick first boat (e.g. nav tab press) ──────
       if (token) {
         try {
           const { owned, memberOf } = await getMyCompanies(token)
@@ -104,38 +118,28 @@ export default function TaliScreen() {
                 registeredBoatId: boat.id,
                 clientId,
               })
-              createSession(
-                boat.name ?? 'બોટ - 1',
-                company.name ?? 'કંપની',
-                apiSession.id
-              )
+              createSession(boat.name ?? 'બોટ - 1', company.name ?? 'કંપની', apiSession.id)
+              addPreSelectedFish(parsedSelectedFish)
               return
             }
           }
-        } catch (_) {
-          // Fallback to local-only session
-        }
+        } catch (_) {}
       }
       createSession('બોટ - 1', 'કંપની')
+      addPreSelectedFish(parsedSelectedFish)
     }
 
     startSession()
   }, [token, boatId, boatName, companyId, companyName])
 
-  const [addFishVisible, setAddFishVisible] = useState(false)
+  const [addFishVisible, setAddFishVisible]         = useState(false)
   const [bucketModalVisible, setBucketModalVisible] = useState(false)
-  const [pendingFish, setPendingFish] = useState<FishCategory | null>(null)
+  const [pendingFish, setPendingFish]               = useState<FishCategory | null>(null)
   const [partialModalVisible, setPartialModalVisible] = useState(false)
-  const [partialInput, setPartialInput] = useState('')
-
-  // ── Delete fish state ──────────────────────────────────────────────────────
-  const [deletingFish, setDeletingFish] = useState<{
-    id: string
-    name: string
-    nameGujarati: string
+  const [partialInput, setPartialInput]             = useState('')
+  const [deletingFish, setDeletingFish]             = useState<{
+    id: string; name: string; nameGujarati: string
   } | null>(null)
-
-  // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleFishSelected = (fish: FishCategory) => {
     setPendingFish(fish)
@@ -155,20 +159,13 @@ export default function TaliScreen() {
     setPendingFish(null)
   }
 
-  // Long press on a fish tab → opens DeleteFishSheet
   const handleDeleteFish = (fishId: string) => {
     if (!session || session.fishData.length <= 1) return
-
     const fd = session.fishData.find((f) => f.fishId === fishId)
     if (!fd) return
-
     const preset = FISH_CATEGORIES.find((f) => f.id === fishId)
-    const name = preset?.name
-      ?? (fishId.startsWith('custom_')
-        ? fishId.replace('custom_', '').replace(/_/g, ' ')
-        : fishId)
+    const name = preset?.name ?? (fishId.startsWith('custom_') ? fishId.replace('custom_', '').replace(/_/g, ' ') : fishId)
     const nameGujarati = preset?.nameGujarati ?? name
-
     setDeletingFish({ id: fishId, name, nameGujarati })
   }
 
@@ -199,18 +196,10 @@ export default function TaliScreen() {
                   const preset = FISH_CATEGORIES.find((f) => f.id === fd.fishId)
                   const fishName = preset?.name ?? (fd.fishId.startsWith('custom_') ? fd.fishId.replace('custom_', '').replace(/_/g, ' ') : fd.fishId)
                   const fishNameGujarati = preset?.nameGujarati ?? fishName
-                  return {
-                    fishId: fd.fishId,
-                    fishName,
-                    fishNameGujarati,
-                    bucketWeight: fd.bucketWeight,
-                    totalKg: fd.totalKg,
-                  }
+                  return { fishId: fd.fishId, fishName, fishNameGujarati, bucketWeight: fd.bucketWeight, totalKg: fd.totalKg }
                 })
                 await apiEndSession(token, session.serverSessionId, fishEntries)
-              } catch (_) {
-                // Still end locally and go to bill
-              }
+              } catch (_) {}
             }
             endSession()
             router.push('/bill')
@@ -241,13 +230,8 @@ export default function TaliScreen() {
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>🐟</Text>
           <Text style={styles.emptyTitle}>{t.tali.emptyTitle}</Text>
-          <Text style={styles.emptyText}>
-            {t.tali.emptyText}
-          </Text>
-          <TouchableOpacity
-            onPress={() => setAddFishVisible(true)}
-            style={styles.emptyAddBtn}
-          >
+          <Text style={styles.emptyText}>{t.tali.emptyText}</Text>
+          <TouchableOpacity onPress={() => setAddFishVisible(true)} style={styles.emptyAddBtn}>
             <Text style={styles.emptyAddBtnText}>{t.tali.addFish}</Text>
           </TouchableOpacity>
         </View>
@@ -258,7 +242,6 @@ export default function TaliScreen() {
           onAddFish={handleFishSelected}
           alreadyAddedIds={session?.fishData.map((fd) => fd.fishId) ?? []}
         />
-
         {pendingFish && (
           <BucketWeightModal
             visible={bucketModalVisible}
@@ -274,43 +257,24 @@ export default function TaliScreen() {
   }
 
   // ── Active session ─────────────────────────────────────────────────────────
+  const activeFishData = session.fishData.find((fd) => fd.fishId === session.activeFishId)
 
-  const activeFishData = session.fishData.find(
-    (fd) => fd.fishId === session.activeFishId
-  )
-
-  const activeFish = FISH_CATEGORIES.find(
-    (f) => f.id === session.activeFishId
-  ) ?? (() => {
+  const activeFish = FISH_CATEGORIES.find((f) => f.id === session.activeFishId) ?? (() => {
     const customName = session.activeFishId.startsWith('custom_')
       ? session.activeFishId.replace('custom_', '').replace(/_/g, ' ')
       : session.activeFishId
-    return {
-      id: session.activeFishId,
-      name: customName,
-      nameGujarati: customName,
-      bucketWeight: activeFishData?.bucketWeight ?? 25,
-    }
+    return { id: session.activeFishId, name: customName, nameGujarati: customName, bucketWeight: activeFishData?.bucketWeight ?? 25 }
   })()
 
   if (!activeFishData) return null
 
-  const totalKgMap = Object.fromEntries(
-    session.fishData.map((fd) => [fd.fishId, fd.totalKg])
-  )
+  const totalKgMap = Object.fromEntries(session.fishData.map((fd) => [fd.fishId, fd.totalKg]))
 
   const sessionCategories = session.fishData.map((fd) => {
     const preset = FISH_CATEGORIES.find((f) => f.id === fd.fishId)
     if (preset) return { ...preset, bucketWeight: fd.bucketWeight }
-    const customName = fd.fishId.startsWith('custom_')
-      ? fd.fishId.replace('custom_', '').replace(/_/g, ' ')
-      : fd.fishId
-    return {
-      id: fd.fishId,
-      name: customName,
-      nameGujarati: customName,
-      bucketWeight: fd.bucketWeight,
-    }
+    const customName = fd.fishId.startsWith('custom_') ? fd.fishId.replace('custom_', '').replace(/_/g, ' ') : fd.fishId
+    return { id: fd.fishId, name: customName, nameGujarati: customName, bucketWeight: fd.bucketWeight }
   })
 
   return (
@@ -363,9 +327,7 @@ export default function TaliScreen() {
       <View style={styles.bottomBar}>
         <View style={styles.totalBox}>
           <Text style={styles.totalLabel}>{t.tali.totalLabel}</Text>
-          <Text style={styles.totalValue}>
-            {formatKg(activeFishData.totalKg)}
-          </Text>
+          <Text style={styles.totalValue}>{formatKg(activeFishData.totalKg)}</Text>
         </View>
 
         <TouchableOpacity
@@ -377,10 +339,7 @@ export default function TaliScreen() {
             }
           }}
           activeOpacity={0.7}
-          style={[
-            styles.countBtn,
-            activeFishData.isPaused && styles.countBtnPaused,
-          ]}
+          style={[styles.countBtn, activeFishData.isPaused && styles.countBtnPaused]}
         >
           {activeFishData.isPaused ? (
             <>
@@ -393,8 +352,7 @@ export default function TaliScreen() {
                 {t.tali.deckLabel(activeFishData.currentDeck)}
               </Text>
               <Text style={styles.countBtnNumber}>
-                {activeFishData.currentCount % 10 === 0 &&
-                activeFishData.currentCount > 0
+                {activeFishData.currentCount % 10 === 0 && activeFishData.currentCount > 0
                   ? 10
                   : activeFishData.currentCount % 10}
               </Text>
@@ -431,10 +389,7 @@ export default function TaliScreen() {
                 label={t.common.cancel}
                 variant="secondary"
                 size="md"
-                onPress={() => {
-                  setPartialModalVisible(false)
-                  setPartialInput('')
-                }}
+                onPress={() => { setPartialModalVisible(false); setPartialInput('') }}
                 style={{ flex: 1 }}
               />
               <Button
@@ -476,10 +431,7 @@ export default function TaliScreen() {
           fishId={deletingFish.id}
           fishName={deletingFish.name}
           fishNameGujarati={deletingFish.nameGujarati}
-          onConfirm={() => {
-            deleteFish(deletingFish.id)
-            setDeletingFish(null)
-          }}
+          onConfirm={() => { deleteFish(deletingFish.id); setDeletingFish(null) }}
           onCancel={() => setDeletingFish(null)}
         />
       )}
@@ -488,6 +440,7 @@ export default function TaliScreen() {
   )
 }
 
+// ── ORIGINAL styles — unchanged from project ──────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,

@@ -337,7 +337,7 @@ function BoatCard({ boat }: { boat: Boat }) {
 
       <View style={s.actionRow}>
         <TouchableOpacity style={s.actionBtn}
-          onPress={() => router.push({ pathname: '/tali',    params: { boatId: boat.id, boatName: boat.name } } as any)}>
+          onPress={() => router.push({ pathname: '/tali-fish-select', params: { boatId: boat.id, boatName: boat.name } } as any)}>
           <Text style={s.actionBtnEmoji}>⚓</Text>
           <Text style={s.actionBtnText}>Tali</Text>
         </TouchableOpacity>

@@ -1,44 +1,36 @@
+/**
+ * components/tali/AddFishModal.tsx
+ *
+ * Fish selection bottom sheet.
+ * - NO images, NO emoji, NO kg
+ * - Shows English name + Gujarati name only
+ * - Full fish list from FISH_CATEGORIES with group filter tabs
+ */
+
 import React, { useState } from 'react'
 import {
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native'
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import Animated, {
-    runOnJS,
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
 } from 'react-native-reanimated'
-import { getFishImage } from '../../constants/fishImages'
+import { FISH_CATEGORIES, FISH_GROUPS } from '../../constants/fishTypes'
 import { theme } from '../../constants/theme'
 import { useLanguage } from '../../hooks/useLanguage'
 import { FishCategory } from '../../types'
-
-const PRESET_FISH: FishCategory[] = [
-  { id: 'jumbo',    name: 'Jumbo',        nameGujarati: 'જમ્બો',      bucketWeight: 25 },
-  { id: 'pomfret',  name: 'Pomfret',      nameGujarati: 'પોંફ્રેટ',    bucketWeight: 25 },
-  { id: 'bhungar',  name: 'Bhungar',      nameGujarati: 'ભૂંગળ',      bucketWeight: 20 },
-  { id: 'narsinga', name: 'Narsinga',     nameGujarati: 'નર્સિંગ',     bucketWeight: 20 },
-  { id: 'white',    name: 'White',        nameGujarati: 'સફેદ',        bucketWeight: 20 },
-  { id: 'prati',    name: 'Prati',        nameGujarati: 'પ્રતિ',        bucketWeight: 20 },
-  { id: 'squid',    name: 'Squid',        nameGujarati: 'સ્ક્વિડ',     bucketWeight: 20 },
-  { id: 'crab',     name: 'Crab',         nameGujarati: 'એકકડો',       bucketWeight: 15 },
-  { id: 'prawns_l', name: 'Prawns L',     nameGujarati: 'ઝીંગા મોટા', bucketWeight: 25 },
-  { id: 'prawns_s', name: 'Prawns S',     nameGujarati: 'ઝીંગા નાના', bucketWeight: 20 },
-  { id: 'kolami',   name: 'Kolami',       nameGujarati: 'કોળામી',      bucketWeight: 20 },
-  { id: 'tiger',    name: 'Tiger Prawns', nameGujarati: 'ટાઈગર',      bucketWeight: 25 },
-  { id: 'flowers',  name: 'Flowers',      nameGujarati: 'ફ્લાવર',      bucketWeight: 25 },
-]
 
 interface AddFishModalProps {
   visible: boolean
@@ -47,43 +39,15 @@ interface AddFishModalProps {
   alreadyAddedIds: string[]
 }
 
-// ─── Single Fish Card ────────────────────────────────────────────────────────
-function FishCard({
-  fish,
-  onPress,
-}: {
-  fish: FishCategory
-  onPress: () => void
-}) {
-  const image = getFishImage(fish.id)
-
+function FishCard({ fish, onPress }: { fish: FishCategory; onPress: () => void }) {
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.75}
-      style={styles.fishCard}
-    >
-      {/* Fish image — top half of card */}
-      <View style={styles.imageContainer}>
-        {image ? (
-          <Image
-            source={image}
-            style={styles.fishImage}
-            resizeMode="contain"
-          />
-        ) : (
-          <Text style={styles.fishFallbackEmoji}>🐟</Text>
-        )}
-      </View>
-
-      {/* Name — bottom of card */}
-      <Text style={styles.fishName}>{fish.name}</Text>
-      <Text style={styles.fishGuj}>{fish.nameGujarati}</Text>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.fishCard}>
+      <Text style={styles.fishName} numberOfLines={1}>{fish.name}</Text>
+      <Text style={styles.fishGuj} numberOfLines={1}>{fish.nameGujarati}</Text>
     </TouchableOpacity>
   )
 }
 
-// ─── Modal ───────────────────────────────────────────────────────────────────
 export function AddFishModal({
   visible,
   onClose,
@@ -91,25 +55,35 @@ export function AddFishModal({
   alreadyAddedIds,
 }: AddFishModalProps) {
   const { t } = useLanguage()
-  const [search, setSearch] = useState('')
-  const [customName, setCustomName] = useState('')
+  const [search, setSearch]           = useState('')
+  const [customName, setCustomName]   = useState('')
+  const [activeGroup, setActiveGroup] = useState<string>('all')
   const translateY = useSharedValue(0)
 
-  // ✅ KEY FIX: skip fish that are already in the session entirely
-  const filtered = PRESET_FISH.filter((f) => {
-    if (alreadyAddedIds.includes(f.id)) return false   // ← hide already-added
+  const filtered = FISH_CATEGORIES.filter((f) => {
+    if (alreadyAddedIds.includes(f.id)) return false
+    const matchGroup =
+      activeGroup === 'all' ||
+      (FISH_GROUPS.find(g => g.id === activeGroup)?.ids.includes(f.id) ?? false)
     const q = search.toLowerCase()
-    return f.name.toLowerCase().includes(q) || f.nameGujarati.includes(search)
+    const matchSearch =
+      q === '' ||
+      f.name.toLowerCase().includes(q) ||
+      f.nameGujarati.includes(search)
+    return matchGroup && matchSearch
   })
 
   const handleClose = () => {
     translateY.value = withSpring(0)
     setSearch('')
+    setActiveGroup('all')
     onClose()
   }
 
   const handleSelect = (fish: FishCategory) => {
     onAddFish(fish)
+    setSearch('')
+    setActiveGroup('all')
     onClose()
   }
 
@@ -127,7 +101,6 @@ export function AddFishModal({
     onClose()
   }
 
-  // Swipe down > 80px → dismiss
   const panGesture = Gesture.Pan()
     .onUpdate((e) => {
       if (e.translationY > 0) translateY.value = e.translationY
@@ -149,14 +122,11 @@ export function AddFishModal({
       onRequestClose={handleClose}
     >
       <GestureHandlerRootView style={{ flex: 1 }}>
-        {/* Tap dark overlay → close */}
         <TouchableWithoutFeedback onPress={handleClose}>
           <View style={styles.overlay}>
-
             <TouchableWithoutFeedback onPress={() => {}}>
               <Animated.View style={[styles.sheet, animatedStyle]}>
 
-                {/* Swipe handle */}
                 <GestureDetector gesture={panGesture}>
                   <View style={styles.handleArea}>
                     <View style={styles.handle} />
@@ -167,70 +137,93 @@ export function AddFishModal({
                   behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 >
                   <Text style={styles.title}>{t.tali.addFishTitle}</Text>
-                  <Text style={styles.subtitle}>
-                    Select a fish or enter a custom name
-                  </Text>
+                  <Text style={styles.subtitle}>Select a fish or enter a custom name</Text>
 
-                  {/* Search */}
                   <TextInput
                     style={styles.searchInput}
-                    value={search}
-                    onChangeText={setSearch}
-                    placeholder={t.tali.searchPlaceholder}
+                    placeholder="Search..."
                     placeholderTextColor={theme.colors.textDisabled}
+                    value={search}
+                    onChangeText={v => { setSearch(v); setActiveGroup('all') }}
                   />
 
-                  {/* Fish Grid — only shows fish NOT yet added */}
+                  {search === '' && (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.groupRow}
+                    >
+                      <TouchableOpacity
+                        style={[styles.groupChip, activeGroup === 'all' && styles.groupChipActive]}
+                        onPress={() => setActiveGroup('all')}
+                      >
+                        <Text style={[styles.groupText, activeGroup === 'all' && styles.groupTextActive]}>
+                          All
+                        </Text>
+                      </TouchableOpacity>
+                      {FISH_GROUPS.map(g => (
+                        <TouchableOpacity
+                          key={g.id}
+                          style={[styles.groupChip, activeGroup === g.id && styles.groupChipActive]}
+                          onPress={() => setActiveGroup(g.id)}
+                        >
+                          <Text style={styles.groupEmoji}>{g.emoji}</Text>
+                          <Text style={[styles.groupText, activeGroup === g.id && styles.groupTextActive]}>
+                            {g.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  )}
+
                   <ScrollView
                     style={styles.grid}
                     showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                   >
-                    <View style={styles.gridInner}>
-                      {filtered.length > 0 ? (
-                        filtered.map((fish) => (
+                    {filtered.length === 0 ? (
+                      <View style={styles.emptyState}>
+                        <Text style={styles.emptyText}>
+                          {search ? `No fish found for "${search}"` : 'No more fish to add'}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.gridInner}>
+                        {filtered.map((fish) => (
                           <FishCard
                             key={fish.id}
                             fish={fish}
                             onPress={() => handleSelect(fish)}
                           />
-                        ))
-                      ) : (
-                        <View style={styles.emptyState}>
-                          <Text style={styles.emptyText}>
-                            {search
-                              ? `No fish matching "${search}"`
-                              : 'All available fish have been added ✓'}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
+                        ))}
+                      </View>
+                    )}
+                    <View style={{ height: 8 }} />
                   </ScrollView>
 
-                  {/* Custom fish input */}
                   <View style={styles.customRow}>
                     <TextInput
                       style={styles.customInput}
+                      placeholder="Enter custom fish name..."
+                      placeholderTextColor={theme.colors.textDisabled}
                       value={customName}
                       onChangeText={setCustomName}
-                      placeholder={`Enter custom fish name...`}
-                      placeholderTextColor={theme.colors.textDisabled}
+                      returnKeyType="done"
+                      onSubmitEditing={handleCustomAdd}
                     />
                     <TouchableOpacity
+                      style={[styles.addBtn, !customName.trim() && styles.addBtnDisabled]}
                       onPress={handleCustomAdd}
                       disabled={!customName.trim()}
-                      style={[
-                        styles.addBtn,
-                        !customName.trim() && styles.addBtnDisabled,
-                      ]}
                     >
                       <Text style={styles.addBtnText}>{t.tali.addBtn}</Text>
                     </TouchableOpacity>
                   </View>
 
-                  {/* Cancel */}
-                  <TouchableOpacity onPress={handleClose} style={styles.cancelBtn}>
+                  <TouchableOpacity style={styles.cancelBtn} onPress={handleClose}>
                     <Text style={styles.cancelText}>{t.common.cancel}</Text>
                   </TouchableOpacity>
+
                 </KeyboardAvoidingView>
               </Animated.View>
             </TouchableWithoutFeedback>
@@ -241,7 +234,6 @@ export function AddFishModal({
   )
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
@@ -275,31 +267,82 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 13,
     color: theme.colors.textSecondary,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   searchInput: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.elevated,
     borderRadius: 12,
     padding: 12,
     fontSize: 14,
     color: theme.colors.textPrimary,
-    marginBottom: 16,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
+  groupRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+    paddingBottom: 2,
+  },
+  groupChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: theme.colors.elevated,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+  },
+  groupChipActive: {
+    backgroundColor: theme.colors.primary + '20',
+    borderColor: theme.colors.primary,
+  },
+  groupEmoji: {
+    fontSize: 13,
+  },
+  groupText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    fontWeight: '600',
+  },
+  groupTextActive: {
+    color: theme.colors.primary,
+    fontWeight: '700',
+  },
   grid: {
-    maxHeight: 320,
+    maxHeight: 280,
   },
   gridInner: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
   },
-
-  // ── Empty state ──────────────────────
+  fishCard: {
+    width: '30%',
+    backgroundColor: theme.colors.elevated,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    gap: 3,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  fishName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+    textAlign: 'center',
+  },
+  fishGuj: {
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+  },
   emptyState: {
-    flex: 1,
-    width: '100%',
     paddingVertical: 32,
     alignItems: 'center',
   },
@@ -308,58 +351,15 @@ const styles = StyleSheet.create({
     color: theme.colors.textDisabled,
     textAlign: 'center',
   },
-
-  // ── Fish card ──────────────────────────────────
-  fishCard: {
-    width: '30%',
-    backgroundColor: theme.colors.surface,
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: theme.colors.border,
-    overflow: 'hidden',
-  },
-
-  imageContainer: {
-    width: '100%',
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  fishImage: {
-    width: '100%',
-    height: 48,
-  },
-  fishFallbackEmoji: {
-    fontSize: 28,
-  },
-
-  fishName: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
-  },
-  fishGuj: {
-    fontSize: 10,
-    color: theme.colors.textSecondary,
-    marginTop: 1,
-    textAlign: 'center',
-  },
-
-  // ── Custom input ───────────────────────────────
   customRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 16,
+    marginTop: 12,
     alignItems: 'center',
   },
   customInput: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.elevated,
     borderRadius: 12,
     padding: 12,
     fontSize: 14,
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   cancelBtn: {
-    marginTop: 12,
+    marginTop: 10,
     alignItems: 'center',
     padding: 14,
     backgroundColor: theme.colors.primaryDark,
