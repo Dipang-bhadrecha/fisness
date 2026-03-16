@@ -433,7 +433,7 @@ export default function CrewScreen() {
           <Text style={s.backText}>←</Text>
         </TouchableOpacity>
         <View style={s.headerCenter}>
-          <Text style={s.headerTitle}>Kharchi</Text>
+          <Text style={s.headerTitle}>Khalasi</Text>
           <Text style={s.headerSub}>{selectedBoat}</Text>
         </View>
         <TouchableOpacity
