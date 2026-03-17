@@ -1,56 +1,65 @@
+import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import React from 'react'
 import {
   Alert,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { darkTheme, lightTheme } from '../constants/theme'
 import { useLanguage } from '../hooks/useLanguage'
 import { useAuthStore } from '../store/authStore'
-import { useTheme, useThemeStore } from '../store/themeStore'
+import { useThemeStore } from '../store/themeStore'
+
+const BG = '#080F1A'
+const SURF = '#0D1B2E'
+const ELEV = '#132640'
+const BOR = 'rgba(255,255,255,0.06)'
+const TP = '#F0F4F8'
+const TS = '#8BA3BC'
+const TM = '#3D5A73'
+const TEAL = '#0891b2'
+const RED = '#ef4444'
 
 type SettingRowProps = {
-  emoji: string
+  icon: keyof typeof Ionicons.glyphMap
   label: string
   sub?: string
   value?: string
   onPress?: () => void
   danger?: boolean
   showArrow?: boolean
-  styles: any
 }
 
 function SettingRow({
-  emoji,
+  icon,
   label,
   sub,
   value,
   onPress,
   danger,
   showArrow = true,
-  styles,
 }: SettingRowProps) {
   return (
     <TouchableOpacity
-      style={styles.row}
+      style={s.row}
       onPress={onPress}
-      activeOpacity={onPress ? 0.7 : 1}
+      activeOpacity={onPress ? 0.75 : 1}
       disabled={!onPress}
     >
-      <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
-        <Text style={styles.rowEmoji}>{emoji}</Text>
+      <View style={[s.rowIcon, danger && s.rowIconDanger]}>
+        <Ionicons name={icon} size={18} color={danger ? RED : TP} />
       </View>
-      <View style={styles.rowText}>
-        <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
-        {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
+      <View style={s.rowText}>
+        <Text style={[s.rowLabel, danger && s.rowLabelDanger]}>{label}</Text>
+        {sub ? <Text style={s.rowSub}>{sub}</Text> : null}
       </View>
-      {value ? <Text style={styles.rowValue}>{value}</Text> : null}
-      {showArrow && onPress ? <Text style={styles.rowArrow}>›</Text> : null}
+      {value ? <Text style={s.rowValue}>{value}</Text> : null}
+      {showArrow && onPress ? <Ionicons name="chevron-forward" size={18} color={TM} /> : null}
     </TouchableOpacity>
   )
 }
@@ -59,9 +68,6 @@ export default function ProfileScreen() {
   const { language, setLanguage } = useLanguage()
   const { user, logout } = useAuthStore()
   const { mode, setMode } = useThemeStore()
-  const theme = useTheme() 
-  const activeTheme = mode === 'dark' ? darkTheme : lightTheme
-  const s = React.useMemo(() => buildStyles(activeTheme), [activeTheme])
 
   const handleLogout = () => {
     Alert.alert(
@@ -81,8 +87,8 @@ export default function ProfileScreen() {
     )
   }
 
-  const handleLanguageToggle = () => {
-    setLanguage(language === 'en' ? 'gu' : 'en')
+  const handleLanguageToggle = async () => {
+    await setLanguage(language === 'en' ? 'gu' : 'en')
   }
 
   const handleThemeToggle = async () => {
@@ -90,327 +96,230 @@ export default function ProfileScreen() {
     await setMode(nextMode)
   }
 
+  const firstLetter = user?.name?.charAt(0)?.toUpperCase() ?? 'U'
+
   return (
-    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+    <>
+      <StatusBar barStyle="light-content" backgroundColor={BG} />
+      <SafeAreaView style={s.safe} edges={['top']}>
+        <View style={s.header}>
+          <TouchableOpacity
+            style={s.backBtn}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(home)' as any))}
+          >
+            <Ionicons name="arrow-back" size={20} color={TP} />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>Profile</Text>
+          <View style={s.headerSpacer} />
+        </View>
 
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity
-          style={s.backBtn}
-          onPress={() => router.canGoBack() ? router.back() : null}
-        >
-          <Text style={s.backText}>←</Text>
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Profile</Text>
-        <View style={{ width: 36 }} />
-      </View>
-
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-
-        {/* Profile Card */}
-        <View style={s.profileCard}>
-          <View style={s.profileAvatar}>
-            <Text style={s.profileAvatarText}>
-              {user?.name ? user.name.charAt(0).toUpperCase() : '👤'}
-            </Text>
-          </View>
-          <View style={s.profileInfo}>
-            <Text style={s.profileName}>{user?.name ?? 'User'}</Text>
-            <Text style={s.profilePhone}>+91 {user?.phone ?? '—'}</Text>
-            <View style={s.roleBadge}>
-              <Text style={s.roleBadgeText}>⚓ Boat Owner</Text>
+        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+          <View style={s.profileCard}>
+            <View style={s.avatar}>
+              <Text style={s.avatarText}>{firstLetter}</Text>
+            </View>
+            <View style={s.profileInfo}>
+              <Text style={s.profileName}>{user?.name ?? 'User'}</Text>
+              <Text style={s.profilePhone}>+91 {user?.phone ?? '—'}</Text>
+              <View style={s.roleBadge}>
+                <Text style={s.roleBadgeText}>Boat Owner</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Account Section */}
-        <Text style={s.sectionTitle}>ACCOUNT</Text>
-        <View style={s.section}>
-          <SettingRow
-            styles={s}
-            emoji="👤"
-            label="Edit Profile"
-            sub="Name, phone number"
-            onPress={() => router.push('/edit-profile' as any)}
-          />
-          <View style={s.divider} />
-          <SettingRow
-            styles={s}
-            emoji="🏢"
-            label="Company"
-            sub="Manage your company details"
-            onPress={() => console.log('TODO: company settings')}
-          />
-          <View style={s.divider} />
-          <SettingRow
-            styles={s}
-            emoji="🚤"
-            label="Boats"
-            sub="Register & manage boats"
-            onPress={() => console.log('TODO: boats management')}
-          />
-          <View style={s.divider} />
-          <SettingRow
-            styles={s}
-            emoji="🔐"
-            label="Access"
-            sub="Manage who can use your account"
-            onPress={() => router.push('/access' as any)}
-          />
-        </View>
+          <Text style={s.sectionTitle}>ACCOUNT</Text>
+          <View style={s.section}>
+            <SettingRow
+              icon="person-outline"
+              label="Edit Profile"
+              sub="Name, phone number"
+              onPress={() => router.push('/edit-profile' as any)}
+            />
+            <View style={s.divider} />
+            <SettingRow
+              icon="business-outline"
+              label="Company"
+              sub="Manage your company details"
+            />
+            <View style={s.divider} />
+            <SettingRow
+              icon="boat-outline"
+              label="Boats"
+              sub="Register and manage boats"
+              onPress={() => router.push('/boats' as any)}
+            />
+            <View style={s.divider} />
+            <SettingRow
+              icon="lock-closed-outline"
+              label="Access"
+              sub="Manage who can use your account"
+              onPress={() => router.push('/access' as any)}
+            />
+          </View>
 
-        {/* Preferences Section */}
-        <Text style={s.sectionTitle}>PREFERENCES</Text>
-        <View style={s.section}>
-          <SettingRow
-            styles={s}
-            emoji="🌐"
-            label="Language"
-            sub="App display language"
-            value={language === 'en' ? 'English' : 'ગુજરાતી'}
-            onPress={handleLanguageToggle}
-          />
-          <View style={s.divider} />
-          <SettingRow
-            styles={s}
-            emoji={mode === 'dark' ? '🌙' : '☀️'}
-            label="Theme"
-            sub={`Tap to switch to ${mode === 'dark' ? 'Light' : 'Dark'}`}
-            value={mode === 'dark' ? 'Dark' : 'Light'}
-            onPress={handleThemeToggle}
-          />
-          <View style={s.divider} />
-          <SettingRow
-            styles={s}
-            emoji="🔔"
-            label="Notifications"
-            sub="Manage alerts"
-            onPress={() => console.log('TODO: notifications')}
-          />
-        </View>
+          <Text style={s.sectionTitle}>PREFERENCES</Text>
+          <View style={s.section}>
+            <SettingRow
+              icon="language-outline"
+              label="Language"
+              sub="App display language"
+              value={language === 'en' ? 'English' : 'Gujarati'}
+              onPress={handleLanguageToggle}
+            />
+            <View style={s.divider} />
+            <SettingRow
+              icon={mode === 'dark' ? 'moon-outline' : 'sunny-outline'}
+              label="Theme"
+              sub={`Switch to ${mode === 'dark' ? 'Light' : 'Dark'} mode`}
+              value={mode === 'dark' ? 'Dark' : 'Light'}
+              onPress={handleThemeToggle}
+            />
+            <View style={s.divider} />
+            <SettingRow
+              icon="notifications-outline"
+              label="Notifications"
+              sub="Manage alerts"
+            />
+          </View>
 
-        {/* Support Section */}
-        <Text style={s.sectionTitle}>SUPPORT</Text>
-        <View style={s.section}>
-          <SettingRow
-            styles={s}
-            emoji="❓"
-            label="Help & FAQ"
-            sub="How to use Fishness"
-            onPress={() => console.log('TODO: help')}
-          />
-          <View style={s.divider} />
-          <SettingRow
-            styles={s}
-            emoji="📞"
-            label="Contact Support"
-            sub="Reach out for help"
-            onPress={() => console.log('TODO: support')}
-          />
-          <View style={s.divider} />
-          <SettingRow
-            styles={s}
-            emoji="ℹ️"
-            label="App Version"
-            value="v1.0.0"
-            showArrow={false}
-          />
-        </View>
+          <Text style={s.sectionTitle}>SUPPORT</Text>
+          <View style={s.section}>
+            <SettingRow
+              icon="help-circle-outline"
+              label="Help and FAQ"
+              sub="How to use Fishness"
+            />
+            <View style={s.divider} />
+            <SettingRow
+              icon="call-outline"
+              label="Contact Support"
+              sub="Reach out for help"
+            />
+            <View style={s.divider} />
+            <SettingRow
+              icon="information-circle-outline"
+              label="App Version"
+              value="v1.0.0"
+              showArrow={false}
+            />
+          </View>
 
-        {/* Logout */}
-        <Text style={s.sectionTitle}>SESSION</Text>
-        <View style={s.section}>
-          <SettingRow
-            styles={s}
-            emoji="🚪"
-            label="Logout"
-            sub="Sign out of your account"
-            onPress={handleLogout}
-            danger
-            showArrow={false}
-          />
-        </View>
+          <Text style={s.sectionTitle}>SESSION</Text>
+          <View style={s.section}>
+            <SettingRow
+              icon="log-out-outline"
+              label="Logout"
+              sub="Sign out of your account"
+              onPress={handleLogout}
+              danger
+              showArrow={false}
+            />
+          </View>
 
-        {/* Footer */}
-        <View style={s.footer}>
-          <Text style={s.footerText}>Fishness · Knowmadic</Text>
-          <Text style={s.footerSub}>Made for fishermen 🐟</Text>
-        </View>
-
-      </ScrollView>
-    </SafeAreaView>
+          <View style={s.footer}>
+            <Text style={s.footerText}>Fishness</Text>
+            <Text style={s.footerSub}>Your fishing workspace</Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </>
   )
 }
 
-const buildStyles = (theme: typeof lightTheme) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: BG },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
     paddingHorizontal: 16,
     paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: BOR,
+    backgroundColor: BG,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.elevated,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: ELEV,
   },
-  backText: {
-    color: theme.colors.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.colors.textPrimary,
-  },
-  scroll: {
-    padding: 16,
-    gap: 8,
-  },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: TP },
+  headerSpacer: { width: 38 },
+  scroll: { padding: 16, gap: 10, paddingBottom: 28 },
   profileCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 20,
+    backgroundColor: SURF,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: 20,
+    borderColor: BOR,
+    padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    marginBottom: 8,
+    gap: 14,
   },
-  profileAvatar: {
+  avatar: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: TEAL,
   },
-  profileAvatarText: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#fff',
-  },
-  profileInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  profileName: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.colors.textPrimary,
-  },
-  profilePhone: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-  },
+  avatarText: { fontSize: 26, fontWeight: '800', color: '#fff' },
+  profileInfo: { flex: 1, gap: 4 },
+  profileName: { fontSize: 18, fontWeight: '800', color: TP },
+  profilePhone: { fontSize: 13, color: TS },
   roleBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: theme.colors.elevated,
-    borderRadius: 20,
+    marginTop: 4,
     paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: ELEV,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginTop: 2,
+    borderColor: BOR,
   },
-  roleBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: theme.colors.primary,
-  },
+  roleBadgeText: { fontSize: 11, fontWeight: '700', color: TEAL },
   sectionTitle: {
+    marginTop: 8,
+    marginLeft: 4,
     fontSize: 11,
     fontWeight: '700',
-    color: theme.colors.textSecondary,
-    letterSpacing: 1.5,
-    marginTop: 8,
-    marginBottom: 4,
-    marginLeft: 4,
+    letterSpacing: 1.2,
+    color: TS,
   },
   section: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: SURF,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: BOR,
     overflow: 'hidden',
   },
-  divider: {
-    height: 1,
-    backgroundColor: theme.colors.border,
-    marginLeft: 60,
-  },
+  divider: { height: 1, backgroundColor: BOR, marginLeft: 62 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 13,
     gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
   },
   rowIcon: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: theme.colors.elevated,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: ELEV,
   },
-  rowEmoji: {
-    fontSize: 18,
-  },
-  rowIconDanger: {
-    backgroundColor: 'rgba(239,68,68,0.12)',
-  },
-  rowText: {
-    flex: 1,
-    gap: 2,
-  },
-  rowLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-  },
-  rowLabelDanger: {
-    color: theme.colors.danger,
-  },
-  rowSub: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-  },
-  rowValue: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-  },
-  rowArrow: {
-    fontSize: 22,
-    color: theme.colors.textDisabled,
-    fontWeight: '700',
-  },
-  footer: {
-    alignItems: 'center',
-    paddingVertical: 24,
-    gap: 4,
-  },
-  footerText: {
-    fontSize: 13,
-    color: theme.colors.textMuted,
-    fontWeight: '600',
-  },
-  footerSub: {
-    fontSize: 12,
-    color: theme.colors.textDisabled,
-  },
+  rowIconDanger: { backgroundColor: 'rgba(239,68,68,0.14)' },
+  rowText: { flex: 1, gap: 2 },
+  rowLabel: { fontSize: 15, fontWeight: '600', color: TP },
+  rowLabelDanger: { color: RED },
+  rowSub: { fontSize: 12, color: TS },
+  rowValue: { fontSize: 13, fontWeight: '600', color: TS },
+  footer: { alignItems: 'center', paddingVertical: 18, gap: 4 },
+  footerText: { fontSize: 13, fontWeight: '700', color: TS },
+  footerSub: { fontSize: 12, color: TM },
 })
