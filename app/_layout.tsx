@@ -53,26 +53,20 @@ export default function RootLayout() {
         <Stack.Screen name="(owner)"      options={{ headerShown: false }} />
         <Stack.Screen name="(home)"       options={{ headerShown: false }} />
         <Stack.Screen name="(dashboard)"  options={{ headerShown: false }} />
-
-        {/* <Stack.Screen name="tali"              options={{ headerShown: false }} />
-        <Stack.Screen name="tali-fish-select" options={{ headerShown: false }} /> */}
-
-
-        <Stack.Screen name="tali-bill"  options={{ headerShown: false }} />
-        <Stack.Screen name="tali-list"  options={{ headerShown: false }} />
+        <Stack.Screen name="tali-bill"    options={{ headerShown: false }} />
+        <Stack.Screen name="tali-list"    options={{ headerShown: false }} />
         <Stack.Screen name="summary"      options={{ headerShown: false }} />
         <Stack.Screen name="bill"         options={{ headerShown: false }} />
         <Stack.Screen name="crew"         options={{ headerShown: false }} />
         <Stack.Screen name="kharchi"      options={{ headerShown: false }} />
-        <Stack.Screen name="boats"        options={{ headerShown: false }} />
         <Stack.Screen name="profile"      options={{ headerShown: false }} />
         <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="access"       options={{ headerShown: false }} />
         <Stack.Screen name="crew-detail"  options={{ headerShown: false }} />
-        <Stack.Screen name="boat-detail"  options={{ headerShown: false }} />
         <Stack.Screen name="trips"        options={{ headerShown: false }} />
         <Stack.Screen name="ledger"       options={{ headerShown: false }} />
-        <Stack.Screen name="add-expense" options={{ headerShown: false }} />
+        <Stack.Screen name="add-expense"  options={{ headerShown: false }} />
+        <Stack.Screen name="add-crew"     options={{ headerShown: false }} />
       </Stack>
     </SafeAreaProvider>
   )

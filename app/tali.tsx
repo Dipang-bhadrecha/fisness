@@ -28,6 +28,7 @@ import { theme } from '../constants/theme'
 import { useLanguage } from '../hooks/useLanguage'
 import { useTaliSession } from '../hooks/useTaliSession'
 import { useAuthStore } from '../store/authStore'
+import { useTaliStore } from '../store/taliStore'
 import { FishCategory } from '../types'
 import { formatKg, generateSessionId } from '../utils/calculations'
 
@@ -132,12 +133,12 @@ export default function TaliScreen() {
     startSession()
   }, [token, boatId, boatName, companyId, companyName])
 
-  const [addFishVisible, setAddFishVisible]         = useState(false)
-  const [bucketModalVisible, setBucketModalVisible] = useState(false)
-  const [pendingFish, setPendingFish]               = useState<FishCategory | null>(null)
+  const [addFishVisible,      setAddFishVisible]      = useState(false)
+  const [bucketModalVisible,  setBucketModalVisible]  = useState(false)
+  const [pendingFish,         setPendingFish]         = useState<FishCategory | null>(null)
   const [partialModalVisible, setPartialModalVisible] = useState(false)
-  const [partialInput, setPartialInput]             = useState('')
-  const [deletingFish, setDeletingFish]             = useState<{
+  const [partialInput,        setPartialInput]        = useState('')
+  const [deletingFish,        setDeletingFish]        = useState<{
     id: string; name: string; nameGujarati: string
   } | null>(null)
 
@@ -147,9 +148,23 @@ export default function TaliScreen() {
     setBucketModalVisible(true)
   }
 
+  // ── Updated: also handles editing bucket weight of existing fish ────────────
   const handleBucketConfirm = (weight: number) => {
     if (!pendingFish) return
-    addFishToSession(pendingFish.id, weight)
+    const alreadyInSession = session?.fishData.some(fd => fd.fishId === pendingFish.id)
+    if (alreadyInSession) {
+      // Update bucket weight for the existing fish in the store
+      useTaliStore.setState(s => ({
+        session: s.session ? {
+          ...s.session,
+          fishData: s.session.fishData.map(fd =>
+            fd.fishId === pendingFish.id ? { ...fd, bucketWeight: weight } : fd
+          ),
+        } : null,
+      }))
+    } else {
+      addFishToSession(pendingFish.id, weight)
+    }
     setBucketModalVisible(false)
     setPendingFish(null)
   }
@@ -202,7 +217,6 @@ export default function TaliScreen() {
               } catch (_) {}
             }
             endSession()
-            // router.push('/bill')
             router.push('/tali-bill')
           },
         },
@@ -326,11 +340,38 @@ export default function TaliScreen() {
 
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
+
+        {/* ── Bucket Weight Row — tap to edit for current fish ── */}
+        <TouchableOpacity
+          style={styles.bucketRow}
+          activeOpacity={0.75}
+          onPress={() => {
+            setPendingFish(activeFish)
+            setBucketModalVisible(true)
+          }}
+        >
+          <View style={styles.bucketLeft}>
+            <Text style={styles.bucketIcon}>🪣</Text>
+            <View>
+              <Text style={styles.bucketLabel}>Bucket Weight</Text>
+              <Text style={styles.bucketFishName}>{activeFish.name}</Text>
+            </View>
+          </View>
+          <View style={styles.bucketRight}>
+            <Text style={styles.bucketVal}>{activeFishData.bucketWeight} kg</Text>
+            <View style={styles.bucketEditBadge}>
+              <Text style={styles.bucketEditText}>Edit</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Total weight row */}
         <View style={styles.totalBox}>
           <Text style={styles.totalLabel}>{t.tali.totalLabel}</Text>
           <Text style={styles.totalValue}>{formatKg(activeFishData.totalKg)}</Text>
         </View>
 
+        {/* Count / Tap button */}
         <TouchableOpacity
           onPress={() => {
             if (activeFishData.isPaused) {
@@ -413,13 +454,13 @@ export default function TaliScreen() {
         alreadyAddedIds={session.fishData.map((fd) => fd.fishId)}
       />
 
-      {/* Bucket Weight Modal */}
+      {/* Bucket Weight Modal — used for both new fish and editing existing */}
       {pendingFish && (
         <BucketWeightModal
           visible={bucketModalVisible}
           fishName={pendingFish.name}
           fishNameGujarati={pendingFish.nameGujarati}
-          defaultWeight={pendingFish.bucketWeight}
+          defaultWeight={activeFishData.bucketWeight}
           onConfirm={handleBucketConfirm}
           onCancel={handleBucketCancel}
         />
@@ -441,7 +482,7 @@ export default function TaliScreen() {
   )
 }
 
-// ── ORIGINAL styles — unchanged from project ──────────────────────────────────
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -537,6 +578,65 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing[4],
     gap: theme.spacing[2],
   },
+
+  // ── Bucket weight row (NEW) ────────────────────────────────────────────────
+  bucketRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.elevated,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: theme.spacing[3],
+    paddingVertical: theme.spacing[2],
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  bucketLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  bucketIcon: {
+    fontSize: 20,
+  },
+  bucketLabel: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  bucketFishName: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textPrimary,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  bucketRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  bucketVal: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: '800',
+    color: theme.colors.primary,
+  },
+  bucketEditBadge: {
+    backgroundColor: theme.colors.primary + '22',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.primary + '40',
+  },
+  bucketEditText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.primary,
+    fontWeight: '700',
+  },
+  // ── End bucket weight row ──────────────────────────────────────────────────
+
   totalBox: {
     flexDirection: 'row',
     alignItems: 'center',

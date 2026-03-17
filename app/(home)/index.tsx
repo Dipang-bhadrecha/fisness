@@ -15,10 +15,9 @@
 
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import {
   ActivityIndicator,
-  Modal,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -28,7 +27,6 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppTabBar } from '../../components/shared/AppTabBar'
-import { BoatLedgerSheet } from '../../components/shared/BoatLedgerSheet'
 import { useAuthStore } from '../../store/authStore'
 import {
   ActiveContext,
@@ -58,49 +56,6 @@ const CARD_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   expense: 'wallet-outline',
   crew:    'people-outline',
   details: 'chevron-forward',
-}
-
-// ─── Tali status config for bottom sheet ─────────────────────────────────────
-const TALI_STATUS_COLOR: Record<string, string> = {
-  PENDING_PRICE: AMBER,
-  PRICED:        TEAL,
-  CONFIRMED:     GREEN,
-}
-const TALI_STATUS_LABEL: Record<string, string> = {
-  PENDING_PRICE: 'Pending Price',
-  PRICED:        'Review Price',
-  CONFIRMED:     'Confirmed',
-}
-const TALI_STATUS_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
-  PENDING_PRICE: 'time-outline',
-  PRICED:        'checkmark-circle-outline',
-  CONFIRMED:     'lock-closed-outline',
-}
-
-// ─── Mock tali per boat (replace with GET /api/v1/tali?boatId=xxx) ────────────
-type TaliStatus = 'PENDING_PRICE' | 'PRICED' | 'CONFIRMED'
-interface BoatTaliItem {
-  id: string
-  billNo: string
-  companyName: string
-  date: string
-  totalKg: number
-  fishCount: number
-  status: TaliStatus
-  hasPriceChange: boolean
-}
-
-const BOAT_TALIS: Record<string, BoatTaliItem[]> = {
-  '1': [
-    { id: 't1', billNo: 'BILL-20260315-9133', companyName: 'Goshiya Sea Foods', date: '15 Mar 2026', totalKg: 869,  fishCount: 2, status: 'PRICED',        hasPriceChange: true  },
-    { id: 't2', billNo: 'BILL-20260310-4421', companyName: 'Goshiya Sea Foods', date: '10 Mar 2026', totalKg: 1240, fishCount: 4, status: 'CONFIRMED',     hasPriceChange: false },
-    { id: 't3', billNo: 'BILL-20260302-7781', companyName: 'Goshiya Sea Foods', date: '02 Mar 2026', totalKg: 620,  fishCount: 3, status: 'PENDING_PRICE', hasPriceChange: false },
-  ],
-  '2': [
-    { id: 't4', billNo: 'BILL-20260312-5512', companyName: 'Goshiya Sea Foods', date: '12 Mar 2026', totalKg: 540, fishCount: 2, status: 'PENDING_PRICE', hasPriceChange: false },
-  ],
-  '3': [],
-  '4': [],
 }
 
 const BOAT_STATUS = {
@@ -361,7 +316,6 @@ function BoatOwnerBody({ entity }: { entity: Entity | null }) {
       <QuickActionsGrid singleRow accent={accent} actions={[
         { icon: 'scale-outline',  label: 'Add\nTali',    onPress: () => router.push('/tali-fish-select' as any) },
         { icon: 'wallet-outline', label: 'Add\nExpense', onPress: () => router.push('/add-expense' as any) },
- 
         { icon: 'people-outline', label: 'Add\nKharchi', onPress: () => router.push('/crew' as any) },
       ]} />
 
@@ -385,7 +339,6 @@ function BoatListSection({ boats, accent }: { boats: typeof HOME_BOATS; accent: 
     <View style={bl.wrap}>
       <View style={bl.header}>
         <Text style={[bl.title, { color: accent }]}>MY BOATS</Text>
-        {/* ── "Manage All" removed — boats screen is gone ── */}
       </View>
       <View style={bl.list}>
         {boats.map(boat => (
@@ -396,21 +349,15 @@ function BoatListSection({ boats, accent }: { boats: typeof HOME_BOATS; accent: 
   )
 }
 
-// ─── Boat Card with Tali Bottom Sheet + Ledger Sheet ─────────────────────────
+// ─── Boat Card ────────────────────────────────────────────────────────────────
+// Details → /boat-detail   Tali → /tali-fish-select directly (no modal)
+// ─────────────────────────────────────────────────────────────────────────────
 function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]; accent: string }) {
-  const status       = BOAT_STATUS[boat.status]
-  const [taliSheetOpen, setTaliSheetOpen]     = useState(false)
-  const [ledgerSheetOpen, setLedgerSheetOpen] = useState(false)
-  const boatTalis    = BOAT_TALIS[boat.id] ?? []
-  const pendingCount = boatTalis.filter(t =>
-    t.status === 'PENDING_PRICE' || (t.status === 'PRICED' && t.hasPriceChange)
-  ).length
+  const status = BOAT_STATUS[boat.status]
 
   return (
-    <>
-      {/* Card — NO overflow:hidden so Modal can render above it */}
-      <View style={[bcard.card, { overflow: 'visible' }]}>
-        <View style={[bcard.accentBar, { backgroundColor: status.color }]} />
+    <View style={[bcard.card, { overflow: 'hidden' }]}>
+      <View style={[bcard.accentBar, { backgroundColor: status.color }]} />
       <View style={bcard.inner}>
 
         {/* Top: avatar + names + status badge */}
@@ -428,7 +375,7 @@ function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]
           </View>
         </View>
 
-        {/* Reg + owner + location */}
+        {/* Reg + captain + location */}
         <View style={bcard.metaInfoRow}>
           <View style={bcard.metaInfoLeft}>
             <Text style={bcard.reg}>{boat.registration}</Text>
@@ -452,47 +399,47 @@ function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]
         {/* Action buttons */}
         <View style={bcard.actionsRow}>
 
-          {/* Tali — opens tali bottom sheet */}
+          {/* Tali — goes directly to tali-fish-select, no modal */}
           <TouchableOpacity
             style={bcard.actionBtn}
             activeOpacity={0.75}
-            onPress={() => setTaliSheetOpen(true)}
+            onPress={() => router.push({
+              pathname: '/tali-fish-select',
+              params: { boatId: boat.id, boatName: boat.name },
+            } as any)}
           >
-            <View style={{ position: 'relative' }}>
-              <Ionicons name={CARD_ICONS.tali} size={17} color={TS} />
-              {pendingCount > 0 && (
-                <View style={bcard.alertDot}>
-                  <Text style={bcard.alertDotText}>{pendingCount}</Text>
-                </View>
-              )}
-            </View>
+            <Ionicons name={CARD_ICONS.tali} size={17} color={TS} />
             <Text style={bcard.actionLabel}>Tali</Text>
           </TouchableOpacity>
 
+          {/* Expense */}
           <TouchableOpacity
             style={bcard.actionBtn}
             activeOpacity={0.75}
-            // onPress={() => router.push({ pathname: '/kharchi', params: { boatId: boat.id, boatName: boat.name } } as any)}
             onPress={() => router.push('/ledger' as any)}
           >
             <Ionicons name={CARD_ICONS.expense} size={17} color={TS} />
             <Text style={bcard.actionLabel}>Expense</Text>
           </TouchableOpacity>
 
+          {/* Crew */}
           <TouchableOpacity
             style={bcard.actionBtn}
             activeOpacity={0.75}
-            onPress={() => router.push({ pathname: '/crew', params: { boatId: boat.id, boatName: boat.name } } as any)}
+            onPress={() => router.push({
+              pathname: '/crew',
+              params: { boatId: boat.id, boatName: boat.name },
+            } as any)}
           >
             <Ionicons name={CARD_ICONS.crew} size={17} color={TS} />
             <Text style={bcard.actionLabel}>Crew</Text>
           </TouchableOpacity>
 
-          {/* ── Details now opens BoatLedgerSheet ── */}
+          {/* Details → /boat-detail */}
           <TouchableOpacity
             style={[bcard.detailBtn, { backgroundColor: accent + '18', borderColor: accent + '50' }]}
             activeOpacity={0.8}
-            onPress={() => setLedgerSheetOpen(true)}
+            onPress={() => router.push('/ledger' as any)}
           >
             <Ionicons name={CARD_ICONS.details} size={17} color={accent} />
             <Text style={[bcard.detailText, { color: accent }]}>Details</Text>
@@ -501,116 +448,7 @@ function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]
         </View>
 
       </View>{/* closes bcard.inner */}
-      </View>{/* closes bcard.card */}
-
-      {/* ── Tali Sheet Modal ── */}
-      <Modal
-        visible={taliSheetOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setTaliSheetOpen(false)}
-      >
-        <TouchableOpacity
-          style={sh.backdrop}
-          activeOpacity={1}
-          onPress={() => setTaliSheetOpen(false)}
-        />
-        <View style={sh.container}>
-          <View style={sh.handle} />
-
-          <View style={sh.header}>
-            <View>
-              <Text style={sh.headerTitle}>Talis — {boat.name}</Text>
-              <Text style={sh.headerSub}>{boat.gujaratiName} · {boat.registration}</Text>
-            </View>
-            <TouchableOpacity
-              style={sh.viewAllBtn}
-              onPress={() => { setTaliSheetOpen(false); router.push('/tali-list' as any) }}
-            >
-              <Text style={sh.viewAllText}>View All</Text>
-              <Ionicons name="chevron-forward" size={13} color={TEAL} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8, paddingBottom: 8 }}
-          >
-            {boatTalis.length > 0 ? boatTalis.map(t => (
-              <TouchableOpacity
-                key={t.id}
-                style={sh.taliCard}
-                activeOpacity={0.8}
-                onPress={() => {
-                  setTaliSheetOpen(false)
-                  router.push({
-                    pathname: '/tali-bill',
-                    params: { taliId: t.id, role: 'boat_owner', boatName: boat.name, companyName: t.companyName },
-                  } as any)
-                }}
-              >
-                <View style={[sh.taliAccent, { backgroundColor: TALI_STATUS_COLOR[t.status] }]} />
-                <View style={sh.taliInner}>
-                  <View style={sh.taliTop}>
-                    <Text style={sh.taliBillNo}>{t.billNo}</Text>
-                    <View style={[sh.taliStatusBadge, { backgroundColor: TALI_STATUS_COLOR[t.status] + '20' }]}>
-                      {t.hasPriceChange && (
-                        <Ionicons name="alert-circle" size={11} color={AMBER} style={{ marginRight: 2 }} />
-                      )}
-                      <Ionicons name={TALI_STATUS_ICON[t.status]} size={11} color={TALI_STATUS_COLOR[t.status]} style={{ marginRight: 3 }} />
-                      <Text style={[sh.taliStatusText, { color: TALI_STATUS_COLOR[t.status] }]}>
-                        {TALI_STATUS_LABEL[t.status]}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={sh.taliMeta}>
-                    <Text style={sh.taliDate}>{t.date}</Text>
-                    <Text style={sh.taliKg}>{t.totalKg.toLocaleString('en-IN')} kg · {t.fishCount} fish</Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={14} color={TM} />
-              </TouchableOpacity>
-            )) : (
-              <View style={sh.emptyState}>
-                <Ionicons name="document-outline" size={36} color={TM} />
-                <Text style={sh.emptyTitle}>No talis yet</Text>
-                <Text style={sh.emptySub}>Start a new tali session for this boat</Text>
-              </View>
-            )}
-          </ScrollView>
-
-          <TouchableOpacity
-            style={[sh.newTaliBtn, { backgroundColor: accent }]}
-            activeOpacity={0.85}
-            onPress={() => {
-              setTaliSheetOpen(false)
-              router.push({ pathname: '/tali-fish-select', params: { boatId: boat.id, boatName: boat.name } } as any)
-            }}
-          >
-            <Ionicons name="add" size={20} color="#fff" />
-            <Text style={sh.newTaliBtnText}>Start New Tali</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
-
-      {/* ── Ledger Sheet — opens on Details tap ── */}
-      <BoatLedgerSheet
-        visible={ledgerSheetOpen}
-        onClose={() => setLedgerSheetOpen(false)}
-        boat={{
-          id: boat.id,
-          name: boat.name,
-          nameGujarati: boat.gujaratiName,
-          registrationNumber: boat.registration,
-          status: boat.status === 'repair' ? 'maintenance' : boat.status,
-          captain: boat.captain,
-          crewCount: boat.crew,
-          totalCatch: boat.catchKg,
-          totalExpense: boat.expense,
-          lastTripDate: boat.lastTrip,
-        }}
-      />
-    </>
+    </View>
   )
 }
 
@@ -794,11 +632,11 @@ function HomeHeader({ subtitle, accent }: { subtitle: string; accent: string }) 
 }
 
 const hh = StyleSheet.create({
-  wrap:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 18, borderBottomWidth: 1, gap: 10 },
-  left:    { flex: 1 },
-  sub:     { fontSize: 11, color: TS, fontWeight: '600', letterSpacing: 0.3, marginBottom: 2 },
-  title:   { fontSize: 22, fontWeight: '800', color: TP, letterSpacing: -0.4 },
-  icon:    { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  wrap:  { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 18, borderBottomWidth: 1, gap: 10 },
+  left:  { flex: 1 },
+  sub:   { fontSize: 11, color: TS, fontWeight: '600', letterSpacing: 0.3, marginBottom: 2 },
+  title: { fontSize: 22, fontWeight: '800', color: TP, letterSpacing: -0.4 },
+  icon:  { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
 })
 
 function BoatStatsCard({ accent }: { accent: string }) {
@@ -1000,13 +838,13 @@ const bcard = StyleSheet.create({
   badgeDot:  { width: 6, height: 6, borderRadius: 3 },
   badgeText: { fontSize: 12, fontWeight: '800' },
 
-  metaInfoRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  metaInfoLeft: { gap: 3 },
-  reg:          { fontSize: 12, color: TEAL, fontWeight: '700', fontFamily: 'monospace' },
-  ownerRow:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  owner:        { fontSize: 12, color: TS, fontWeight: '600' },
-  locationBadge:{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#1E2D3D' },
-  locationText: { fontSize: 13, fontWeight: '800', color: TP, letterSpacing: 0.2 },
+  metaInfoRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  metaInfoLeft:  { gap: 3 },
+  reg:           { fontSize: 12, color: TEAL, fontWeight: '700', fontFamily: 'monospace' },
+  ownerRow:      { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  owner:         { fontSize: 12, color: TS, fontWeight: '600' },
+  locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#1E2D3D' },
+  locationText:  { fontSize: 13, fontWeight: '800', color: TP, letterSpacing: 0.2 },
 
   lastTripRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   metaDate:    { fontSize: 11, color: TM, fontWeight: '500' },
@@ -1017,7 +855,7 @@ const bcard = StyleSheet.create({
     gap: 5, backgroundColor: ELEV, borderRadius: 10, paddingVertical: 10,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
   },
-  actionLabel: { fontSize: 12, fontWeight: '700', color: TS },
+  actionLabel:  { fontSize: 12, fontWeight: '700', color: TS },
   alertDot: {
     position: 'absolute', top: -4, right: -6,
     minWidth: 14, height: 14, borderRadius: 7,
@@ -1031,50 +869,6 @@ const bcard = StyleSheet.create({
     borderRadius: 10, borderWidth: 1,
   },
   detailText: { fontSize: 12, fontWeight: '800' },
-})
-
-// ─── Tali bottom sheet styles ─────────────────────────────────────────────────
-const sh = StyleSheet.create({
-  backdrop:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
-  container: {
-    backgroundColor: SURF,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingHorizontal: 16, paddingBottom: 36,
-    borderTopWidth: 1, borderColor: BOR,
-    maxHeight: '72%',
-  },
-  handle: {
-    width: 36, height: 4, borderRadius: 2,
-    backgroundColor: TM, alignSelf: 'center',
-    marginTop: 12, marginBottom: 18,
-  },
-  header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: TP },
-  headerSub:   { fontSize: 12, color: TS, marginTop: 2 },
-  viewAllBtn:  { flexDirection: 'row', alignItems: 'center', gap: 2, paddingTop: 4 },
-  viewAllText: { fontSize: 13, color: TEAL, fontWeight: '700' },
-
-  taliCard: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: ELEV, borderRadius: 12,
-    overflow: 'hidden', borderWidth: 1, borderColor: BOR,
-  },
-  taliAccent:      { width: 4, alignSelf: 'stretch' },
-  taliInner:       { flex: 1, padding: 12, gap: 5 },
-  taliTop:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  taliBillNo:      { fontSize: 12, fontWeight: '700', color: TP, fontFamily: 'monospace' },
-  taliStatusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
-  taliStatusText:  { fontSize: 10, fontWeight: '700' },
-  taliMeta:        { flexDirection: 'row', justifyContent: 'space-between' },
-  taliDate:        { fontSize: 11, color: TS },
-  taliKg:          { fontSize: 11, color: TS },
-
-  emptyState: { alignItems: 'center', paddingVertical: 36, gap: 8 },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: TS },
-  emptySub:   { fontSize: 12, color: TM },
-
-  newTaliBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 15, marginTop: 14 },
-  newTaliBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 })
 
 // ─── Base styles ──────────────────────────────────────────────────────────────
