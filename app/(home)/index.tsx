@@ -28,6 +28,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppTabBar } from '../../components/shared/AppTabBar'
+import { BoatLedgerSheet } from '../../components/shared/BoatLedgerSheet'
 import { useAuthStore } from '../../store/authStore'
 import {
   ActiveContext,
@@ -359,7 +360,8 @@ function BoatOwnerBody({ entity }: { entity: Entity | null }) {
       <HomeHeader subtitle="Boat Owner · Personal" accent={accent} />
       <QuickActionsGrid singleRow accent={accent} actions={[
         { icon: 'scale-outline',  label: 'Add\nTali',    onPress: () => router.push('/tali-fish-select' as any) },
-        { icon: 'wallet-outline', label: 'Add\nExpense', onPress: () => router.push('/kharchi' as any) },
+        { icon: 'wallet-outline', label: 'Add\nExpense', onPress: () => router.push('/add-expense' as any) },
+ 
         { icon: 'people-outline', label: 'Add\nKharchi', onPress: () => router.push('/crew' as any) },
       ]} />
 
@@ -371,7 +373,7 @@ function BoatOwnerBody({ entity }: { entity: Entity | null }) {
           title="Add your first boat"
           subtitle="Tap here to add your boat name and start tracking trips."
           accent={accent}
-          onPress={() => router.push('/boats' as any)}
+          onPress={() => {}}
         />
       )}
     </>
@@ -383,9 +385,7 @@ function BoatListSection({ boats, accent }: { boats: typeof HOME_BOATS; accent: 
     <View style={bl.wrap}>
       <View style={bl.header}>
         <Text style={[bl.title, { color: accent }]}>MY BOATS</Text>
-        <TouchableOpacity onPress={() => router.push('/boats' as any)} activeOpacity={0.75}>
-          <Text style={[bl.link, { color: accent }]}>Manage All</Text>
-        </TouchableOpacity>
+        {/* ── "Manage All" removed — boats screen is gone ── */}
       </View>
       <View style={bl.list}>
         {boats.map(boat => (
@@ -396,10 +396,11 @@ function BoatListSection({ boats, accent }: { boats: typeof HOME_BOATS; accent: 
   )
 }
 
-// ─── Boat Card with Tali Bottom Sheet ────────────────────────────────────────
+// ─── Boat Card with Tali Bottom Sheet + Ledger Sheet ─────────────────────────
 function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]; accent: string }) {
   const status       = BOAT_STATUS[boat.status]
-  const [taliSheetOpen, setTaliSheetOpen] = useState(false)
+  const [taliSheetOpen, setTaliSheetOpen]     = useState(false)
+  const [ledgerSheetOpen, setLedgerSheetOpen] = useState(false)
   const boatTalis    = BOAT_TALIS[boat.id] ?? []
   const pendingCount = boatTalis.filter(t =>
     t.status === 'PENDING_PRICE' || (t.status === 'PRICED' && t.hasPriceChange)
@@ -451,7 +452,7 @@ function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]
         {/* Action buttons */}
         <View style={bcard.actionsRow}>
 
-          {/* Tali — opens bottom sheet, shows pending badge */}
+          {/* Tali — opens tali bottom sheet */}
           <TouchableOpacity
             style={bcard.actionBtn}
             activeOpacity={0.75}
@@ -471,7 +472,8 @@ function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]
           <TouchableOpacity
             style={bcard.actionBtn}
             activeOpacity={0.75}
-            onPress={() => router.push({ pathname: '/kharchi', params: { boatId: boat.id, boatName: boat.name } } as any)}
+            // onPress={() => router.push({ pathname: '/kharchi', params: { boatId: boat.id, boatName: boat.name } } as any)}
+            onPress={() => router.push('/ledger' as any)}
           >
             <Ionicons name={CARD_ICONS.expense} size={17} color={TS} />
             <Text style={bcard.actionLabel}>Expense</Text>
@@ -486,19 +488,22 @@ function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]
             <Text style={bcard.actionLabel}>Crew</Text>
           </TouchableOpacity>
 
+          {/* ── Details now opens BoatLedgerSheet ── */}
           <TouchableOpacity
             style={[bcard.detailBtn, { backgroundColor: accent + '18', borderColor: accent + '50' }]}
             activeOpacity={0.8}
-            onPress={() => router.push('/boats' as any)}
+            onPress={() => setLedgerSheetOpen(true)}
           >
             <Ionicons name={CARD_ICONS.details} size={17} color={accent} />
             <Text style={[bcard.detailText, { color: accent }]}>Details</Text>
           </TouchableOpacity>
+
         </View>
 
       </View>{/* closes bcard.inner */}
       </View>{/* closes bcard.card */}
-      {/* Modal is OUTSIDE the card View so it renders full-screen */}
+
+      {/* ── Tali Sheet Modal ── */}
       <Modal
         visible={taliSheetOpen}
         transparent
@@ -587,6 +592,24 @@ function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]
           </TouchableOpacity>
         </View>
       </Modal>
+
+      {/* ── Ledger Sheet — opens on Details tap ── */}
+      <BoatLedgerSheet
+        visible={ledgerSheetOpen}
+        onClose={() => setLedgerSheetOpen(false)}
+        boat={{
+          id: boat.id,
+          name: boat.name,
+          nameGujarati: boat.gujaratiName,
+          registrationNumber: boat.registration,
+          status: boat.status === 'repair' ? 'maintenance' : boat.status,
+          captain: boat.captain,
+          crewCount: boat.crew,
+          totalCatch: boat.catchKg,
+          totalExpense: boat.expense,
+          lastTripDate: boat.lastTrip,
+        }}
+      />
     </>
   )
 }

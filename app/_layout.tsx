@@ -72,6 +72,7 @@ export default function RootLayout() {
         <Stack.Screen name="boat-detail"  options={{ headerShown: false }} />
         <Stack.Screen name="trips"        options={{ headerShown: false }} />
         <Stack.Screen name="ledger"       options={{ headerShown: false }} />
+        <Stack.Screen name="add-expense" options={{ headerShown: false }} />
       </Stack>
     </SafeAreaProvider>
   )

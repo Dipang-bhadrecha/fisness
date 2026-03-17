@@ -70,27 +70,27 @@ export default function BoatDashboardHome() {
     router.push({ pathname: '/kharchi', params: { boatId: boat.id, boatName: boat.name, companyId: companyId ?? '', companyName } })
   }
 
-  const QUICK_ACTIONS = [
-    { id: 'tali',    emoji: '⚖️', label: t.home.addTali,   sub: t.home.addTaliSub,    onPress: handleAddTaliPress },
-    { id: 'expense', emoji: '💸', label: t.home.addExpense, sub: t.home.addExpenseSub, onPress: handleAddExpensePress },
-    { id: 'kharchi', emoji: '💰', label: t.home.addKharchi, sub: t.home.addKharchiSub, onPress: handleAddKharchiPress },
-    { id: 'more',    emoji: '📦', label: t.home.more,       sub: t.home.moreSub,       onPress: null },
-  ]
+const QUICK_ACTIONS = [
+  { id: 'tali',    emoji: '⚖️', label: t.home.addTali,   sub: t.home.addTaliSub,    onPress: handleAddTaliPress },
+  { id: 'expense', emoji: '💸', label: t.home.addExpense, sub: t.home.addExpenseSub, onPress: handleAddExpensePress },
+  { id: 'kharchi', emoji: '💰', label: t.home.addKharchi, sub: t.home.addKharchiSub, onPress: handleAddKharchiPress },
+  { id: 'more',    emoji: '📦', label: t.home.more,       sub: t.home.moreSub,       onPress: null },
+]
 
-  const MANAGE_ROWS = [
-    { emoji: '✈️', label: t.home.trips,  sub: t.home.tripsSub,  onPress: () => router.push('/trips' as any) },
-    { emoji: '🚤', label: t.home.boats,  sub: t.home.boatsSub,  onPress: () => router.push('/boats' as any) },
-    { emoji: '👥', label: t.home.crew,   sub: t.home.crewSub,   onPress: handleCrewPress },
-    { emoji: '📒', label: t.home.ledger, sub: t.home.ledgerSub, onPress: () => router.push('/ledger' as any) },
-  ]
+const MANAGE_ROWS = [
+  { emoji: '✈️', label: t.home.trips,  sub: t.home.tripsSub,  onPress: () => router.push('/trips' as any) },
+  { emoji: '🚤', label: t.home.boats,  sub: t.home.boatsSub,  onPress: null },  // ✅ already null - no boats screen
+  { emoji: '👥', label: t.home.crew,   sub: t.home.crewSub,   onPress: handleCrewPress },
+  { emoji: '📒', label: t.home.ledger, sub: t.home.ledgerSub, onPress: () => router.push('/ledger' as any) },
+]
 
-  const NAV_ITEMS = [
-    { emoji: '🏠', label: 'Home',    active: true,  onPress: null },
-    { emoji: '⚖️', label: 'Tali',    active: false, onPress: handleAddTaliPress },
-    { emoji: '🚤', label: 'Trips',   active: false, onPress: () => router.push('/trips' as any) },
-    { emoji: '📒', label: 'Ledger',  active: false, onPress: () => router.push('/ledger' as any) },
-    { emoji: '👤', label: 'Profile', active: false, onPress: () => router.push('/profile' as any) },
-  ]
+const NAV_ITEMS = [
+  { emoji: '🏠', label: 'Home',    active: true,  onPress: null },
+  { emoji: '⚖️', label: 'Tali',    active: false, onPress: handleAddTaliPress },
+  { emoji: '🚤', label: 'Trips',   active: false, onPress: () => router.push('/trips' as any) },
+  { emoji: '📒', label: 'Ledger',  active: false, onPress: () => router.push('/ledger' as any) },
+  { emoji: '👤', label: 'Profile', active: false, onPress: () => router.push('/profile' as any) },
+]
 
   return (
     <>

@@ -57,20 +57,24 @@ const STATUS_CFG: Record<TripStatus, { label: string; color: string; bg: string 
 }
 
 const FILTERS: { id: FilterType; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'at_sea', label: 'At Sea' },
+  { id: 'all',       label: 'All'       },
+  { id: 'at_sea',    label: 'At Sea'    },
   { id: 'completed', label: 'Completed' },
   { id: 'scheduled', label: 'Scheduled' },
 ]
 
 const fmt = (n: number) => n.toLocaleString('en-IN')
 
+// ─── Trip Card ────────────────────────────────────────────────────────────────
 function TripCard({ trip }: { trip: Trip }) {
   const cfg = STATUS_CFG[trip.status]
+
   return (
     <View style={c.card}>
       <View style={[c.accentBar, { backgroundColor: cfg.color }]} />
       <View style={c.inner}>
+
+        {/* Top: trip number + status badge */}
         <View style={c.topRow}>
           <View>
             <Text style={c.tripNum}>{trip.tripNumber}</Text>
@@ -81,48 +85,106 @@ function TripCard({ trip }: { trip: Trip }) {
             <Text style={[c.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
           </View>
         </View>
+
+        {/* Date + days */}
         <View style={c.metaRow}>
           <Ionicons name="calendar-outline" size={12} color={TS} />
-          <Text style={c.metaText}>{trip.departureDate}{trip.returnDate ? ` → ${trip.returnDate}` : ''}</Text>
-          {trip.daysAtSea > 0 && <><Text style={c.metaSep}>·</Text><Text style={c.metaText}>{trip.daysAtSea} days</Text></>}
+          <Text style={c.metaText}>
+            {trip.departureDate}{trip.returnDate ? ` → ${trip.returnDate}` : ''}
+          </Text>
+          {trip.daysAtSea > 0 && (
+            <>
+              <Text style={c.metaSep}>·</Text>
+              <Text style={c.metaText}>{trip.daysAtSea} days</Text>
+            </>
+          )}
         </View>
-        <View style={c.statsRow}>
-          <View style={c.stat}>
-            <Text style={c.statVal}>{trip.catchKg > 0 ? `${fmt(trip.catchKg)} kg` : '—'}</Text>
-            <Text style={c.statLbl}>Catch</Text>
-          </View>
-          <View style={c.statDiv} />
-          <View style={c.stat}>
-            <Text style={c.statVal}>{trip.crewCount}</Text>
-            <Text style={c.statLbl}>Crew</Text>
-          </View>
-          <View style={c.statDiv} />
-          <View style={c.stat}>
-            <Text style={c.statVal}>{trip.expenses > 0 ? `₹${fmt(trip.expenses)}` : '—'}</Text>
-            <Text style={c.statLbl}>Expenses</Text>
-          </View>
+
+        {/* ── Action buttons: Tali / Crew / Expense ── */}
+        <View style={c.actionsRow}>
+
+          {/* Tali */}
+          <TouchableOpacity
+            style={c.actionBtn}
+            activeOpacity={0.75}
+            onPress={() => router.push({
+              pathname: '/tali-list',
+              params: {
+                tripId:     trip.id,
+                tripNumber: trip.tripNumber,
+                boatName:   trip.boatName,
+              },
+            } as any)}
+          >
+            <Ionicons name="scale-outline" size={15} color={TS} />
+            <Text style={c.actionLabel}>Tali</Text>
+          </TouchableOpacity>
+
+          <View style={c.actionDiv} />
+
+          {/* Crew */}
+          <TouchableOpacity
+            style={c.actionBtn}
+            activeOpacity={0.75}
+            onPress={() => router.push({
+              pathname: '/crew',
+              params: {
+                tripId:     trip.id,
+                boatName:   trip.boatName,
+                filterTrip: trip.tripNumber,
+              },
+            } as any)}
+          >
+            <Ionicons name="people-outline" size={15} color={TS} />
+            <Text style={c.actionLabel}>Crew · {trip.crewCount}</Text>
+          </TouchableOpacity>
+
+          <View style={c.actionDiv} />
+
+          {/* Expense */}
+          <TouchableOpacity
+            style={c.actionBtn}
+            activeOpacity={0.75}
+            onPress={() => router.push({
+              pathname: '/ledger',
+              params: {
+                filterTrip: trip.tripNumber,
+                filterBoat: trip.boatName,
+              },
+            } as any)}
+          >
+            <Ionicons name="wallet-outline" size={15} color={TS} />
+            <Text style={c.actionLabel}>
+              {trip.expenses > 0 ? `₹${fmt(trip.expenses)}` : 'Expense'}
+            </Text>
+          </TouchableOpacity>
+
         </View>
+
+        {/* Captain */}
         <View style={c.captainRow}>
           <Ionicons name="person-circle-outline" size={13} color={TS} />
           <Text style={c.captainText}>{trip.captain}</Text>
         </View>
+
       </View>
     </View>
   )
 }
 
+// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function TripsScreen() {
   const months = ['All', ...Array.from(new Set(MOCK_TRIPS.map(t => t.departureDate.slice(3))))]
-  const boats = ['All', ...Array.from(new Set(MOCK_TRIPS.map(t => t.boatName)))]
+  const boats  = ['All', ...Array.from(new Set(MOCK_TRIPS.map(t => t.boatName)))]
 
   const [activeMonth, setActiveMonth] = useState('All')
-  const [activeBoat, setActiveBoat] = useState('All')
-  const [filter, setFilter] = useState<FilterType>('all')
+  const [activeBoat,  setActiveBoat]  = useState('All')
+  const [filter,      setFilter]      = useState<FilterType>('all')
 
   const filtered = MOCK_TRIPS
     .filter(t => activeMonth === 'All' || t.departureDate.slice(3) === activeMonth)
-    .filter(t => activeBoat === 'All' || t.boatName === activeBoat)
-    .filter(t => filter === 'all' || t.status === filter)
+    .filter(t => activeBoat  === 'All' || t.boatName === activeBoat)
+    .filter(t => filter      === 'all' || t.status   === filter)
     .sort((a, b) => {
       const o: Record<TripStatus, number> = { at_sea: 0, scheduled: 1, completed: 2 }
       return o[a.status] - o[b.status]
@@ -132,8 +194,13 @@ export default function TripsScreen() {
     <>
       <StatusBar barStyle="light-content" backgroundColor={BG} />
       <SafeAreaView style={s.safe} edges={['top']}>
+
+        {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.canGoBack() ? router.back() : null}>
+          <TouchableOpacity
+            style={s.backBtn}
+            onPress={() => router.canGoBack() ? router.back() : null}
+          >
             <Ionicons name="arrow-back" size={20} color={TP} />
           </TouchableOpacity>
           <View style={s.headerCenter}>
@@ -142,86 +209,136 @@ export default function TripsScreen() {
           </View>
         </View>
 
+        {/* Month filter */}
         <View style={s.filterSection}>
           <View style={s.filterWrap}>
             {months.map(month => (
-              <TouchableOpacity key={month} style={[s.chip, activeMonth === month && s.chipActive]} onPress={() => setActiveMonth(month)}>
-                <Text style={[s.chipText, activeMonth === month && s.chipTextActive]}>{month}</Text>
+              <TouchableOpacity
+                key={month}
+                style={[s.chip, activeMonth === month && s.chipActive]}
+                onPress={() => setActiveMonth(month)}
+              >
+                <Text style={[s.chipText, activeMonth === month && s.chipTextActive]}>
+                  {month}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
+        {/* Boat filter */}
         <View style={s.filterSection}>
           <View style={s.filterWrap}>
             {boats.map(boat => (
-              <TouchableOpacity key={boat} style={[s.chip, activeBoat === boat && s.chipActive]} onPress={() => setActiveBoat(boat)}>
-                <Text style={[s.chipText, activeBoat === boat && s.chipTextActive]}>{boat}</Text>
+              <TouchableOpacity
+                key={boat}
+                style={[s.chip, activeBoat === boat && s.chipActive]}
+                onPress={() => setActiveBoat(boat)}
+              >
+                <Text style={[s.chipText, activeBoat === boat && s.chipTextActive]}>
+                  {boat}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
+        {/* Status filter */}
         <View style={s.filterSection}>
           <View style={s.filterWrap}>
             {FILTERS.map(f => (
-              <TouchableOpacity key={f.id} style={[s.chip, filter === f.id && s.chipActive]} onPress={() => setFilter(f.id)}>
-                <Text style={[s.chipText, filter === f.id && s.chipTextActive]}>{f.label}</Text>
+              <TouchableOpacity
+                key={f.id}
+                style={[s.chip, filter === f.id && s.chipActive]}
+                onPress={() => setFilter(f.id)}
+              >
+                <Text style={[s.chipText, filter === f.id && s.chipTextActive]}>
+                  {f.label}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
-          {filtered.length === 0
-            ? <View style={s.empty}><Ionicons name="boat-outline" size={48} color={TM} /><Text style={s.emptyText}>No trips found</Text></View>
-            : filtered.map(t => <TripCard key={t.id} trip={t} />)
-          }
+        {/* Trip list */}
+        <ScrollView
+          contentContainerStyle={s.list}
+          showsVerticalScrollIndicator={false}
+        >
+          {filtered.length === 0 ? (
+            <View style={s.empty}>
+              <Ionicons name="boat-outline" size={48} color={TM} />
+              <Text style={s.emptyText}>No trips found</Text>
+            </View>
+          ) : (
+            filtered.map(t => <TripCard key={t.id} trip={t} />)
+          )}
           <View style={{ height: 100 }} />
         </ScrollView>
 
         <AppTabBar activeTab="trips" />
+
       </SafeAreaView>
     </>
   )
 }
 
+// ─── Screen styles ────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe:         { flex: 1, backgroundColor: BG },
-  header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12, borderBottomWidth: 1, borderBottomColor: BOR },
-  backBtn:      { width: 36, height: 36, borderRadius: 18, backgroundColor: ELEV, alignItems: 'center', justifyContent: 'center' },
-  headerCenter: { flex: 1 },
-  headerTitle:  { fontSize: 18, fontWeight: '800', color: TP },
-  headerSub:    { fontSize: 12, color: TS, marginTop: 1 },
-  filterSection:{ paddingHorizontal: 16, paddingTop: 8 },
-  filterWrap:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip:         { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: SURF, borderWidth: 1, borderColor: BOR },
-  chipActive:   { backgroundColor: TEAL + '20', borderColor: TEAL },
-  chipText:     { fontSize: 12, fontWeight: '600', color: TS },
+  safe:          { flex: 1, backgroundColor: BG },
+  header:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12, borderBottomWidth: 1, borderBottomColor: BOR },
+  backBtn:       { width: 36, height: 36, borderRadius: 18, backgroundColor: ELEV, alignItems: 'center', justifyContent: 'center' },
+  headerCenter:  { flex: 1 },
+  headerTitle:   { fontSize: 18, fontWeight: '800', color: TP },
+  headerSub:     { fontSize: 12, color: TS, marginTop: 1 },
+  filterSection: { paddingHorizontal: 16, paddingTop: 8 },
+  filterWrap:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip:          { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: SURF, borderWidth: 1, borderColor: BOR },
+  chipActive:    { backgroundColor: TEAL + '20', borderColor: TEAL },
+  chipText:      { fontSize: 12, fontWeight: '600', color: TS },
   chipTextActive:{ color: TEAL, fontWeight: '700' },
-  list:         { paddingHorizontal: 16, paddingTop: 12, gap: 10 },
-  empty:        { alignItems: 'center', paddingTop: 60, gap: 8 },
-  emptyText:    { fontSize: 15, color: TS },
+  list:          { paddingHorizontal: 16, paddingTop: 12, gap: 10 },
+  empty:         { alignItems: 'center', paddingTop: 60, gap: 8 },
+  emptyText:     { fontSize: 15, color: TS },
 })
 
+// ─── Card styles ──────────────────────────────────────────────────────────────
 const c = StyleSheet.create({
-  card:       { flexDirection: 'row', backgroundColor: SURF, borderRadius: 14, borderWidth: 1, borderColor: BOR, overflow: 'hidden' },
-  accentBar:  { width: 4 },
-  inner:      { flex: 1, padding: 14, gap: 8 },
-  topRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  tripNum:    { fontSize: 15, fontWeight: '800', color: TP },
-  boat:       { fontSize: 12, color: TS, marginTop: 2 },
-  badge:      { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 20 },
-  badgeDot:   { width: 5, height: 5, borderRadius: 3 },
-  badgeText:  { fontSize: 11, fontWeight: '700' },
-  metaRow:    { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  metaText:   { fontSize: 11, color: TS },
-  metaSep:    { fontSize: 11, color: TM },
-  statsRow:   { flexDirection: 'row', backgroundColor: ELEV, borderRadius: 8, padding: 8 },
-  stat:       { flex: 1, alignItems: 'center', gap: 2 },
-  statVal:    { fontSize: 13, fontWeight: '700', color: TP },
-  statLbl:    { fontSize: 9, color: TS },
-  statDiv:    { width: 1, backgroundColor: BOR },
-  captainRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  captainText:{ fontSize: 11, color: TS },
+  card:        { flexDirection: 'row', backgroundColor: SURF, borderRadius: 14, borderWidth: 1, borderColor: BOR, overflow: 'hidden' },
+  accentBar:   { width: 4 },
+  inner:       { flex: 1, padding: 14, gap: 8 },
+
+  topRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  tripNum:     { fontSize: 15, fontWeight: '800', color: TP },
+  boat:        { fontSize: 12, color: TS, marginTop: 2 },
+  badge:       { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 20 },
+  badgeDot:    { width: 5, height: 5, borderRadius: 3 },
+  badgeText:   { fontSize: 11, fontWeight: '700' },
+
+  metaRow:     { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  metaText:    { fontSize: 11, color: TS },
+  metaSep:     { fontSize: 11, color: TM },
+
+  // ── Action buttons row ──
+  actionsRow:  {
+    flexDirection: 'row',
+    backgroundColor: ELEV,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: BOR,
+    overflow: 'hidden',
+  },
+  actionBtn:   {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 11,
+  },
+  actionLabel: { fontSize: 11, fontWeight: '700', color: TS },
+  actionDiv:   { width: 1, backgroundColor: BOR, marginVertical: 8 },
+
+  captainRow:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  captainText: { fontSize: 11, color: TS },
 })
