@@ -202,7 +202,8 @@ export default function TaliScreen() {
               } catch (_) {}
             }
             endSession()
-            router.push('/bill')
+            // router.push('/bill')
+            router.push('/tali-bill')
           },
         },
       ]

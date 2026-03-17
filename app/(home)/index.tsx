@@ -13,25 +13,28 @@
  *   - Fixed bottom tab bar (4 tabs, role-driven)
  */
 
+import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import {
-    ActivityIndicator,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { AppTabBar } from '../../components/shared/AppTabBar'
 import { useAuthStore } from '../../store/authStore'
 import {
-    ActiveContext,
-    Entity,
-    HomeVariant,
-    hasPerm,
-    useEntityStore,
+  ActiveContext,
+  Entity,
+  HomeVariant,
+  hasPerm,
+  useEntityStore,
 } from '../../store/entityStore'
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -46,55 +49,136 @@ const BLUE  = '#1B7FBF'
 const GREEN = '#059669'
 const TEAL  = '#0891b2'
 const ORAN  = '#d97706'
+const AMBER = '#f59e0b'
+
+// ─── Boat card action button icons ────────────────────────────────────────────
+const CARD_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  tali:    'scale-outline',
+  expense: 'wallet-outline',
+  crew:    'people-outline',
+  details: 'chevron-forward',
+}
+
+// ─── Tali status config for bottom sheet ─────────────────────────────────────
+const TALI_STATUS_COLOR: Record<string, string> = {
+  PENDING_PRICE: AMBER,
+  PRICED:        TEAL,
+  CONFIRMED:     GREEN,
+}
+const TALI_STATUS_LABEL: Record<string, string> = {
+  PENDING_PRICE: 'Pending Price',
+  PRICED:        'Review Price',
+  CONFIRMED:     'Confirmed',
+}
+const TALI_STATUS_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
+  PENDING_PRICE: 'time-outline',
+  PRICED:        'checkmark-circle-outline',
+  CONFIRMED:     'lock-closed-outline',
+}
+
+// ─── Mock tali per boat (replace with GET /api/v1/tali?boatId=xxx) ────────────
+type TaliStatus = 'PENDING_PRICE' | 'PRICED' | 'CONFIRMED'
+interface BoatTaliItem {
+  id: string
+  billNo: string
+  companyName: string
+  date: string
+  totalKg: number
+  fishCount: number
+  status: TaliStatus
+  hasPriceChange: boolean
+}
+
+const BOAT_TALIS: Record<string, BoatTaliItem[]> = {
+  '1': [
+    { id: 't1', billNo: 'BILL-20260315-9133', companyName: 'Goshiya Sea Foods', date: '15 Mar 2026', totalKg: 869,  fishCount: 2, status: 'PRICED',        hasPriceChange: true  },
+    { id: 't2', billNo: 'BILL-20260310-4421', companyName: 'Goshiya Sea Foods', date: '10 Mar 2026', totalKg: 1240, fishCount: 4, status: 'CONFIRMED',     hasPriceChange: false },
+    { id: 't3', billNo: 'BILL-20260302-7781', companyName: 'Goshiya Sea Foods', date: '02 Mar 2026', totalKg: 620,  fishCount: 3, status: 'PENDING_PRICE', hasPriceChange: false },
+  ],
+  '2': [
+    { id: 't4', billNo: 'BILL-20260312-5512', companyName: 'Goshiya Sea Foods', date: '12 Mar 2026', totalKg: 540, fishCount: 2, status: 'PENDING_PRICE', hasPriceChange: false },
+  ],
+  '3': [],
+  '4': [],
+}
+
+const BOAT_STATUS = {
+  active: { label: 'At Sea', color: '#10b981', bg: 'rgba(16,185,129,0.16)' },
+  docked: { label: 'Docked', color: '#60a5fa', bg: 'rgba(96,165,250,0.16)' },
+  repair: { label: 'Repair', color: '#f59e0b', bg: 'rgba(245,158,11,0.16)' },
+} as const
+
+const HOME_BOATS = [
+  {
+    id: '1',
+    name: 'Jai Mataji',
+    gujaratiName: 'જય માતાજી',
+    registration: 'GJ-VR-1042',
+    status: 'active' as const,
+    catchKg: 12400,
+    expense: 85000,
+    crew: 8,
+    captain: 'Ramesh Bhai',
+    lastTrip: '12 Mar 2026',
+    location: 'Okha',
+  },
+  {
+    id: '2',
+    name: 'Sea Star',
+    gujaratiName: 'સી સ્ટાર',
+    registration: 'GJ-VR-2201',
+    status: 'docked' as const,
+    catchKg: 9800,
+    expense: 62000,
+    crew: 6,
+    captain: 'Suresh Kaka',
+    lastTrip: '10 Mar 2026',
+    location: 'Veraval',
+  },
+  {
+    id: '3',
+    name: 'Jai Mataji',
+    gujaratiName: 'જય માતાજી',
+    registration: 'GJ-VR-1042',
+    status: 'active' as const,
+    catchKg: 12400,
+    expense: 85000,
+    crew: 8,
+    captain: 'Ramesh Bhai',
+    lastTrip: '12 Mar 2026',
+    location: 'Okha',
+  },
+  {
+    id: '4',
+    name: 'Sea Star',
+    gujaratiName: 'સી સ્ટાર',
+    registration: 'GJ-VR-2201',
+    status: 'docked' as const,
+    catchKg: 9800,
+    expense: 62000,
+    crew: 6,
+    captain: 'Suresh Kaka',
+    lastTrip: '10 Mar 2026',
+    location: 'Veraval',
+  },
+]
+
+const fmt = (n: number) => n.toLocaleString('en-IN')
 
 // ─── Permission keys ──────────────────────────────────────────────────────────
 const P = {
-  CREATE_TALI:          'CREATE_TALI',
-  VIEW_TALI:            'VIEW_TALI',
-  FILL_FISH_PRICE:      'FILL_FISH_PRICE',
-  VIEW_BILL:            'VIEW_BILL',
-  SEND_BILL:            'SEND_BILL',
-  ADD_COMPANY_EXPENSE:  'ADD_COMPANY_EXPENSE',
-  VIEW_COMPANY_EXPENSE: 'VIEW_COMPANY_EXPENSE',
-  VIEW_EMPLOYEE_RECORDS:'VIEW_EMPLOYEE_RECORDS',
-  MANAGE_EMPLOYEES:     'MANAGE_EMPLOYEES',
-  VIEW_FINANCIAL_REPORT:'VIEW_FINANCIAL_REPORT',
-  ADD_BOAT_EXPENSE:     'ADD_BOAT_EXPENSE',
-  VIEW_BOAT_EXPENSE:    'VIEW_BOAT_EXPENSE',
-}
-
-// ─── Tab definitions per variant/context ─────────────────────────────────────
-type Tab = { id: string; emoji: string; label: string; onPress: () => void }
-
-function getBoatTabs(active: string): Tab[] {
-  return [
-    { id: 'home',   emoji: '🏠', label: 'Home',   onPress: () => {} },
-    { id: 'tali',   emoji: '⚓', label: 'Tali',   onPress: () => router.push('/tali' as any) },
-    { id: 'trips',  emoji: '📅', label: 'Trips',  onPress: () => router.push('/trips' as any) },
-    { id: 'ledger', emoji: '📒', label: 'Ledger', onPress: () => router.push('/ledger' as any) },
-    { id: 'profile',emoji: '👤', label: 'Profile',onPress: () => router.push('/profile' as any) },
-  ]
-}
-
-function getCompanyTabs(active: string): Tab[] {
-  return [
-    { id: 'home',   emoji: '🏠', label: 'Home',   onPress: () => {} },
-    { id: 'tali',   emoji: '⚓', label: 'Tali',   onPress: () => router.push('/tali' as any) },
-    { id: 'bills',  emoji: '🧾', label: 'Bills',  onPress: () => {} },
-    { id: 'boats',  emoji: '🚢', label: 'Boats',  onPress: () => {} },
-    { id: 'profile',emoji: '👤', label: 'Profile',onPress: () => router.push('/profile' as any) },
-  ]
-}
-
-function getManagerTabs(entity: Entity | null, active: string): Tab[] {
-  const can = (p: string) => hasPerm(entity, p)
-  const tabs: Tab[] = [{ id: 'home', emoji: '🏠', label: 'Home', onPress: () => {} }]
-  if (can(P.CREATE_TALI))
-    tabs.push({ id: 'tali', emoji: '⚓', label: 'Tali', onPress: () => router.push('/tali' as any) })
-  if (can(P.ADD_COMPANY_EXPENSE) || can(P.ADD_BOAT_EXPENSE))
-    tabs.push({ id: 'expenses', emoji: '💸', label: 'Expenses', onPress: () => {} })
-  tabs.push({ id: 'profile', emoji: '👤', label: 'Profile', onPress: () => router.push('/profile' as any) })
-  return tabs
+  CREATE_TALI:           'CREATE_TALI',
+  VIEW_TALI:             'VIEW_TALI',
+  FILL_FISH_PRICE:       'FILL_FISH_PRICE',
+  VIEW_BILL:             'VIEW_BILL',
+  SEND_BILL:             'SEND_BILL',
+  ADD_COMPANY_EXPENSE:   'ADD_COMPANY_EXPENSE',
+  VIEW_COMPANY_EXPENSE:  'VIEW_COMPANY_EXPENSE',
+  VIEW_EMPLOYEE_RECORDS: 'VIEW_EMPLOYEE_RECORDS',
+  MANAGE_EMPLOYEES:      'MANAGE_EMPLOYEES',
+  VIEW_FINANCIAL_REPORT: 'VIEW_FINANCIAL_REPORT',
+  ADD_BOAT_EXPENSE:      'ADD_BOAT_EXPENSE',
+  VIEW_BOAT_EXPENSE:     'VIEW_BOAT_EXPENSE',
 }
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -104,8 +188,6 @@ export default function HomeScreen() {
     homeVariant, activeContext, activeEntity, secondaryEntity,
     isLoaded, isLoading, loadError, loadEntities, setActiveContext,
   } = useEntityStore()
-
-  const [activeTab, setActiveTab] = useState('home')
 
   useEffect(() => {
     if (token && !isLoaded && !isLoading) loadEntities(token)
@@ -138,16 +220,11 @@ export default function HomeScreen() {
     variant === 'BOAT_AND_COMPANY_MANAGER' ||
     variant === 'BOAT_AND_BOAT_MANAGER'
 
-  // Resolve which entity and tabs to show
-  const ctx = activeContext === 'primary' ? activeEntity : secondaryEntity
-  const tabs = resolveTabs(variant, activeContext, ctx, activeTab)
-
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor={BG} />
       <SafeAreaView style={s.safe}>
 
-        {/* Context switcher */}
         {hasSwitcher && (
           <ContextSwitcher
             variant={variant}
@@ -158,7 +235,6 @@ export default function HomeScreen() {
           />
         )}
 
-        {/* Scrollable body */}
         <ScrollView
           style={s.scroll}
           contentContainerStyle={s.scrollContent}
@@ -173,84 +249,12 @@ export default function HomeScreen() {
           <View style={{ height: 90 }} />
         </ScrollView>
 
-        {/* Fixed bottom tab bar */}
-        <BottomTabBar tabs={tabs} activeId={activeTab} onPress={(id, fn) => { setActiveTab(id); fn() }} />
+        <AppTabBar activeTab="home" />
 
       </SafeAreaView>
     </>
   )
 }
-
-// ─── Resolve tabs ─────────────────────────────────────────────────────────────
-function resolveTabs(
-  variant: HomeVariant,
-  ctx: ActiveContext,
-  entity: Entity | null,
-  active: string,
-): Tab[] {
-  switch (variant) {
-    case 'BOAT_OWNER':
-      return getBoatTabs(active)
-    case 'COMPANY_OWNER':
-      return getCompanyTabs(active)
-    case 'BOAT_AND_COMPANY':
-      return ctx === 'primary' ? getCompanyTabs(active) : getBoatTabs(active)
-    case 'BOAT_AND_COMPANY_MANAGER':
-    case 'BOAT_AND_BOAT_MANAGER':
-      return ctx === 'primary' ? getBoatTabs(active) : getManagerTabs(entity, active)
-    case 'MANAGER_ONLY':
-      return getManagerTabs(entity, active)
-    default:
-      return getBoatTabs(active)
-  }
-}
-
-// ─── Bottom Tab Bar ───────────────────────────────────────────────────────────
-function BottomTabBar({
-  tabs,
-  activeId,
-  onPress,
-}: {
-  tabs: Tab[]
-  activeId: string
-  onPress: (id: string, fn: () => void) => void
-}) {
-  return (
-    <View style={tb.bar}>
-      {tabs.map(tab => {
-        const isActive = tab.id === activeId
-        return (
-          <TouchableOpacity
-            key={tab.id}
-            style={tb.item}
-            onPress={() => onPress(tab.id, tab.onPress)}
-            activeOpacity={0.7}
-          >
-            <Text style={[tb.emoji, isActive && tb.emojiActive]}>{tab.emoji}</Text>
-            <Text style={[tb.label, isActive && tb.labelActive]}>{tab.label}</Text>
-            {isActive && <View style={tb.dot} />}
-          </TouchableOpacity>
-        )
-      })}
-    </View>
-  )
-}
-
-const tb = StyleSheet.create({
-  bar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row',
-    backgroundColor: SURF,
-    borderTopWidth: 1, borderTopColor: BOR,
-    paddingTop: 10, paddingBottom: 28,
-  },
-  item:        { flex: 1, alignItems: 'center', gap: 3 },
-  emoji:       { fontSize: 22, opacity: 0.45 },
-  emojiActive: { opacity: 1 },
-  label:       { fontSize: 10, fontWeight: '500', color: TM },
-  labelActive: { color: TEAL, fontWeight: '700' },
-  dot:         { width: 4, height: 4, borderRadius: 2, backgroundColor: TEAL, marginTop: 1 },
-})
 
 // ─── Context Switcher ─────────────────────────────────────────────────────────
 function ContextSwitcher({
@@ -262,18 +266,12 @@ function ContextSwitcher({
   secondary: Entity | null
   onSwitch: (ctx: ActiveContext) => void
 }) {
-  const isPrimary = activeContext === 'primary'
-
-  const primaryLabel =
-    variant === 'BOAT_AND_COMPANY' ? (primary?.companyName ?? 'Company') : 'My Boat'
-
+  const isPrimary      = activeContext === 'primary'
+  const primaryLabel   = variant === 'BOAT_AND_COMPANY' ? (primary?.companyName ?? 'Company') : 'My Boat'
   const secondaryLabel =
-    variant === 'BOAT_AND_COMPANY'
-      ? 'My Boats'
-      : variant === 'BOAT_AND_COMPANY_MANAGER'
-      ? (secondary?.companyName ?? 'Company')
-      : (secondary?.boatName ?? secondary?.label ?? 'Managed Boat')
-
+    variant === 'BOAT_AND_COMPANY'          ? 'My Boats'
+    : variant === 'BOAT_AND_COMPANY_MANAGER' ? (secondary?.companyName ?? 'Company')
+    : (secondary?.boatName ?? secondary?.label ?? 'Managed Boat')
   const accent = isPrimary ? (primary?.accent ?? BLUE) : (secondary?.accent ?? TEAL)
 
   return (
@@ -352,23 +350,22 @@ function VariantBody({
 // ═══════════════════════════════════════════════════════════════════════════════
 function BoatOwnerBody({ entity }: { entity: Entity | null }) {
   const accent = entity?.accent ?? BLUE
+  const boats  = entity?.id === 'personal_boats' && (!entity?.boatCount || entity.boatCount === 0)
+    ? []
+    : HOME_BOATS
+
   return (
     <>
-      <HomeHeader
-        subtitle="Boat Owner · Personal"
-        accent={accent}
-        emoji="🚢"
-      />
-      <BoatStatsCard accent={accent} />
-      <QuickActionsGrid accent={accent} actions={[
-        { emoji: '⚓', label: 'Add Tali',    onPress: () => router.push('/tali' as any) },
-        { emoji: '💸', label: 'Add Expense', onPress: () => router.push('/kharchi' as any) },
-        { emoji: '👥', label: 'Add Kharchi', onPress: () => router.push('/crew' as any) },
-        { emoji: '🚢', label: 'My Boats',    onPress: () => router.push('/boats' as any) },
+      <HomeHeader subtitle="Boat Owner · Personal" accent={accent} />
+      <QuickActionsGrid singleRow accent={accent} actions={[
+        { icon: 'scale-outline',  label: 'Add\nTali',    onPress: () => router.push('/tali-fish-select' as any) },
+        { icon: 'wallet-outline', label: 'Add\nExpense', onPress: () => router.push('/kharchi' as any) },
+        { icon: 'people-outline', label: 'Add\nKharchi', onPress: () => router.push('/crew' as any) },
       ]} />
 
-      {/* Onboarding prompt if no boats set up yet */}
-      {(!entity?.boatCount || entity.boatCount === 0) && entity?.id === 'personal_boats' && (
+      {boats.length > 0 && <BoatListSection boats={boats} accent={accent} />}
+
+      {boats.length === 0 && (!entity?.boatCount || entity.boatCount === 0) && entity?.id === 'personal_boats' && (
         <OnboardingPrompt
           emoji="🚢"
           title="Add your first boat"
@@ -381,30 +378,236 @@ function BoatOwnerBody({ entity }: { entity: Entity | null }) {
   )
 }
 
+function BoatListSection({ boats, accent }: { boats: typeof HOME_BOATS; accent: string }) {
+  return (
+    <View style={bl.wrap}>
+      <View style={bl.header}>
+        <Text style={[bl.title, { color: accent }]}>MY BOATS</Text>
+        <TouchableOpacity onPress={() => router.push('/boats' as any)} activeOpacity={0.75}>
+          <Text style={[bl.link, { color: accent }]}>Manage All</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={bl.list}>
+        {boats.map(boat => (
+          <BoatOwnerBoatCard key={boat.id} boat={boat} accent={accent} />
+        ))}
+      </View>
+    </View>
+  )
+}
+
+// ─── Boat Card with Tali Bottom Sheet ────────────────────────────────────────
+function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]; accent: string }) {
+  const status       = BOAT_STATUS[boat.status]
+  const [taliSheetOpen, setTaliSheetOpen] = useState(false)
+  const boatTalis    = BOAT_TALIS[boat.id] ?? []
+  const pendingCount = boatTalis.filter(t =>
+    t.status === 'PENDING_PRICE' || (t.status === 'PRICED' && t.hasPriceChange)
+  ).length
+
+  return (
+    <>
+      {/* Card — NO overflow:hidden so Modal can render above it */}
+      <View style={[bcard.card, { overflow: 'visible' }]}>
+        <View style={[bcard.accentBar, { backgroundColor: status.color }]} />
+      <View style={bcard.inner}>
+
+        {/* Top: avatar + names + status badge */}
+        <View style={bcard.topRow}>
+          <View style={bcard.iconWrap}>
+            <Text style={bcard.icon}>⛵</Text>
+          </View>
+          <View style={bcard.info}>
+            <Text style={bcard.name}>{boat.name}</Text>
+            <Text style={bcard.gujName}>{boat.gujaratiName}</Text>
+          </View>
+          <View style={[bcard.badge, { backgroundColor: status.bg }]}>
+            <View style={[bcard.badgeDot, { backgroundColor: status.color }]} />
+            <Text style={[bcard.badgeText, { color: status.color }]}>{status.label}</Text>
+          </View>
+        </View>
+
+        {/* Reg + owner + location */}
+        <View style={bcard.metaInfoRow}>
+          <View style={bcard.metaInfoLeft}>
+            <Text style={bcard.reg}>{boat.registration}</Text>
+            <View style={bcard.ownerRow}>
+              <Ionicons name="person-circle-outline" size={13} color={TS} />
+              <Text style={bcard.owner}>{boat.captain}</Text>
+            </View>
+          </View>
+          <View style={bcard.locationBadge}>
+            <Ionicons name="location-sharp" size={12} color={TS} />
+            <Text style={bcard.locationText}>Location · {boat.location}</Text>
+          </View>
+        </View>
+
+        {/* Last trip */}
+        <View style={bcard.lastTripRow}>
+          <Ionicons name="calendar-outline" size={12} color={TM} />
+          <Text style={bcard.metaDate}>Last trip: {boat.lastTrip}</Text>
+        </View>
+
+        {/* Action buttons */}
+        <View style={bcard.actionsRow}>
+
+          {/* Tali — opens bottom sheet, shows pending badge */}
+          <TouchableOpacity
+            style={bcard.actionBtn}
+            activeOpacity={0.75}
+            onPress={() => setTaliSheetOpen(true)}
+          >
+            <View style={{ position: 'relative' }}>
+              <Ionicons name={CARD_ICONS.tali} size={17} color={TS} />
+              {pendingCount > 0 && (
+                <View style={bcard.alertDot}>
+                  <Text style={bcard.alertDotText}>{pendingCount}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={bcard.actionLabel}>Tali</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={bcard.actionBtn}
+            activeOpacity={0.75}
+            onPress={() => router.push({ pathname: '/kharchi', params: { boatId: boat.id, boatName: boat.name } } as any)}
+          >
+            <Ionicons name={CARD_ICONS.expense} size={17} color={TS} />
+            <Text style={bcard.actionLabel}>Expense</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={bcard.actionBtn}
+            activeOpacity={0.75}
+            onPress={() => router.push({ pathname: '/crew', params: { boatId: boat.id, boatName: boat.name } } as any)}
+          >
+            <Ionicons name={CARD_ICONS.crew} size={17} color={TS} />
+            <Text style={bcard.actionLabel}>Crew</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[bcard.detailBtn, { backgroundColor: accent + '18', borderColor: accent + '50' }]}
+            activeOpacity={0.8}
+            onPress={() => router.push('/boats' as any)}
+          >
+            <Ionicons name={CARD_ICONS.details} size={17} color={accent} />
+            <Text style={[bcard.detailText, { color: accent }]}>Details</Text>
+          </TouchableOpacity>
+        </View>
+
+      </View>{/* closes bcard.inner */}
+      </View>{/* closes bcard.card */}
+      {/* Modal is OUTSIDE the card View so it renders full-screen */}
+      <Modal
+        visible={taliSheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setTaliSheetOpen(false)}
+      >
+        <TouchableOpacity
+          style={sh.backdrop}
+          activeOpacity={1}
+          onPress={() => setTaliSheetOpen(false)}
+        />
+        <View style={sh.container}>
+          <View style={sh.handle} />
+
+          <View style={sh.header}>
+            <View>
+              <Text style={sh.headerTitle}>Talis — {boat.name}</Text>
+              <Text style={sh.headerSub}>{boat.gujaratiName} · {boat.registration}</Text>
+            </View>
+            <TouchableOpacity
+              style={sh.viewAllBtn}
+              onPress={() => { setTaliSheetOpen(false); router.push('/tali-list' as any) }}
+            >
+              <Text style={sh.viewAllText}>View All</Text>
+              <Ionicons name="chevron-forward" size={13} color={TEAL} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, paddingBottom: 8 }}
+          >
+            {boatTalis.length > 0 ? boatTalis.map(t => (
+              <TouchableOpacity
+                key={t.id}
+                style={sh.taliCard}
+                activeOpacity={0.8}
+                onPress={() => {
+                  setTaliSheetOpen(false)
+                  router.push({
+                    pathname: '/tali-bill',
+                    params: { taliId: t.id, role: 'boat_owner', boatName: boat.name, companyName: t.companyName },
+                  } as any)
+                }}
+              >
+                <View style={[sh.taliAccent, { backgroundColor: TALI_STATUS_COLOR[t.status] }]} />
+                <View style={sh.taliInner}>
+                  <View style={sh.taliTop}>
+                    <Text style={sh.taliBillNo}>{t.billNo}</Text>
+                    <View style={[sh.taliStatusBadge, { backgroundColor: TALI_STATUS_COLOR[t.status] + '20' }]}>
+                      {t.hasPriceChange && (
+                        <Ionicons name="alert-circle" size={11} color={AMBER} style={{ marginRight: 2 }} />
+                      )}
+                      <Ionicons name={TALI_STATUS_ICON[t.status]} size={11} color={TALI_STATUS_COLOR[t.status]} style={{ marginRight: 3 }} />
+                      <Text style={[sh.taliStatusText, { color: TALI_STATUS_COLOR[t.status] }]}>
+                        {TALI_STATUS_LABEL[t.status]}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={sh.taliMeta}>
+                    <Text style={sh.taliDate}>{t.date}</Text>
+                    <Text style={sh.taliKg}>{t.totalKg.toLocaleString('en-IN')} kg · {t.fishCount} fish</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color={TM} />
+              </TouchableOpacity>
+            )) : (
+              <View style={sh.emptyState}>
+                <Ionicons name="document-outline" size={36} color={TM} />
+                <Text style={sh.emptyTitle}>No talis yet</Text>
+                <Text style={sh.emptySub}>Start a new tali session for this boat</Text>
+              </View>
+            )}
+          </ScrollView>
+
+          <TouchableOpacity
+            style={[sh.newTaliBtn, { backgroundColor: accent }]}
+            activeOpacity={0.85}
+            onPress={() => {
+              setTaliSheetOpen(false)
+              router.push({ pathname: '/tali-fish-select', params: { boatId: boat.id, boatName: boat.name } } as any)
+            }}
+          >
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={sh.newTaliBtnText}>Start New Tali</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+    </>
+  )
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPANY OWNER BODY
 // ═══════════════════════════════════════════════════════════════════════════════
 function CompanyOwnerBody({ entity }: { entity: Entity | null }) {
   const accent = entity?.accent ?? GREEN
-  const name   = entity?.companyName ?? entity?.label ?? 'My Company'
   const isNew  = entity?.id === 'my_company'
 
   return (
     <>
-      <HomeHeader
-        subtitle="Company Owner · Dango"
-        accent={accent}
-        emoji="🏢"
-      />
+      <HomeHeader subtitle="Company Owner · Dango" accent={accent} />
       <CompanyStatsCard accent={accent} />
       <QuickActionsGrid accent={accent} actions={[
-        { emoji: '⚓', label: 'New Tali',    onPress: () => router.push('/tali' as any) },
-        { emoji: '🏷️', label: 'Fill Price',  onPress: () => {} },
-        { emoji: '💸', label: 'Add Expense', onPress: () => {} },
-        { emoji: '📤', label: 'Send Bill',   onPress: () => {} },
+        { icon: 'scale-outline',    label: 'New Tali',    onPress: () => router.push('/tali' as any) },
+        { icon: 'pricetag-outline', label: 'Fill Price',  onPress: () => {} },
+        { icon: 'wallet-outline',   label: 'Add Expense', onPress: () => {} },
+        { icon: 'send-outline',     label: 'Send Bill',   onPress: () => {} },
       ]} />
-
-      {/* Onboarding prompt for new company owners */}
       {isNew && (
         <OnboardingPrompt
           emoji="🏢"
@@ -419,34 +622,27 @@ function CompanyOwnerBody({ entity }: { entity: Entity | null }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// MANAGER BODY (company or boat)
+// MANAGER BODY
 // ═══════════════════════════════════════════════════════════════════════════════
-function ManagerBody({
-  entity,
-  managerType,
-}: {
-  entity: Entity | null
-  managerType: 'company' | 'boat'
-}) {
+function ManagerBody({ entity, managerType }: { entity: Entity | null; managerType: 'company' | 'boat' }) {
   const accent = entity?.accent ?? (managerType === 'company' ? TEAL : ORAN)
   const name   = entity?.companyName ?? entity?.boatName ?? entity?.label ?? 'My Workspace'
   const can    = (p: string) => hasPerm(entity, p)
 
-  const actions = []
+  const actions: { icon: string; label: string; onPress: () => void }[] = []
   if (can(P.CREATE_TALI))
-    actions.push({ emoji: '⚓', label: 'Add Tali',    onPress: () => router.push('/tali' as any) })
+    actions.push({ icon: 'scale-outline',    label: 'Add Tali',    onPress: () => router.push('/tali' as any) })
   if (can(P.FILL_FISH_PRICE))
-    actions.push({ emoji: '🏷️', label: 'Fill Price',  onPress: () => {} })
+    actions.push({ icon: 'pricetag-outline', label: 'Fill Price',  onPress: () => {} })
   if (can(P.ADD_COMPANY_EXPENSE) || can(P.ADD_BOAT_EXPENSE))
-    actions.push({ emoji: '💸', label: 'Add Expense', onPress: () => {} })
+    actions.push({ icon: 'wallet-outline',   label: 'Add Expense', onPress: () => {} })
   if (can(P.SEND_BILL))
-    actions.push({ emoji: '📤', label: 'Send Bill',   onPress: () => {} })
+    actions.push({ icon: 'send-outline',     label: 'Send Bill',   onPress: () => {} })
 
   const isPending = entity?.id.includes('pending')
 
   return (
     <>
-      {/* Manager header card */}
       <View style={[mb.card, { borderColor: accent + '30' }]}>
         <View style={[mb.badge, { backgroundColor: accent + '18' }]}>
           <Text style={[mb.badgeTxt, { color: accent }]}>
@@ -466,7 +662,6 @@ function ManagerBody({
         </View>
       ) : (
         <>
-          {/* Permission chips */}
           {entity && entity.permissions.length > 0 && (
             <View style={mb.permRow}>
               {entity.permissions.slice(0, 5).map(p => (
@@ -502,12 +697,7 @@ const mb = StyleSheet.create({
 // ═══════════════════════════════════════════════════════════════════════════════
 // MANAGER ONLY BODY
 // ═══════════════════════════════════════════════════════════════════════════════
-function ManagerOnlyBody({
-  primary, secondary,
-}: {
-  primary: Entity | null
-  secondary: Entity | null
-}) {
+function ManagerOnlyBody({ primary, secondary }: { primary: Entity | null; secondary: Entity | null }) {
   const { activeContext, setActiveContext } = useEntityStore()
 
   if (!secondary) {
@@ -527,7 +717,6 @@ function ManagerOnlyBody({
     )
   }
 
-  // Two manager contexts
   return (
     <>
       <View style={cs.pill}>
@@ -560,9 +749,7 @@ function ManagerOnlyBody({
 // SHARED COMPONENTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function HomeHeader({ subtitle, accent, emoji }: {
-  subtitle: string; accent: string; emoji: string
-}) {
+function HomeHeader({ subtitle, accent }: { subtitle: string; accent: string }) {
   const { user } = useAuthStore()
   const firstName = user?.name?.split(' ')[0] ?? 'there'
 
@@ -572,32 +759,28 @@ function HomeHeader({ subtitle, accent, emoji }: {
         <Text style={hh.sub}>{subtitle}</Text>
         <Text style={hh.title} numberOfLines={1}>Hi, {firstName} 👋</Text>
       </View>
-      <View style={[hh.icon, { backgroundColor: accent + '18' }]}>
-        <Text style={{ fontSize: 22 }}>{emoji}</Text>
-      </View>
-      <TouchableOpacity style={hh.profile} onPress={() => router.push('/profile' as any)}>
-        <Text style={{ fontSize: 18 }}>👤</Text>
+      <TouchableOpacity
+        style={[hh.icon, { backgroundColor: accent + '18' }]}
+        activeOpacity={0.8}
+        onPress={() => router.push('/profile' as any)}
+      >
+        <Ionicons name="person-outline" size={20} color={TP} />
       </TouchableOpacity>
     </View>
   )
 }
+
 const hh = StyleSheet.create({
   wrap:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 18, borderBottomWidth: 1, gap: 10 },
   left:    { flex: 1 },
   sub:     { fontSize: 11, color: TS, fontWeight: '600', letterSpacing: 0.3, marginBottom: 2 },
   title:   { fontSize: 22, fontWeight: '800', color: TP, letterSpacing: -0.4 },
   icon:    { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  profile: { width: 38, height: 38, borderRadius: 19, backgroundColor: SURF, borderWidth: 1, borderColor: BOR, alignItems: 'center', justifyContent: 'center' },
 })
-
-// ─── Compact Stats Card (replaces the 6-cell grid) ───────────────────────────
-// Left column: 2 hero numbers (profit + catch). Right column: 3 small rows.
-// Everything fits in one card, no scrolling needed.
 
 function BoatStatsCard({ accent }: { accent: string }) {
   return (
     <View style={[sc.card, { backgroundColor: accent }]}>
-      {/* Left column */}
       <View style={sc.left}>
         <View style={sc.leftTop}>
           <Text style={sc.leftLabel}>Total profit this year</Text>
@@ -611,8 +794,6 @@ function BoatStatsCard({ accent }: { accent: string }) {
           <Text style={sc.leftGrowth}>+8%</Text>
         </View>
       </View>
-
-      {/* Right column */}
       <View style={sc.right}>
         <View style={sc.rightRow}>
           <Text style={sc.rightLabel}>Total Boats</Text>
@@ -686,17 +867,13 @@ const sc = StyleSheet.create({
     flexDirection: 'row', gap: 16,
     minHeight: 160,
   },
-
-  // Left: two stacked hero numbers
-  left:      { flex: 1.1, justifyContent: 'space-between' },
-  leftTop:   { flex: 1, justifyContent: 'center', gap: 2 },
-  leftBot:   { flex: 1, justifyContent: 'center', gap: 2 },
-  leftLabel: { fontSize: 11, color: 'rgba(255,255,255,0.65)', fontWeight: '500' },
-  leftBig:   { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.5, lineHeight: 26 },
-  leftGrowth:{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
-  divider:   { height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginVertical: 8 },
-
-  // Right: 4 compact rows
+  left:             { flex: 1.1, justifyContent: 'space-between' },
+  leftTop:          { flex: 1, justifyContent: 'center', gap: 2 },
+  leftBot:          { flex: 1, justifyContent: 'center', gap: 2 },
+  leftLabel:        { fontSize: 11, color: 'rgba(255,255,255,0.65)', fontWeight: '500' },
+  leftBig:          { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.5, lineHeight: 26 },
+  leftGrowth:       { fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
+  divider:          { height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginVertical: 8 },
   right:            { flex: 0.9, justifyContent: 'space-between' },
   rightRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flex: 1 },
   rightDivider:     { height: 1, backgroundColor: 'rgba(255,255,255,0.15)' },
@@ -705,20 +882,24 @@ const sc = StyleSheet.create({
   rightValHighlight:{ color: '#FFD166', fontWeight: '800' },
 })
 
-function QuickActionsGrid({ actions, accent }: {
-  actions: { emoji: string; label: string; onPress: () => void }[]
+function QuickActionsGrid({ actions, accent, singleRow = false }: {
+  actions: { icon: string; label: string; onPress: () => void }[]
   accent: string
+  singleRow?: boolean
 }) {
-  const padded = [...actions]
-  while (padded.length < 4) padded.push({ emoji: '➕', label: 'More', onPress: () => {} })
   return (
     <View style={qa.wrap}>
       <Text style={[qa.title, { color: accent }]}>QUICK ACTIONS</Text>
-      <View style={qa.grid}>
-        {padded.slice(0, 4).map((a, i) => (
-          <TouchableOpacity key={i} style={qa.cell} onPress={a.onPress} activeOpacity={0.75}>
-            <View style={[qa.icon, { backgroundColor: accent + '18' }]}>
-              <Text style={{ fontSize: 26 }}>{a.emoji}</Text>
+      <View style={[qa.grid, singleRow && qa.gridSingleRow]}>
+        {actions.map((a, i) => (
+          <TouchableOpacity
+            key={i}
+            style={[qa.cell, singleRow ? qa.cellSingleRow : qa.cellRegular]}
+            onPress={a.onPress}
+            activeOpacity={0.75}
+          >
+            <View style={[qa.iconWrap, { backgroundColor: accent + '18' }]}>
+              <Ionicons name={a.icon as keyof typeof Ionicons.glyphMap} size={26} color={accent} />
             </View>
             <Text style={qa.label}>{a.label}</Text>
           </TouchableOpacity>
@@ -727,13 +908,17 @@ function QuickActionsGrid({ actions, accent }: {
     </View>
   )
 }
+
 const qa = StyleSheet.create({
-  wrap:  { marginHorizontal: 16, marginTop: 20 },
-  title: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, marginBottom: 10, color: TM },
-  grid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  cell:  { width: '47%', backgroundColor: SURF, borderRadius: 14, borderWidth: 1, borderColor: BOR, padding: 16, alignItems: 'center', gap: 8 },
-  icon:  { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: 13, fontWeight: '700', color: TP, textAlign: 'center' },
+  wrap:          { marginHorizontal: 16, marginTop: 20 },
+  title:         { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, marginBottom: 10, color: TM },
+  grid:          { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  gridSingleRow: { flexWrap: 'nowrap' },
+  cell:          { backgroundColor: SURF, borderRadius: 14, borderWidth: 1, borderColor: BOR, padding: 14, alignItems: 'center', gap: 8 },
+  cellRegular:   { width: '47%' },
+  cellSingleRow: { flex: 1, minWidth: 0 },
+  iconWrap:      { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  label:         { fontSize: 13, fontWeight: '700', color: TP, textAlign: 'center', lineHeight: 18 },
 })
 
 function OnboardingPrompt({ emoji, title, subtitle, accent, onPress }: {
@@ -750,24 +935,133 @@ function OnboardingPrompt({ emoji, title, subtitle, accent, onPress }: {
         <Text style={[op.title, { color: accent }]}>{title}</Text>
         <Text style={op.sub}>{subtitle}</Text>
       </View>
-      <Text style={[{ fontSize: 20, color: accent }]}>›</Text>
+      <Text style={{ fontSize: 20, color: accent }}>›</Text>
     </TouchableOpacity>
   )
 }
+
 const op = StyleSheet.create({
   wrap:  { flexDirection: 'row', alignItems: 'center', gap: 12, margin: 16, padding: 16, borderRadius: 14, borderWidth: 1 },
   title: { fontSize: 14, fontWeight: '800' },
   sub:   { fontSize: 12, color: TS, marginTop: 2, lineHeight: 17 },
 })
 
+const bl = StyleSheet.create({
+  wrap:   { marginHorizontal: 16, marginTop: 20, gap: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  title:  { fontSize: 10, fontWeight: '700', letterSpacing: 1.2 },
+  link:   { fontSize: 12, fontWeight: '700' },
+  list:   { gap: 12 },
+})
+
+// ─── Boat card styles ─────────────────────────────────────────────────────────
+const bcard = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    backgroundColor: SURF,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    overflow: 'hidden',
+  },
+  accentBar: { width: 4 },
+  inner:     { flex: 1, padding: 14, gap: 10 },
+
+  topRow:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  iconWrap:  { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(8,145,178,0.15)', alignItems: 'center', justifyContent: 'center' },
+  icon:      { fontSize: 26 },
+  info:      { flex: 1, gap: 1 },
+  name:      { fontSize: 17, fontWeight: '800', color: TP, letterSpacing: -0.3 },
+  gujName:   { fontSize: 15, fontWeight: '700', color: TP, opacity: 0.85 },
+  badge:     { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
+  badgeDot:  { width: 6, height: 6, borderRadius: 3 },
+  badgeText: { fontSize: 12, fontWeight: '800' },
+
+  metaInfoRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  metaInfoLeft: { gap: 3 },
+  reg:          { fontSize: 12, color: TEAL, fontWeight: '700', fontFamily: 'monospace' },
+  ownerRow:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  owner:        { fontSize: 12, color: TS, fontWeight: '600' },
+  locationBadge:{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#1E2D3D' },
+  locationText: { fontSize: 13, fontWeight: '800', color: TP, letterSpacing: 0.2 },
+
+  lastTripRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  metaDate:    { fontSize: 11, color: TM, fontWeight: '500' },
+
+  actionsRow: { flexDirection: 'row', gap: 8 },
+  actionBtn: {
+    flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    gap: 5, backgroundColor: ELEV, borderRadius: 10, paddingVertical: 10,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
+  },
+  actionLabel: { fontSize: 12, fontWeight: '700', color: TS },
+  alertDot: {
+    position: 'absolute', top: -4, right: -6,
+    minWidth: 14, height: 14, borderRadius: 7,
+    backgroundColor: AMBER,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2,
+  },
+  alertDotText: { fontSize: 9, fontWeight: '800', color: '#000' },
+  detailBtn: {
+    flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    gap: 5, paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 10, borderWidth: 1,
+  },
+  detailText: { fontSize: 12, fontWeight: '800' },
+})
+
+// ─── Tali bottom sheet styles ─────────────────────────────────────────────────
+const sh = StyleSheet.create({
+  backdrop:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
+  container: {
+    backgroundColor: SURF,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: 16, paddingBottom: 36,
+    borderTopWidth: 1, borderColor: BOR,
+    maxHeight: '72%',
+  },
+  handle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: TM, alignSelf: 'center',
+    marginTop: 12, marginBottom: 18,
+  },
+  header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
+  headerTitle: { fontSize: 17, fontWeight: '800', color: TP },
+  headerSub:   { fontSize: 12, color: TS, marginTop: 2 },
+  viewAllBtn:  { flexDirection: 'row', alignItems: 'center', gap: 2, paddingTop: 4 },
+  viewAllText: { fontSize: 13, color: TEAL, fontWeight: '700' },
+
+  taliCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: ELEV, borderRadius: 12,
+    overflow: 'hidden', borderWidth: 1, borderColor: BOR,
+  },
+  taliAccent:      { width: 4, alignSelf: 'stretch' },
+  taliInner:       { flex: 1, padding: 12, gap: 5 },
+  taliTop:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  taliBillNo:      { fontSize: 12, fontWeight: '700', color: TP, fontFamily: 'monospace' },
+  taliStatusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
+  taliStatusText:  { fontSize: 10, fontWeight: '700' },
+  taliMeta:        { flexDirection: 'row', justifyContent: 'space-between' },
+  taliDate:        { fontSize: 11, color: TS },
+  taliKg:          { fontSize: 11, color: TS },
+
+  emptyState: { alignItems: 'center', paddingVertical: 36, gap: 8 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: TS },
+  emptySub:   { fontSize: 12, color: TM },
+
+  newTaliBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 15, marginTop: 14 },
+  newTaliBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+})
+
 // ─── Base styles ──────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe:        { flex: 1, backgroundColor: BG },
-  scroll:      { flex: 1 },
+  safe:          { flex: 1, backgroundColor: BG },
+  scroll:        { flex: 1 },
   scrollContent: {},
-  center:      { flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 },
-  loadTxt:     { color: TS, fontSize: 14 },
-  errTxt:      { color: TS, fontSize: 14, textAlign: 'center' },
-  retryBtn:    { backgroundColor: TEAL, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
-  retryTxt:    { color: '#fff', fontWeight: '700', fontSize: 15 },
+  center:        { flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 },
+  loadTxt:       { color: TS, fontSize: 14 },
+  errTxt:        { color: TS, fontSize: 14, textAlign: 'center' },
+  retryBtn:      { backgroundColor: TEAL, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  retryTxt:      { color: '#fff', fontWeight: '700', fontSize: 15 },
 })

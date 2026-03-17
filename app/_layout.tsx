@@ -53,8 +53,13 @@ export default function RootLayout() {
         <Stack.Screen name="(owner)"      options={{ headerShown: false }} />
         <Stack.Screen name="(home)"       options={{ headerShown: false }} />
         <Stack.Screen name="(dashboard)"  options={{ headerShown: false }} />
-        <Stack.Screen name="tali"              options={{ headerShown: false }} />
-        <Stack.Screen name="tali-fish-select" options={{ headerShown: false }} />
+
+        {/* <Stack.Screen name="tali"              options={{ headerShown: false }} />
+        <Stack.Screen name="tali-fish-select" options={{ headerShown: false }} /> */}
+
+
+        <Stack.Screen name="tali-bill"  options={{ headerShown: false }} />
+        <Stack.Screen name="tali-list"  options={{ headerShown: false }} />
         <Stack.Screen name="summary"      options={{ headerShown: false }} />
         <Stack.Screen name="bill"         options={{ headerShown: false }} />
         <Stack.Screen name="crew"         options={{ headerShown: false }} />
