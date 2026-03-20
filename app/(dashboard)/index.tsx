@@ -1,46 +1,33 @@
 /**
  * app/(dashboard)/index.tsx — Smart Dashboard Entry
  *
- * This screen runs after login for ALL returning users.
- * It replaces the hardcoded `/(owner)/home` redirect.
- *
- * Logic:
- *   1. Load entities from backend via entityStore.loadEntities()
- *   2. If exactly 1 entity → skip My Businesses, route straight to dashboard
- *   3. If 2+ entities → show "My Businesses" picker screen
- *   4. On entity select → route to that entity's dashboard
- *
- * This is the ONLY routing decision point. All other dashboards just render.
+ * FIXED: 401 on mobile — added isInitialised guard so loadEntities
+ * only fires after AsyncStorage token restore is complete.
  */
 
 import { router } from 'expo-router'
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-    ActivityIndicator,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuthStore } from '../../store/authStore'
 import {
-    ENTITY_EMOJIS,
-    Entity,
-    useEntityStore
+  ENTITY_EMOJIS,
+  Entity,
+  useEntityStore
 } from '../../store/entityStore'
 import { useTheme } from '../../store/themeStore'
 
-// ─── Route helper ─────────────────────────────────────────────────────────────
-
 function routeToDashboard(_entity: Entity) {
-  // All variants now use the universal home screen
   router.replace('/(home)' as any)
 }
-
-// ─── Entity Card ──────────────────────────────────────────────────────────────
 
 function EntityCard({
   entity,
@@ -55,22 +42,15 @@ function EntityCard({
 
   return (
     <TouchableOpacity style={s.entityCard} onPress={onPress} activeOpacity={0.8}>
-      {/* Accent bar */}
       <View style={[s.accentBar, { backgroundColor: entity.accent }]} />
-
       <View style={s.entityCardInner}>
-        {/* Icon */}
         <View style={[s.entityIconWrap, { backgroundColor: entity.accent + '18' }]}>
           <Text style={s.entityEmoji}>{emoji}</Text>
         </View>
-
-        {/* Text */}
         <View style={s.entityText}>
           <Text style={s.entityLabel}>{entity.label}</Text>
           <Text style={s.entitySublabel}>{entity.sublabel}</Text>
         </View>
-
-        {/* Role badge */}
         <View style={[s.roleBadge, {
           backgroundColor: entity.role === 'owner' ? '#22c55e18' : '#0891b218',
         }]}>
@@ -80,18 +60,15 @@ function EntityCard({
             {entity.role === 'owner' ? 'Owner' : 'Manager'}
           </Text>
         </View>
-
-        {/* Arrow */}
         <Text style={[s.entityArrow, { color: entity.accent }]}>→</Text>
       </View>
     </TouchableOpacity>
   )
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
-
 export default function DashboardEntryScreen() {
-  const { token } = useAuthStore()
+  // ── FIX: also read isInitialised ─────────────────────────────────────────
+  const { token, isInitialised } = useAuthStore()
   const theme = useTheme()
   const { entities, activeEntity, isLoaded, isLoading, loadError, loadEntities, setActiveEntity } =
     useEntityStore()
@@ -99,7 +76,6 @@ export default function DashboardEntryScreen() {
   const s = useMemo(() => {
     const styles = StyleSheet.create({
       safe: { flex: 1, backgroundColor: theme.colors.background },
-
       loadingScreen: {
         flex: 1,
         backgroundColor: theme.colors.background,
@@ -108,33 +84,13 @@ export default function DashboardEntryScreen() {
         gap: 14,
         padding: 24,
       },
-      loadingText: {
-        fontSize: 14,
-        color: theme.colors.textSecondary,
-        marginTop: 8,
-      },
-      errorEmoji: { fontSize: 48 },
-      errorText: {
-        fontSize: 15,
-        color: theme.colors.textSecondary,
-        textAlign: 'center',
-        lineHeight: 22,
-      },
-      retryBtn: {
-        backgroundColor: theme.colors.primary,
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 24,
-        marginTop: 8,
-      },
-      retryBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+      loadingText:      { fontSize: 14, color: theme.colors.textSecondary, marginTop: 8 },
+      errorEmoji:       { fontSize: 48 },
+      errorText:        { fontSize: 15, color: theme.colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+      retryBtn:         { backgroundColor: theme.colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24, marginTop: 8 },
+      retryBtnText:     { color: '#fff', fontSize: 14, fontWeight: '700' },
       entityRouteEmoji: { fontSize: 56 },
-      entityRouteLabel: {
-        fontSize: 20,
-        fontWeight: '800',
-        color: theme.colors.textPrimary,
-      },
-
+      entityRouteLabel: { fontSize: 20, fontWeight: '800', color: theme.colors.textPrimary },
       header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -146,9 +102,8 @@ export default function DashboardEntryScreen() {
       },
       headerEmoji: { fontSize: 36 },
       headerTitle: { fontSize: 22, fontWeight: '800', color: theme.colors.textPrimary },
-      headerSub: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 2 },
-
-      list: { padding: 16, gap: 12 },
+      headerSub:   { fontSize: 13, color: theme.colors.textSecondary, marginTop: 2 },
+      list:        { padding: 16, gap: 12 },
       listHint: {
         fontSize: 11,
         color: theme.colors.textMuted,
@@ -157,7 +112,6 @@ export default function DashboardEntryScreen() {
         textTransform: 'uppercase',
         marginBottom: 4,
       },
-
       entityCard: {
         backgroundColor: theme.colors.surface,
         borderRadius: 16,
@@ -166,46 +120,30 @@ export default function DashboardEntryScreen() {
         overflow: 'hidden',
         flexDirection: 'row',
       },
-      accentBar: { width: 5 },
-      entityCardInner: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        gap: 12,
-      },
-      entityIconWrap: {
-        width: 52,
-        height: 52,
-        borderRadius: 26,
-        alignItems: 'center',
-        justifyContent: 'center',
-      },
-      entityEmoji: { fontSize: 24 },
-      entityText: { flex: 1 },
-      entityLabel: { fontSize: 16, fontWeight: '800', color: theme.colors.textPrimary },
-      entitySublabel: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 3 },
-      roleBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 20,
-      },
-      roleText: { fontSize: 11, fontWeight: '700' },
-      entityArrow: { fontSize: 18, fontWeight: '700' },
+      accentBar:       { width: 5 },
+      entityCardInner: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
+      entityIconWrap:  { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+      entityEmoji:     { fontSize: 24 },
+      entityText:      { flex: 1 },
+      entityLabel:     { fontSize: 16, fontWeight: '800', color: theme.colors.textPrimary },
+      entitySublabel:  { fontSize: 12, color: theme.colors.textSecondary, marginTop: 3 },
+      roleBadge:       { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+      roleText:        { fontSize: 11, fontWeight: '700' },
+      entityArrow:     { fontSize: 18, fontWeight: '700' },
     })
     return styles
   }, [theme])
 
   const [hasRouted, setHasRouted] = useState(false)
 
+  // ── FIX: wait for isInitialised before calling API ────────────────────────
   useEffect(() => {
-    if (token && !isLoaded && !isLoading) {
+    if (isInitialised && token && !isLoaded && !isLoading) {
       loadEntities(token)
     }
-  }, [token])
+  }, [isInitialised, token])
 
   useEffect(() => {
-    // Auto-route if exactly 1 entity — user never sees this screen
     if (isLoaded && !hasRouted && entities.length === 1) {
       setHasRouted(true)
       setActiveEntity(entities[0])
@@ -213,7 +151,17 @@ export default function DashboardEntryScreen() {
     }
   }, [isLoaded, entities])
 
-  // ── Loading state ────────────────────────────────────────────────────────
+  // ── Show spinner while token is still being restored from AsyncStorage ────
+  if (!isInitialised) {
+    return (
+      <View style={s.loadingScreen}>
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.background} />
+        <ActivityIndicator color={theme.colors.primary} size="large" />
+        <Text style={s.loadingText}>Starting up...</Text>
+      </View>
+    )
+  }
+
   if (isLoading || (!isLoaded && !loadError)) {
     return (
       <View style={s.loadingScreen}>
@@ -224,24 +172,49 @@ export default function DashboardEntryScreen() {
     )
   }
 
-  // ── Error state ──────────────────────────────────────────────────────────
-  if (loadError) {
-    return (
-      <View style={s.loadingScreen}>
-        <StatusBar barStyle="light-content" backgroundColor={theme.colors.background} />
-        <Text style={s.errorEmoji}>⚠️</Text>
-        <Text style={s.errorText}>{loadError}</Text>
-        <TouchableOpacity
-          style={s.retryBtn}
-          onPress={() => token && loadEntities(token)}
-        >
-          <Text style={s.retryBtnText}>Try Again</Text>
-        </TouchableOpacity>
-      </View>
-    )
-  }
+  // if (loadError) {
+  //   return (
+  //     <View style={s.loadingScreen}>
+  //       <StatusBar barStyle="light-content" backgroundColor={theme.colors.background} />
+  //       <Text style={s.errorEmoji}>⚠️</Text>
+  //       <Text style={s.errorText}>{loadError}</Text>
+  //       <TouchableOpacity
+  //         style={s.retryBtn}
+  //         onPress={() => token && loadEntities(token)}
+  //       >
+  //         <Text style={s.retryBtnText}>Try Again</Text>
+  //       </TouchableOpacity>
+  //     </View>
+  //   )
+  // }
 
-  // ── No entities (edge case: new user who finished setup but has nothing) ──
+  if (loadError) {
+  return (
+    <View style={s.loadingScreen}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.background} />
+      <Text style={s.errorEmoji}>⚠️</Text>
+      <Text style={s.errorText}>{loadError}</Text>
+      <TouchableOpacity
+        style={s.retryBtn}
+        onPress={() => token && loadEntities(token)}
+      >
+        <Text style={s.retryBtnText}>Try Again</Text>
+      </TouchableOpacity>
+      {/* ── TEMP: force logout if token expired ── */}
+      <TouchableOpacity
+        style={[s.retryBtn, { backgroundColor: '#ef4444', marginTop: 12 }]}
+        onPress={async () => {
+          const { logout } = useAuthStore.getState()
+          await logout()
+          router.replace('/(auth)/phone')
+        }}
+      >
+        <Text style={s.retryBtnText}>Logout & Login Again</Text>
+      </TouchableOpacity>
+    </View>
+  )
+}
+
   if (entities.length === 0) {
     return (
       <View style={s.loadingScreen}>
@@ -257,7 +230,6 @@ export default function DashboardEntryScreen() {
     )
   }
 
-  // ── Single entity: show brief splash then auto-route (handled in useEffect) ──
   if (entities.length === 1) {
     return (
       <View style={s.loadingScreen}>
@@ -269,7 +241,6 @@ export default function DashboardEntryScreen() {
     )
   }
 
-  // ── Multi-entity: show "My Businesses" picker ───────────────────────────
   const handleEntitySelect = (entity: Entity) => {
     setActiveEntity(entity)
     routeToDashboard(entity)
@@ -279,8 +250,6 @@ export default function DashboardEntryScreen() {
     <>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.background} />
       <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-
-        {/* Header */}
         <View style={s.header}>
           <Text style={s.headerEmoji}>🐟</Text>
           <View>
@@ -288,16 +257,10 @@ export default function DashboardEntryScreen() {
             <Text style={s.headerSub}>Choose which context to open</Text>
           </View>
         </View>
-
-        {/* Entity List */}
-        <ScrollView
-          contentContainerStyle={s.list}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
           <Text style={s.listHint}>
             {entities.length} workspace{entities.length > 1 ? 's' : ''} linked to your account
           </Text>
-
           {entities.map((entity) => (
             <EntityCard
               key={entity.id}
@@ -306,7 +269,6 @@ export default function DashboardEntryScreen() {
               theme={theme}
             />
           ))}
-
           <View style={{ height: 32 }} />
         </ScrollView>
       </SafeAreaView>

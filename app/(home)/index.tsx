@@ -1,16 +1,9 @@
 /**
  * app/(home)/index.tsx — Universal Home Screen
  *
- * Reads homeVariant + activeContext from entityStore.
- * All 6 role combinations render here. No separate dashboard files.
- *
- * Layout:
- *   - Context switcher pill (only for dual-role variants)
- *   - Header (name, role badge)
- *   - Stats grid
- *   - Quick actions 2×2
- *   - Scrollable content
- *   - Fixed bottom tab bar (4 tabs, role-driven)
+ * FIXED:
+ *  1. isInitialised guard added to loadEntities useEffect (fixes 401 on mobile)
+ *  2. Bill Template action added to CompanyOwnerBody quick actions
  */
 
 import { Ionicons } from '@expo/vector-icons'
@@ -50,7 +43,6 @@ const TEAL  = '#0891b2'
 const ORAN  = '#d97706'
 const AMBER = '#f59e0b'
 
-// ─── Boat card action button icons ────────────────────────────────────────────
 const CARD_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   tali:    'scale-outline',
   expense: 'wallet-outline',
@@ -65,63 +57,14 @@ const BOAT_STATUS = {
 } as const
 
 const HOME_BOATS = [
-  {
-    id: '1',
-    name: 'Jai Mataji',
-    gujaratiName: 'જય માતાજી',
-    registration: 'GJ-VR-1042',
-    status: 'active' as const,
-    catchKg: 12400,
-    expense: 85000,
-    crew: 8,
-    captain: 'Ramesh Bhai',
-    lastTrip: '12 Mar 2026',
-    location: 'Okha',
-  },
-  {
-    id: '2',
-    name: 'Sea Star',
-    gujaratiName: 'સી સ્ટાર',
-    registration: 'GJ-VR-2201',
-    status: 'docked' as const,
-    catchKg: 9800,
-    expense: 62000,
-    crew: 6,
-    captain: 'Suresh Kaka',
-    lastTrip: '10 Mar 2026',
-    location: 'Veraval',
-  },
-  {
-    id: '3',
-    name: 'Jai Mataji',
-    gujaratiName: 'જય માતાજી',
-    registration: 'GJ-VR-1042',
-    status: 'active' as const,
-    catchKg: 12400,
-    expense: 85000,
-    crew: 8,
-    captain: 'Ramesh Bhai',
-    lastTrip: '12 Mar 2026',
-    location: 'Okha',
-  },
-  {
-    id: '4',
-    name: 'Sea Star',
-    gujaratiName: 'સી સ્ટાર',
-    registration: 'GJ-VR-2201',
-    status: 'docked' as const,
-    catchKg: 9800,
-    expense: 62000,
-    crew: 6,
-    captain: 'Suresh Kaka',
-    lastTrip: '10 Mar 2026',
-    location: 'Veraval',
-  },
+  { id: '1', name: 'Jai Mataji', gujaratiName: 'જય માતાજી', registration: 'GJ-VR-1042', status: 'active' as const, catchKg: 12400, expense: 85000, crew: 8, captain: 'Ramesh Bhai', lastTrip: '12 Mar 2026', location: 'Okha' },
+  { id: '2', name: 'Sea Star',   gujaratiName: 'સી સ્ટાર',  registration: 'GJ-VR-2201', status: 'docked' as const, catchKg: 9800,  expense: 62000, crew: 6, captain: 'Suresh Kaka', lastTrip: '10 Mar 2026', location: 'Veraval' },
+  { id: '3', name: 'Jai Mataji', gujaratiName: 'જય માતાજી', registration: 'GJ-VR-1042', status: 'active' as const, catchKg: 12400, expense: 85000, crew: 8, captain: 'Ramesh Bhai', lastTrip: '12 Mar 2026', location: 'Okha' },
+  { id: '4', name: 'Sea Star',   gujaratiName: 'સી સ્ટાર',  registration: 'GJ-VR-2201', status: 'docked' as const, catchKg: 9800,  expense: 62000, crew: 6, captain: 'Suresh Kaka', lastTrip: '10 Mar 2026', location: 'Veraval' },
 ]
 
 const fmt = (n: number) => n.toLocaleString('en-IN')
 
-// ─── Permission keys ──────────────────────────────────────────────────────────
 const P = {
   CREATE_TALI:           'CREATE_TALI',
   VIEW_TALI:             'VIEW_TALI',
@@ -139,17 +82,19 @@ const P = {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function HomeScreen() {
-  const { token } = useAuthStore()
+  // ── FIX: also read isInitialised ─────────────────────────────────────────
+  const { token, isInitialised } = useAuthStore()
   const {
     homeVariant, activeContext, activeEntity, secondaryEntity,
     isLoaded, isLoading, loadError, loadEntities, setActiveContext,
   } = useEntityStore()
 
+  // ── FIX: wait for token restore before calling API ────────────────────────
   useEffect(() => {
-    if (token && !isLoaded && !isLoading) loadEntities(token)
-  }, [token])
+    if (isInitialised && token && !isLoaded && !isLoading) loadEntities(token)
+  }, [isInitialised, token])
 
-  if (isLoading || !isLoaded) {
+  if (!isInitialised || isLoading || !isLoaded) {
     return (
       <View style={s.center}>
         <ActivityIndicator color={TEAL} size="large" />
@@ -180,7 +125,6 @@ export default function HomeScreen() {
     <>
       <StatusBar barStyle="light-content" backgroundColor={BG} />
       <SafeAreaView style={s.safe}>
-
         {hasSwitcher && (
           <ContextSwitcher
             variant={variant}
@@ -190,12 +134,7 @@ export default function HomeScreen() {
             onSwitch={setActiveContext}
           />
         )}
-
-        <ScrollView
-          style={s.scroll}
-          contentContainerStyle={s.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
           <VariantBody
             variant={variant}
             activeContext={activeContext}
@@ -204,18 +143,14 @@ export default function HomeScreen() {
           />
           <View style={{ height: 90 }} />
         </ScrollView>
-
         <AppTabBar activeTab="home" />
-
       </SafeAreaView>
     </>
   )
 }
 
 // ─── Context Switcher ─────────────────────────────────────────────────────────
-function ContextSwitcher({
-  variant, activeContext, primary, secondary, onSwitch,
-}: {
+function ContextSwitcher({ variant, activeContext, primary, secondary, onSwitch }: {
   variant: HomeVariant
   activeContext: ActiveContext
   primary: Entity | null
@@ -225,7 +160,7 @@ function ContextSwitcher({
   const isPrimary      = activeContext === 'primary'
   const primaryLabel   = variant === 'BOAT_AND_COMPANY' ? (primary?.companyName ?? 'Company') : 'My Boat'
   const secondaryLabel =
-    variant === 'BOAT_AND_COMPANY'          ? 'My Boats'
+    variant === 'BOAT_AND_COMPANY'           ? 'My Boats'
     : variant === 'BOAT_AND_COMPANY_MANAGER' ? (secondary?.companyName ?? 'Company')
     : (secondary?.boatName ?? secondary?.label ?? 'Managed Boat')
   const accent = isPrimary ? (primary?.accent ?? BLUE) : (secondary?.accent ?? TEAL)
@@ -252,16 +187,8 @@ function ContextSwitcher({
 }
 
 const cs = StyleSheet.create({
-  pill: {
-    flexDirection: 'row', backgroundColor: SURF,
-    borderRadius: 14, borderWidth: 1, borderColor: BOR,
-    padding: 4, marginHorizontal: 16, marginTop: 12, marginBottom: 4, gap: 4,
-  },
-  tab: {
-    flex: 1, paddingVertical: 10, borderRadius: 10,
-    alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6,
-    borderWidth: 1, borderColor: 'transparent',
-  },
+  pill:      { flexDirection: 'row', backgroundColor: SURF, borderRadius: 14, borderWidth: 1, borderColor: BOR, padding: 4, marginHorizontal: 16, marginTop: 12, marginBottom: 4, gap: 4 },
+  tab:       { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: 'transparent' },
   tabActive: {},
   tabTxt:    { fontSize: 14, fontWeight: '600', color: TS },
   badge:     { backgroundColor: TEAL + '30', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 },
@@ -269,35 +196,23 @@ const cs = StyleSheet.create({
 })
 
 // ─── Variant Body Router ──────────────────────────────────────────────────────
-function VariantBody({
-  variant, activeContext, primary, secondary,
-}: {
+function VariantBody({ variant, activeContext, primary, secondary }: {
   variant: HomeVariant
   activeContext: ActiveContext
   primary: Entity | null
   secondary: Entity | null
 }) {
   switch (variant) {
-    case 'BOAT_OWNER':
-      return <BoatOwnerBody entity={primary} />
-    case 'COMPANY_OWNER':
-      return <CompanyOwnerBody entity={primary} />
+    case 'BOAT_OWNER':              return <BoatOwnerBody entity={primary} />
+    case 'COMPANY_OWNER':           return <CompanyOwnerBody entity={primary} />
     case 'BOAT_AND_COMPANY':
-      return activeContext === 'primary'
-        ? <CompanyOwnerBody entity={primary} />
-        : <BoatOwnerBody entity={secondary} />
+      return activeContext === 'primary' ? <CompanyOwnerBody entity={primary} /> : <BoatOwnerBody entity={secondary} />
     case 'BOAT_AND_COMPANY_MANAGER':
-      return activeContext === 'primary'
-        ? <BoatOwnerBody entity={primary} />
-        : <ManagerBody entity={secondary} managerType="company" />
+      return activeContext === 'primary' ? <BoatOwnerBody entity={primary} /> : <ManagerBody entity={secondary} managerType="company" />
     case 'BOAT_AND_BOAT_MANAGER':
-      return activeContext === 'primary'
-        ? <BoatOwnerBody entity={primary} />
-        : <ManagerBody entity={secondary} managerType="boat" />
-    case 'MANAGER_ONLY':
-      return <ManagerOnlyBody primary={primary} secondary={secondary} />
-    default:
-      return <BoatOwnerBody entity={primary} />
+      return activeContext === 'primary' ? <BoatOwnerBody entity={primary} /> : <ManagerBody entity={secondary} managerType="boat" />
+    case 'MANAGER_ONLY':            return <ManagerOnlyBody primary={primary} secondary={secondary} />
+    default:                        return <BoatOwnerBody entity={primary} />
   }
 }
 
@@ -307,8 +222,7 @@ function VariantBody({
 function BoatOwnerBody({ entity }: { entity: Entity | null }) {
   const accent = entity?.accent ?? BLUE
   const boats  = entity?.id === 'personal_boats' && (!entity?.boatCount || entity.boatCount === 0)
-    ? []
-    : HOME_BOATS
+    ? [] : HOME_BOATS
 
   return (
     <>
@@ -318,9 +232,7 @@ function BoatOwnerBody({ entity }: { entity: Entity | null }) {
         { icon: 'wallet-outline', label: 'Add\nExpense', onPress: () => router.push('/add-expense' as any) },
         { icon: 'people-outline', label: 'Add\nKharchi', onPress: () => router.push('/crew' as any) },
       ]} />
-
       {boats.length > 0 && <BoatListSection boats={boats} accent={accent} />}
-
       {boats.length === 0 && (!entity?.boatCount || entity.boatCount === 0) && entity?.id === 'personal_boats' && (
         <OnboardingPrompt
           emoji="🚢"
@@ -349,22 +261,14 @@ function BoatListSection({ boats, accent }: { boats: typeof HOME_BOATS; accent: 
   )
 }
 
-// ─── Boat Card ────────────────────────────────────────────────────────────────
-// Details → /boat-detail   Tali → /tali-fish-select directly (no modal)
-// ─────────────────────────────────────────────────────────────────────────────
 function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]; accent: string }) {
   const status = BOAT_STATUS[boat.status]
-
   return (
     <View style={[bcard.card, { overflow: 'hidden' }]}>
       <View style={[bcard.accentBar, { backgroundColor: status.color }]} />
       <View style={bcard.inner}>
-
-        {/* Top: avatar + names + status badge */}
         <View style={bcard.topRow}>
-          <View style={bcard.iconWrap}>
-            <Text style={bcard.icon}>⛵</Text>
-          </View>
+          <View style={bcard.iconWrap}><Text style={bcard.icon}>⛵</Text></View>
           <View style={bcard.info}>
             <Text style={bcard.name}>{boat.name}</Text>
             <Text style={bcard.gujName}>{boat.gujaratiName}</Text>
@@ -374,8 +278,6 @@ function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]
             <Text style={[bcard.badgeText, { color: status.color }]}>{status.label}</Text>
           </View>
         </View>
-
-        {/* Reg + captain + location */}
         <View style={bcard.metaInfoRow}>
           <View style={bcard.metaInfoLeft}>
             <Text style={bcard.reg}>{boat.registration}</Text>
@@ -389,71 +291,39 @@ function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]
             <Text style={bcard.locationText}>Location · {boat.location}</Text>
           </View>
         </View>
-
-        {/* Last trip */}
         <View style={bcard.lastTripRow}>
           <Ionicons name="calendar-outline" size={12} color={TM} />
           <Text style={bcard.metaDate}>Last trip: {boat.lastTrip}</Text>
         </View>
-
-        {/* Action buttons */}
         <View style={bcard.actionsRow}>
-
-          {/* Tali — goes directly to tali-fish-select, no modal */}
-          <TouchableOpacity
-            style={bcard.actionBtn}
-            activeOpacity={0.75}
-            onPress={() => router.push({
-              pathname: '/tali-fish-select',
-              params: { boatId: boat.id, boatName: boat.name },
-            } as any)}
-          >
+          <TouchableOpacity style={bcard.actionBtn} activeOpacity={0.75}
+            onPress={() => router.push({ pathname: '/tali-fish-select', params: { boatId: boat.id, boatName: boat.name } } as any)}>
             <Ionicons name={CARD_ICONS.tali} size={17} color={TS} />
             <Text style={bcard.actionLabel}>Tali</Text>
           </TouchableOpacity>
-
-          {/* Expense */}
-          <TouchableOpacity
-            style={bcard.actionBtn}
-            activeOpacity={0.75}
-            onPress={() => router.push('/ledger' as any)}
-          >
+          <TouchableOpacity style={bcard.actionBtn} activeOpacity={0.75}
+            onPress={() => router.push('/ledger' as any)}>
             <Ionicons name={CARD_ICONS.expense} size={17} color={TS} />
             <Text style={bcard.actionLabel}>Expense</Text>
           </TouchableOpacity>
-
-          {/* Crew */}
-          <TouchableOpacity
-            style={bcard.actionBtn}
-            activeOpacity={0.75}
-            onPress={() => router.push({
-              pathname: '/crew',
-              params: { boatId: boat.id, boatName: boat.name },
-            } as any)}
-          >
+          <TouchableOpacity style={bcard.actionBtn} activeOpacity={0.75}
+            onPress={() => router.push({ pathname: '/crew', params: { boatId: boat.id, boatName: boat.name } } as any)}>
             <Ionicons name={CARD_ICONS.crew} size={17} color={TS} />
             <Text style={bcard.actionLabel}>Crew</Text>
           </TouchableOpacity>
-
-          {/* Details → /boat-detail */}
-          <TouchableOpacity
-            style={[bcard.detailBtn, { backgroundColor: accent + '18', borderColor: accent + '50' }]}
-            activeOpacity={0.8}
-            onPress={() => router.push('/ledger' as any)}
-          >
+          <TouchableOpacity style={[bcard.detailBtn, { backgroundColor: accent + '18', borderColor: accent + '50' }]}
+            activeOpacity={0.8} onPress={() => router.push('/ledger' as any)}>
             <Ionicons name={CARD_ICONS.details} size={17} color={accent} />
             <Text style={[bcard.detailText, { color: accent }]}>Details</Text>
           </TouchableOpacity>
-
         </View>
-
-      </View>{/* closes bcard.inner */}
+      </View>
     </View>
   )
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// COMPANY OWNER BODY
+// COMPANY OWNER BODY — UPDATED: Bill Template action added
 // ═══════════════════════════════════════════════════════════════════════════════
 function CompanyOwnerBody({ entity }: { entity: Entity | null }) {
   const accent = entity?.accent ?? GREEN
@@ -463,11 +333,27 @@ function CompanyOwnerBody({ entity }: { entity: Entity | null }) {
     <>
       <HomeHeader subtitle="Company Owner · Dango" accent={accent} />
       <CompanyStatsCard accent={accent} />
+      {/* ── UPDATED: added Bill Template action ── */}
       <QuickActionsGrid accent={accent} actions={[
-        { icon: 'scale-outline',    label: 'New Tali',    onPress: () => router.push('/tali' as any) },
-        { icon: 'pricetag-outline', label: 'Fill Price',  onPress: () => {} },
-        { icon: 'wallet-outline',   label: 'Add Expense', onPress: () => {} },
-        { icon: 'send-outline',     label: 'Send Bill',   onPress: () => {} },
+        // { icon: 'scale-outline',    label: 'New Tali',       onPress: () => router.push('/tali' as any) },
+        { icon: 'scale-outline', label: 'New Tali', onPress: () => router.push({
+    pathname: '/tali-fish-select',
+    params: {
+      companyId:   (entity?.companyId && entity.companyId !== '') ? entity.companyId : 'default',
+      companyName: entity?.companyName ?? '',
+    },
+  } as any)
+},
+        { icon: 'pricetag-outline', label: 'Fill Price',     onPress: () => {} },
+        { icon: 'wallet-outline',   label: 'Add Expense',    onPress: () => {} },
+        { icon: 'receipt-outline',  label: 'Bill Template',  onPress: () => router.push({
+            pathname: '/tali-template',
+            params: {
+              companyId:   (entity?.companyId && entity.companyId !== '') ? entity.companyId : 'default',
+              companyName: entity?.companyName ?? '',
+            },
+          } as any)
+        },
       ]} />
       {isNew && (
         <OnboardingPrompt
@@ -514,7 +400,6 @@ function ManagerBody({ entity, managerType }: { entity: Entity | null; managerTy
         {entity?.ownerName && <Text style={mb.owner}>Owner: {entity.ownerName}</Text>}
         <Text style={mb.note}>Your access is set by the owner</Text>
       </View>
-
       {isPending ? (
         <View style={mb.waitBox}>
           <Text style={mb.waitEmoji}>⏳</Text>
@@ -540,19 +425,19 @@ function ManagerBody({ entity, managerType }: { entity: Entity | null; managerTy
 }
 
 const mb = StyleSheet.create({
-  card:     { margin: 16, padding: 18, backgroundColor: SURF, borderRadius: 16, borderWidth: 1, gap: 6 },
-  badge:    { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginBottom: 4 },
-  badgeTxt: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
-  name:     { fontSize: 20, fontWeight: '800', color: TP },
-  owner:    { fontSize: 13, color: TS },
-  note:     { fontSize: 12, color: TM, marginTop: 4, fontStyle: 'italic' },
-  permRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginHorizontal: 16, marginBottom: 8 },
-  permChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
-  permTxt:  { fontSize: 10, fontWeight: '600' },
-  waitBox:  { margin: 24, padding: 24, backgroundColor: SURF, borderRadius: 16, alignItems: 'center', gap: 10 },
-  waitEmoji:{ fontSize: 40 },
-  waitTitle:{ fontSize: 17, fontWeight: '800', color: TP },
-  waitSub:  { fontSize: 13, color: TS, textAlign: 'center', lineHeight: 19 },
+  card:      { margin: 16, padding: 18, backgroundColor: SURF, borderRadius: 16, borderWidth: 1, gap: 6 },
+  badge:     { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginBottom: 4 },
+  badgeTxt:  { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  name:      { fontSize: 20, fontWeight: '800', color: TP },
+  owner:     { fontSize: 13, color: TS },
+  note:      { fontSize: 12, color: TM, marginTop: 4, fontStyle: 'italic' },
+  permRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginHorizontal: 16, marginBottom: 8 },
+  permChip:  { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+  permTxt:   { fontSize: 10, fontWeight: '600' },
+  waitBox:   { margin: 24, padding: 24, backgroundColor: SURF, borderRadius: 16, alignItems: 'center', gap: 10 },
+  waitEmoji: { fontSize: 40 },
+  waitTitle: { fontSize: 17, fontWeight: '800', color: TP },
+  waitSub:   { fontSize: 13, color: TS, textAlign: 'center', lineHeight: 19 },
 })
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -570,12 +455,7 @@ function ManagerOnlyBody({ primary, secondary }: { primary: Entity | null; secon
         </View>
       )
     }
-    return (
-      <ManagerBody
-        entity={primary}
-        managerType={primary.type === 'MANAGER_BOAT' ? 'boat' : 'company'}
-      />
-    )
+    return <ManagerBody entity={primary} managerType={primary.type === 'MANAGER_BOAT' ? 'boat' : 'company'} />
   }
 
   return (
@@ -613,18 +493,14 @@ function ManagerOnlyBody({ primary, secondary }: { primary: Entity | null; secon
 function HomeHeader({ subtitle, accent }: { subtitle: string; accent: string }) {
   const { user } = useAuthStore()
   const firstName = user?.name?.split(' ')[0] ?? 'there'
-
   return (
     <View style={[hh.wrap, { borderBottomColor: accent + '20' }]}>
       <View style={hh.left}>
         <Text style={hh.sub}>{subtitle}</Text>
         <Text style={hh.title} numberOfLines={1}>Hi, {firstName} 👋</Text>
       </View>
-      <TouchableOpacity
-        style={[hh.icon, { backgroundColor: accent + '18' }]}
-        activeOpacity={0.8}
-        onPress={() => router.push('/profile' as any)}
-      >
+      <TouchableOpacity style={[hh.icon, { backgroundColor: accent + '18' }]} activeOpacity={0.8}
+        onPress={() => router.push('/profile' as any)}>
         <Ionicons name="person-outline" size={20} color={TP} />
       </TouchableOpacity>
     </View>
@@ -638,47 +514,6 @@ const hh = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '800', color: TP, letterSpacing: -0.4 },
   icon:  { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
 })
-
-function BoatStatsCard({ accent }: { accent: string }) {
-  return (
-    <View style={[sc.card, { backgroundColor: accent }]}>
-      <View style={sc.left}>
-        <View style={sc.leftTop}>
-          <Text style={sc.leftLabel}>Total profit this year</Text>
-          <Text style={sc.leftBig}>₹4,20,000</Text>
-          <Text style={sc.leftGrowth}>+13%</Text>
-        </View>
-        <View style={sc.divider} />
-        <View style={sc.leftBot}>
-          <Text style={sc.leftLabel}>Total catch this year</Text>
-          <Text style={sc.leftBig}>4,20,000 kg</Text>
-          <Text style={sc.leftGrowth}>+8%</Text>
-        </View>
-      </View>
-      <View style={sc.right}>
-        <View style={sc.rightRow}>
-          <Text style={sc.rightLabel}>Total Boats</Text>
-          <Text style={sc.rightVal}>5</Text>
-        </View>
-        <View style={sc.rightDivider} />
-        <View style={sc.rightRow}>
-          <Text style={sc.rightLabel}>Season Advance</Text>
-          <Text style={sc.rightVal}>7,20,000</Text>
-        </View>
-        <View style={sc.rightDivider} />
-        <View style={sc.rightRow}>
-          <Text style={sc.rightLabel}>Maintenance</Text>
-          <Text style={sc.rightVal}>1,50,000</Text>
-        </View>
-        <View style={sc.rightDivider} />
-        <View style={sc.rightRow}>
-          <Text style={sc.rightLabel}>Diesel</Text>
-          <Text style={[sc.rightVal, sc.rightValHighlight]}>1,00,000 ltr</Text>
-        </View>
-      </View>
-    </View>
-  )
-}
 
 function CompanyStatsCard({ accent }: { accent: string }) {
   return (
@@ -721,26 +556,62 @@ function CompanyStatsCard({ accent }: { accent: string }) {
   )
 }
 
+function BoatStatsCard({ accent }: { accent: string }) {
+  return (
+    <View style={[sc.card, { backgroundColor: accent }]}>
+      <View style={sc.left}>
+        <View style={sc.leftTop}>
+          <Text style={sc.leftLabel}>Total profit this year</Text>
+          <Text style={sc.leftBig}>₹4,20,000</Text>
+          <Text style={sc.leftGrowth}>+13%</Text>
+        </View>
+        <View style={sc.divider} />
+        <View style={sc.leftBot}>
+          <Text style={sc.leftLabel}>Total catch this year</Text>
+          <Text style={sc.leftBig}>4,20,000 kg</Text>
+          <Text style={sc.leftGrowth}>+8%</Text>
+        </View>
+      </View>
+      <View style={sc.right}>
+        <View style={sc.rightRow}>
+          <Text style={sc.rightLabel}>Total Boats</Text>
+          <Text style={sc.rightVal}>5</Text>
+        </View>
+        <View style={sc.rightDivider} />
+        <View style={sc.rightRow}>
+          <Text style={sc.rightLabel}>Season Advance</Text>
+          <Text style={sc.rightVal}>7,20,000</Text>
+        </View>
+        <View style={sc.rightDivider} />
+        <View style={sc.rightRow}>
+          <Text style={sc.rightLabel}>Maintenance</Text>
+          <Text style={sc.rightVal}>1,50,000</Text>
+        </View>
+        <View style={sc.rightDivider} />
+        <View style={sc.rightRow}>
+          <Text style={sc.rightLabel}>Diesel</Text>
+          <Text style={[sc.rightVal, sc.rightValHighlight]}>1,00,000 ltr</Text>
+        </View>
+      </View>
+    </View>
+  )
+}
+
 const sc = StyleSheet.create({
-  card: {
-    marginHorizontal: 16, marginTop: 14,
-    borderRadius: 18, padding: 18,
-    flexDirection: 'row', gap: 16,
-    minHeight: 160,
-  },
-  left:             { flex: 1.1, justifyContent: 'space-between' },
-  leftTop:          { flex: 1, justifyContent: 'center', gap: 2 },
-  leftBot:          { flex: 1, justifyContent: 'center', gap: 2 },
-  leftLabel:        { fontSize: 11, color: 'rgba(255,255,255,0.65)', fontWeight: '500' },
-  leftBig:          { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.5, lineHeight: 26 },
-  leftGrowth:       { fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
-  divider:          { height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginVertical: 8 },
-  right:            { flex: 0.9, justifyContent: 'space-between' },
-  rightRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flex: 1 },
-  rightDivider:     { height: 1, backgroundColor: 'rgba(255,255,255,0.15)' },
-  rightLabel:       { fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: '500', flex: 1 },
-  rightVal:         { fontSize: 13, color: '#fff', fontWeight: '700', textAlign: 'right' },
-  rightValHighlight:{ color: '#FFD166', fontWeight: '800' },
+  card:              { marginHorizontal: 16, marginTop: 14, borderRadius: 18, padding: 18, flexDirection: 'row', gap: 16, minHeight: 160 },
+  left:              { flex: 1.1, justifyContent: 'space-between' },
+  leftTop:           { flex: 1, justifyContent: 'center', gap: 2 },
+  leftBot:           { flex: 1, justifyContent: 'center', gap: 2 },
+  leftLabel:         { fontSize: 11, color: 'rgba(255,255,255,0.65)', fontWeight: '500' },
+  leftBig:           { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.5, lineHeight: 26 },
+  leftGrowth:        { fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
+  divider:           { height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginVertical: 8 },
+  right:             { flex: 0.9, justifyContent: 'space-between' },
+  rightRow:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flex: 1 },
+  rightDivider:      { height: 1, backgroundColor: 'rgba(255,255,255,0.15)' },
+  rightLabel:        { fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: '500', flex: 1 },
+  rightVal:          { fontSize: 13, color: '#fff', fontWeight: '700', textAlign: 'right' },
+  rightValHighlight: { color: '#FFD166', fontWeight: '800' },
 })
 
 function QuickActionsGrid({ actions, accent, singleRow = false }: {
@@ -788,8 +659,7 @@ function OnboardingPrompt({ emoji, title, subtitle, accent, onPress }: {
   return (
     <TouchableOpacity
       style={[op.wrap, { borderColor: accent + '40', backgroundColor: accent + '08' }]}
-      onPress={onPress}
-      activeOpacity={0.8}
+      onPress={onPress} activeOpacity={0.8}
     >
       <Text style={{ fontSize: 28 }}>{emoji}</Text>
       <View style={{ flex: 1 }}>
@@ -815,29 +685,19 @@ const bl = StyleSheet.create({
   list:   { gap: 12 },
 })
 
-// ─── Boat card styles ─────────────────────────────────────────────────────────
 const bcard = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    backgroundColor: SURF,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    overflow: 'hidden',
-  },
-  accentBar: { width: 4 },
-  inner:     { flex: 1, padding: 14, gap: 10 },
-
-  topRow:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  iconWrap:  { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(8,145,178,0.15)', alignItems: 'center', justifyContent: 'center' },
-  icon:      { fontSize: 26 },
-  info:      { flex: 1, gap: 1 },
-  name:      { fontSize: 17, fontWeight: '800', color: TP, letterSpacing: -0.3 },
-  gujName:   { fontSize: 15, fontWeight: '700', color: TP, opacity: 0.85 },
-  badge:     { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
-  badgeDot:  { width: 6, height: 6, borderRadius: 3 },
-  badgeText: { fontSize: 12, fontWeight: '800' },
-
+  card:          { flexDirection: 'row', backgroundColor: SURF, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' },
+  accentBar:     { width: 4 },
+  inner:         { flex: 1, padding: 14, gap: 10 },
+  topRow:        { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  iconWrap:      { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(8,145,178,0.15)', alignItems: 'center', justifyContent: 'center' },
+  icon:          { fontSize: 26 },
+  info:          { flex: 1, gap: 1 },
+  name:          { fontSize: 17, fontWeight: '800', color: TP, letterSpacing: -0.3 },
+  gujName:       { fontSize: 15, fontWeight: '700', color: TP, opacity: 0.85 },
+  badge:         { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
+  badgeDot:      { width: 6, height: 6, borderRadius: 3 },
+  badgeText:     { fontSize: 12, fontWeight: '800' },
   metaInfoRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   metaInfoLeft:  { gap: 3 },
   reg:           { fontSize: 12, color: TEAL, fontWeight: '700', fontFamily: 'monospace' },
@@ -845,33 +705,17 @@ const bcard = StyleSheet.create({
   owner:         { fontSize: 12, color: TS, fontWeight: '600' },
   locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#1E2D3D' },
   locationText:  { fontSize: 13, fontWeight: '800', color: TP, letterSpacing: 0.2 },
-
-  lastTripRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  metaDate:    { fontSize: 11, color: TM, fontWeight: '500' },
-
-  actionsRow: { flexDirection: 'row', gap: 8 },
-  actionBtn: {
-    flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    gap: 5, backgroundColor: ELEV, borderRadius: 10, paddingVertical: 10,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
-  },
-  actionLabel:  { fontSize: 12, fontWeight: '700', color: TS },
-  alertDot: {
-    position: 'absolute', top: -4, right: -6,
-    minWidth: 14, height: 14, borderRadius: 7,
-    backgroundColor: AMBER,
-    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2,
-  },
-  alertDotText: { fontSize: 9, fontWeight: '800', color: '#000' },
-  detailBtn: {
-    flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    gap: 5, paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 10, borderWidth: 1,
-  },
-  detailText: { fontSize: 12, fontWeight: '800' },
+  lastTripRow:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  metaDate:      { fontSize: 11, color: TM, fontWeight: '500' },
+  actionsRow:    { flexDirection: 'row', gap: 8 },
+  actionBtn:     { flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: ELEV, borderRadius: 10, paddingVertical: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  actionLabel:   { fontSize: 12, fontWeight: '700', color: TS },
+  alertDot:      { position: 'absolute', top: -4, right: -6, minWidth: 14, height: 14, borderRadius: 7, backgroundColor: AMBER, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
+  alertDotText:  { fontSize: 9, fontWeight: '800', color: '#000' },
+  detailBtn:     { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
+  detailText:    { fontSize: 12, fontWeight: '800' },
 })
 
-// ─── Base styles ──────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   safe:          { flex: 1, backgroundColor: BG },
   scroll:        { flex: 1 },

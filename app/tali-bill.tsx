@@ -1,659 +1,1066 @@
 /**
- * app/tali-bill.tsx — Tali Bill Template Screen
+ * app/tali-bill.tsx — Tali Bill (Image capture + WhatsApp + Print)
  *
- * Shown after boat owner ends a tali session.
- * Also shown when viewing any stored tali from the list.
+ * Sharing strategy:
+ *   Image capture → react-native-view-shot captures bill view as PNG (~100ms)
+ *   WhatsApp      → opens WhatsApp directly to boat owner's number, then
+ *                   share sheet triggers so image can be attached and sent
+ *   Print         → expo-print.printAsync({ uri: imageUri }) native dialog
  *
- * BOAT OWNER view:
- *   - Sees fish + kg in bill template format (based on image 4 / image 5 reference)
- *   - Price column exists but is EMPTY / greyed out (read-only)
- *   - Status badge: PENDING PRICE
- *   - Once company fills price → sees price with YELLOW highlight if changed
- *   - Can CONFIRM the tali → locks it forever
+ * WhatsApp number source:
+ *   Comes from RegisteredBoat.ownerPhone → passed as param → stored in SavedTali
+ *   If missing → one-time phone prompt → saved permanently for this tali
  *
- * COMPANY OWNER view:
- *   - Same template but price fields are EDITABLE inputs
- *   - Can submit price → pushes to boat owner
- *   - Can update price before boat owner confirms → shows as change
+ * Install:
+ *   npx expo install react-native-view-shot expo-sharing expo-file-system
  *
- * Status flow:
- *   PENDING_PRICE → PRICED → CONFIRMED
- *
- * Params:
- *   taliId        — existing stored tali id (for view mode)
- *   role          — 'boat_owner' | 'company_owner'
- *   boatName
- *   companyName
- *   (from session if coming fresh after end session)
+ * Two open modes:
+ *   A) taliId param  → load from taliStorage (opened from tali-list)
+ *   B) no taliId     → fresh session just ended (reads from useTaliSession)
  */
 
-import { Ionicons } from '@expo/vector-icons'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Print from 'expo-print'
 import { router, useLocalSearchParams } from 'expo-router'
-import React, { useState } from 'react'
+import * as Sharing from 'expo-sharing'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import ViewShot from 'react-native-view-shot'
 import { FISH_CATEGORIES } from '../constants/fishTypes'
 import { useTaliSession } from '../hooks/useTaliSession'
+import { useEntityStore } from '../store/entityStore'
+import {
+  confirmTali,
+  loadTali,
+  SavedFishEntry,
+  SavedTali,
+  saveTali,
+  TaliStatus,
+  updateTaliOwnerPhone,
+  updateTaliPrices,
+} from '../utils/taliStorage'
+import {
+  getNextBillNumber,
+  saveTemplate,
+  TaliTemplate,
+  TEMPLATE_KEY,
+} from './tali-template'
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
-const BG    = '#080F1A'
-const SURF  = '#0D1B2E'
-const ELEV  = '#132640'
-const BOR   = 'rgba(255,255,255,0.06)'
-const TP    = '#F0F4F8'
-const TS    = '#8BA3BC'
-const TM    = '#3D5A73'
-const TEAL  = '#0891b2'
-const GREEN = '#059669'
-const AMBER = '#f59e0b'
-const PAPER = '#FDFAF4'  // receipt paper white
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-type TaliStatus = 'PENDING_PRICE' | 'PRICED' | 'CONFIRMED'
-
-interface FishRow {
-  fishId: string
-  fishName: string
-  fishNameGujarati: string
-  totalKg: number
-  pricePerKg: number | null      // null = not filled yet
-  previousPricePerKg: number | null  // set when company changes price after initial fill
-  totalAmount: number | null
-}
-
-interface StoredTali {
-  id: string
-  boatName: string
-  companyName: string
-  date: string
-  billNo: string
-  status: TaliStatus
-  fishRows: FishRow[]
-  sellingChargeRate: number
-  subtotal: number | null
-  sellingCharge: number | null
-  finalTotal: number | null
-}
-
-// ─── Mock stored tali (replace with API: GET /api/v1/tali/:id) ────────────────
-function buildMockTali(
-  boatName: string,
-  companyName: string,
-  fishRows: FishRow[],
-  status: TaliStatus = 'PENDING_PRICE',
-): StoredTali {
-  const now    = new Date()
-  const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-  const billNo  = `BILL-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${Math.floor(Math.random()*9000)+1000}`
-
-  const filled  = fishRows.filter(r => r.pricePerKg !== null)
-  const subtotal = filled.length === fishRows.length
-    ? fishRows.reduce((s, r) => s + (r.totalAmount ?? 0), 0)
-    : null
-  const rate    = 0.06
-  const sc      = subtotal !== null ? Math.round(subtotal * rate) : null
-  const final   = subtotal !== null && sc !== null ? subtotal - sc : null
-
-  return { id: billNo, boatName, companyName, date: dateStr, billNo, status, fishRows, sellingChargeRate: rate, subtotal, sellingCharge: sc, finalTotal: final }
-}
+const BG     = '#0F1923'
+const SURF   = '#162030'
+const ELEV   = '#1E2D3E'
+const BOR    = 'rgba(255,255,255,0.07)'
+const TP     = '#F0F4F8'
+const TS     = '#8BA3BC'
+const TM     = '#3D5A73'
+const TEAL   = '#0891b2'
+const GREEN  = '#059669'
+const AMBER  = '#f59e0b'
+const PAPER  = '#FEFDF8'
+const WA_GRN = '#25D366'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const fmtNum = (n: number) => n.toLocaleString('en-IN')
-const fmtKg  = (n: number) => n.toFixed(1)
-
 function getFishMeta(fishId: string): { name: string; nameGujarati: string } {
-  const p = FISH_CATEGORIES.find(f => f.id === fishId)
-  if (p) return { name: p.name, nameGujarati: p.nameGujarati }
-  const name = fishId.startsWith('custom_') ? fishId.replace('custom_', '').replace(/_/g,' ') : fishId
+  const preset = FISH_CATEGORIES.find(f => f.id === fishId)
+  if (preset) return { name: preset.name, nameGujarati: preset.nameGujarati }
+  const name = fishId.startsWith('custom_')
+    ? fishId.replace('custom_', '').replace(/_/g, ' ')
+    : fishId
   return { name, nameGujarati: name }
 }
 
-// ─── Status badge config ──────────────────────────────────────────────────────
-const STATUS_CFG = {
-  PENDING_PRICE: { label: 'Pending Price',  color: AMBER,  bg: 'rgba(245,158,11,0.15)'  },
-  PRICED:        { label: 'Price Filled',   color: TEAL,   bg: 'rgba(8,145,178,0.15)'   },
-  CONFIRMED:     { label: 'Confirmed',      color: GREEN,  bg: 'rgba(5,150,105,0.15)'   },
+function toKg(kg: number) {
+  const k = Math.floor(kg)
+  const g = Math.round((kg - k) * 1000)
+  return { kilo: String(k), gram: g > 0 ? String(g) : '-' }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// MAIN SCREEN
-// ═══════════════════════════════════════════════════════════════════════════════
+function fmtDate(isoStr: string) {
+  return new Date(isoStr).toLocaleDateString('en-IN', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+  })
+}
+
+function useCanFillPrice(): boolean {
+  const { activeEntity } = useEntityStore()
+  if (!activeEntity) return false
+  if (activeEntity.role === 'owner') return true
+  return activeEntity.permissions.includes('FILL_FISH_PRICE')
+}
+
+// ─── Physical Bill View ───────────────────────────────────────────────────────
+// This is the view that gets captured as an image.
+// Keep it self-contained with no external state dependencies.
+function PhysicalBill({
+  template,
+  tali,
+}: {
+  template: TaliTemplate
+  tali: SavedTali
+}) {
+  const allPriced  = tali.fishEntries.every(f => f.pricePerKg !== null)
+  const grandTotal = tali.grandTotal
+
+  return (
+    <View style={bill.paper}>
+
+      {/* Blessings */}
+      <View style={bill.blessingsRow}>
+        <Text style={bill.blessingTxt}>{template.blessing1}</Text>
+        <Text style={bill.blessingTxt}>{template.blessing2}</Text>
+      </View>
+
+      {/* Company Header */}
+      <View style={bill.companyHeader}>
+        {template.showLogo && (
+          <View style={bill.logoBox}>
+            <Text style={bill.logoTxt}>LOGO</Text>
+          </View>
+        )}
+        <View style={bill.companyCenter}>
+          {template.phone          && <Text style={bill.companyPhone}   >Mo. {template.phone}</Text>}
+          <Text style={bill.companyName}>{template.companyName}</Text>
+          {template.companyNameGujarati && <Text style={bill.companyGuj}>{template.companyNameGujarati}</Text>}
+          {template.tagline        && <Text style={bill.companyTagline} >{template.tagline}</Text>}
+          {template.location       && <Text style={bill.companyLocation}>{template.location}</Text>}
+        </View>
+      </View>
+
+      {/* Bill meta */}
+      <View style={bill.metaRow}>
+        <Text style={bill.metaTxt}>No. {tali.billNo}</Text>
+        <Text style={bill.metaTxt}>Date: {fmtDate(tali.date)}</Text>
+      </View>
+
+      {/* Boat info */}
+      <View style={bill.infoRow}>
+        <Text style={bill.infoTxt}>નામ: {tali.ownerName || tali.boatName}</Text>
+      </View>
+      <View style={[bill.infoRow, bill.infoRowBorder]}>
+        <Text style={bill.infoTxt}>બોટ નામ: {tali.boatName}</Text>
+        {tali.boatReg ? <Text style={bill.infoTxt}>Reg: {tali.boatReg}</Text> : null}
+      </View>
+
+      {/* Table Header */}
+      <View style={bill.tableHeader}>
+        <Text style={[bill.th, bill.cFish]}>માલ ની જાત</Text>
+        <Text style={[bill.th, bill.cNang]}>નંગ</Text>
+        <Text style={[bill.th, bill.cWeight]}>વજન{'\n'}કિ.  ગ્રા.</Text>
+        <Text style={[bill.th, bill.cPrice]}>ભાવ{'\n'}રૂ.</Text>
+        <Text style={[bill.th, bill.cAmount]}>રકમ{'\n'}રૂ.</Text>
+      </View>
+
+      {/* Fish rows */}
+      {tali.fishEntries.map((fe, idx) => {
+        const { kilo, gram } = toKg(fe.totalKg)
+        return (
+          <View key={fe.fishId} style={[bill.tableRow, idx % 2 === 0 && bill.tableRowAlt]}>
+            <View style={bill.cFish}>
+              <Text style={bill.tdBold}>{fe.fishNameGujarati}</Text>
+              <Text style={bill.tdSub}>{fe.fishName}</Text>
+            </View>
+            <Text style={[bill.td, bill.cNang]}>{fe.counts}</Text>
+            <Text style={[bill.td, bill.cWeight]}>{kilo}  {gram}</Text>
+            <Text style={[bill.td, bill.cPrice]}>
+              {fe.pricePerKg !== null ? `${fe.pricePerKg}` : '-'}
+            </Text>
+            <Text style={[bill.td, bill.cAmount]}>
+              {fe.totalAmount !== null
+                ? `${Math.round(fe.totalAmount).toLocaleString('en-IN')}`
+                : '-'}
+            </Text>
+          </View>
+        )
+      })}
+
+      {/* Filler rows */}
+      {Array.from({ length: Math.max(0, 5 - tali.fishEntries.length) }).map((_, i) => (
+        <View key={`filler-${i}`} style={[bill.tableRow, { minHeight: 26 }]}>
+          {[bill.cFish, bill.cNang, bill.cWeight, bill.cPrice, bill.cAmount].map((col, j) => (
+            <Text key={j} style={[bill.td, col]}> </Text>
+          ))}
+        </View>
+      ))}
+
+      {/* Total row */}
+      <View style={bill.totalRow}>
+        <Text style={[bill.thBold, bill.cFish]}>રોટલ</Text>
+        <Text style={[bill.thBold, bill.cNang]}> </Text>
+        <Text style={[bill.thBold, bill.cWeight]}> </Text>
+        <Text style={[bill.thBold, bill.cPrice]}> </Text>
+        <Text style={[bill.thBold, bill.cAmount]}>
+          {grandTotal !== null ? `${Math.round(grandTotal).toLocaleString('en-IN')}` : '-'}
+        </Text>
+      </View>
+
+      {!allPriced && (
+        <View style={bill.pendingRow}>
+          <Text style={bill.pendingTxt}>⏳ ભાવ ભર્યા પછી રોટલ દેખાશે</Text>
+        </View>
+      )}
+
+      {/* Signature */}
+      <View style={bill.signRow}>
+        <View style={bill.signLine} />
+        <Text style={bill.signLabel}>સહી / SIGNATURE</Text>
+        <Text style={bill.signCompany}>{template.companyName}</Text>
+        <Text style={bill.signPowered}>Fishness · Knowmadic</Text>
+      </View>
+
+    </View>
+  )
+}
+
+const bill = StyleSheet.create({
+  paper: {
+    backgroundColor: PAPER,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#b0a090',
+    overflow: 'hidden',
+  },
+  blessingsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#f5f0e6',
+    borderBottomWidth: 1,
+    borderBottomColor: '#d0c8b8',
+  },
+  blessingTxt: { fontSize: 10, color: '#5a4a2a', fontStyle: 'italic', maxWidth: '48%' },
+  companyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#d0c8b8',
+    gap: 8,
+    backgroundColor: PAPER,
+  },
+  logoBox: {
+    width: 52, height: 52, borderWidth: 1, borderColor: '#bbb',
+    borderRadius: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: '#eee',
+  },
+  logoTxt: { fontSize: 8, color: '#999', fontWeight: '700' },
+  companyCenter: { flex: 1, alignItems: 'center', gap: 1 },
+  companyPhone:   { fontSize: 9,  color: '#555', alignSelf: 'flex-end' },
+  companyName:    { fontSize: 18, fontWeight: '900', color: '#1a1a1a', textAlign: 'center', letterSpacing: 0.3 },
+  companyGuj:     { fontSize: 11, color: '#333', textAlign: 'center' },
+  companyTagline: { fontSize: 9,  color: '#555', textAlign: 'center' },
+  companyLocation:{ fontSize: 9,  color: '#555', textAlign: 'center' },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#f0ebe0',
+    borderBottomWidth: 1,
+    borderBottomColor: '#d0c8b8',
+  },
+  metaTxt: { fontSize: 10, color: '#333', fontWeight: '700' },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#d0c8b8',
+  },
+  infoRowBorder: { borderBottomWidth: 1.5, borderBottomColor: '#b8a888' },
+  infoTxt: { fontSize: 10, color: '#222' },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#e0d8c8',
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#b8a888',
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#d0c8b8',
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    minHeight: 28,
+  },
+  tableRowAlt:  { backgroundColor: '#faf6ee' },
+  totalRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1.5,
+    borderBottomWidth: 1.5,
+    borderColor: '#b8a888',
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    backgroundColor: '#ede5d0',
+  },
+  pendingRow: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#fff8e8',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#e0d8c8',
+  },
+  pendingTxt: { fontSize: 10, color: '#c08000', textAlign: 'center' },
+  cFish:   { flex: 2.5 },
+  cNang:   { flex: 0.8, textAlign: 'center' },
+  cWeight: { flex: 1.4, textAlign: 'center' },
+  cPrice:  { flex: 1.2, textAlign: 'center' },
+  cAmount: { flex: 1.4, textAlign: 'right' },
+  th:     { fontSize: 10, fontWeight: '800', color: '#222' },
+  thBold: { fontSize: 11, fontWeight: '900', color: '#1a1a1a' },
+  td:     { fontSize: 11, color: '#222' },
+  tdBold: { fontSize: 11, fontWeight: '700', color: '#1a1a1a' },
+  tdSub:  { fontSize: 9,  color: '#777' },
+  signRow:    { padding: 14, alignItems: 'center', gap: 4, backgroundColor: PAPER },
+  signLine:   { width: 140, height: 1, backgroundColor: '#999', marginBottom: 4 },
+  signLabel:  { fontSize: 9, color: '#666', textTransform: 'uppercase', letterSpacing: 0.8 },
+  signCompany:{ fontSize: 12, fontWeight: '800', color: '#1a1a1a' },
+  signPowered:{ fontSize: 8,  color: '#aaa', marginTop: 2 },
+})
+
+// ─── Price Numpad ─────────────────────────────────────────────────────────────
+function PriceNumpad({ visible, fish, onConfirm, onClose }: {
+  visible: boolean
+  fish: SavedFishEntry | null
+  onConfirm: (fishId: string, price: number) => void
+  onClose: () => void
+}) {
+  const [input, setInput] = useState('0')
+
+  useEffect(() => {
+    if (visible) setInput(fish?.pricePerKg ? String(fish.pricePerKg) : '0')
+  }, [visible, fish])
+
+  const handleKey = (key: string) => {
+    if (key === '⌫') { setInput(p => p.length > 1 ? p.slice(0, -1) : '0'); return }
+    if (input.length >= 6) return
+    setInput(p => p === '0' ? key : p + key)
+  }
+
+  const handleConfirm = () => {
+    const val = parseFloat(input)
+    if (!val || val <= 0) return
+    if (fish) onConfirm(fish.fishId, val)
+    onClose()
+  }
+
+  const keys = [['1','2','3'],['4','5','6'],['7','8','9'],['⌫','0','✓']]
+  if (!fish) return null
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={np.overlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={np.sheet}>
+          <View style={np.handle} />
+          <View style={np.fishInfo}>
+            <Text style={np.fishGuj}>{fish.fishNameGujarati}</Text>
+            <Text style={np.fishEn}>{fish.fishName}</Text>
+            <Text style={np.fishKg}>{fish.totalKg.toFixed(1)} kg · {fish.counts} નંગ</Text>
+          </View>
+          <Text style={np.label}>ભાવ / Price per kg</Text>
+          <View style={np.display}>
+            <Text style={np.dRupee}>₹</Text>
+            <Text style={np.dNum}>{input}</Text>
+            <Text style={np.dUnit}>/kg</Text>
+          </View>
+          {parseFloat(input) > 0 && (
+            <Text style={np.preview}>
+              રકમ: ₹{Math.round(fish.totalKg * parseFloat(input)).toLocaleString('en-IN')}
+            </Text>
+          )}
+          <View style={np.numpad}>
+            {keys.map((row, ri) => (
+              <View key={ri} style={np.row}>
+                {row.map(key => {
+                  const isOk   = key === '✓'
+                  const isBack = key === '⌫'
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      style={[np.key, isOk && np.keyOk, isBack && np.keyBack]}
+                      onPress={() => isOk ? handleConfirm() : handleKey(key)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[np.keyTxt, isOk && np.keyTxtOk]}>{key}</Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  )
+}
+
+const np = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
+  sheet:   { backgroundColor: SURF, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36, gap: 12 },
+  handle:  { width: 40, height: 4, backgroundColor: BOR, borderRadius: 2, alignSelf: 'center' },
+  fishInfo:{ alignItems: 'center', gap: 2 },
+  fishGuj: { fontSize: 20, fontWeight: '800', color: TP },
+  fishEn:  { fontSize: 13, color: TS },
+  fishKg:  { fontSize: 13, color: TEAL, fontWeight: '600', marginTop: 2 },
+  label:   { fontSize: 11, color: TS, textAlign: 'center', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  display: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', backgroundColor: ELEV, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 20, gap: 6 },
+  dRupee:  { fontSize: 22, color: TS, fontWeight: '700' },
+  dNum:    { fontSize: 48, fontWeight: '900', color: TP },
+  dUnit:   { fontSize: 15, color: TS },
+  preview: { fontSize: 14, color: GREEN, fontWeight: '700', textAlign: 'center' },
+  numpad:  { gap: 8 },
+  row:     { flexDirection: 'row', gap: 8 },
+  key:     { flex: 1, backgroundColor: ELEV, borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', minHeight: 56 },
+  keyOk:   { backgroundColor: TEAL },
+  keyBack: { backgroundColor: '#1a2a3a' },
+  keyTxt:  { fontSize: 22, fontWeight: '700', color: TP },
+  keyTxtOk:{ color: '#fff', fontSize: 18, fontWeight: '800' },
+})
+
+// ─── Phone input modal ────────────────────────────────────────────────────────
+function PhoneModal({ visible, current, onSave, onClose }: {
+  visible: boolean; current: string
+  onSave: (phone: string) => void; onClose: () => void
+}) {
+  const [phone, setPhone] = useState(current)
+  useEffect(() => { if (visible) setPhone(current) }, [visible, current])
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={pm.overlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={pm.sheet}>
+          <View style={pm.handle} />
+          <Text style={pm.title}>Boat Owner's Number</Text>
+          <Text style={pm.sub}>WhatsApp number to send this bill</Text>
+          <View style={pm.inputRow}>
+            <Text style={pm.prefix}>🇮🇳 +91</Text>
+            <TextInput
+              style={pm.input}
+              value={phone}
+              onChangeText={v => setPhone(v.replace(/\D/g, '').slice(0, 10))}
+              keyboardType="phone-pad"
+              placeholder="10-digit number"
+              placeholderTextColor={TM}
+              autoFocus
+              maxLength={10}
+            />
+            {phone.length === 10 && <Text style={pm.check}>✓</Text>}
+          </View>
+          <TouchableOpacity
+            style={[pm.btn, phone.length !== 10 && pm.btnOff]}
+            onPress={() => { if (phone.length === 10) { onSave(phone); onClose() } }}
+          >
+            <Text style={pm.btnTxt}>💬 Save & Send on WhatsApp</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  )
+}
+
+const pm = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
+  sheet:   { backgroundColor: SURF, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36, gap: 14 },
+  handle:  { width: 40, height: 4, backgroundColor: BOR, borderRadius: 2, alignSelf: 'center' },
+  title:   { fontSize: 18, fontWeight: '800', color: TP },
+  sub:     { fontSize: 13, color: TS, marginTop: -6 },
+  inputRow:{ flexDirection: 'row', alignItems: 'center', backgroundColor: ELEV, borderRadius: 14, borderWidth: 1, borderColor: BOR, paddingHorizontal: 14, height: 54, gap: 10 },
+  prefix:  { fontSize: 15, color: TS, fontWeight: '600' },
+  input:   { flex: 1, fontSize: 18, fontWeight: '700', color: TP },
+  check:   { fontSize: 16, color: GREEN, fontWeight: '800' },
+  btn:     { backgroundColor: WA_GRN, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  btnOff:  { opacity: 0.4 },
+  btnTxt:  { fontSize: 16, fontWeight: '800', color: '#fff' },
+})
+
+// ─── Status config ────────────────────────────────────────────────────────────
+const STATUS_CFG: Record<TaliStatus, { labelGu: string; color: string }> = {
+  PENDING_PRICE: { labelGu: 'ભાવ ભર્યો નથી', color: AMBER },
+  PRICED:        { labelGu: 'ભાવ ભર્યો',      color: TEAL  },
+  CONFIRMED:     { labelGu: 'કન્ફર્મ',         color: GREEN },
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function TaliBillScreen() {
-  const { session } = useTaliSession()
-  const params = useLocalSearchParams<{
-    role?: string
-    boatName?: string
-    companyName?: string
-    taliId?: string
+  const { session, clearSession } = useTaliSession()
+  const canFill = useCanFillPrice()
+  const params  = useLocalSearchParams<{
+    taliId?:    string
+    companyId?: string
+    boatName?:  string
+    boatReg?:   string
+    ownerName?: string
+    ownerPhone?:string
   }>()
 
-  const role        = (params.role ?? 'boat_owner') as 'boat_owner' | 'company_owner'
-  const isBoatOwner = role === 'boat_owner'
+  // State
+  const [loading,       setLoading]      = useState(true)
+  const [tali,          setTali]         = useState<SavedTali | null>(null)
+  const [template,      setTemplate]     = useState<TaliTemplate | null>(null)
+  const [selectedFish,  setSelectedFish] = useState<SavedFishEntry | null>(null)
+  const [numpadVis,     setNumpadVis]    = useState(false)
+  const [phoneVis,      setPhoneVis]     = useState(false)
+  const [anyFilled,     setAnyFilled]    = useState(false)
+  const [allFilled,     setAllFilled]    = useState(false)
+  const [saving,        setSaving]       = useState(false)
+  const [confirming,    setConfirming]   = useState(false)
+  const [sharing,       setSharing]      = useState(false)
+  const [printing,      setPrinting]     = useState(false)
 
-  // Build initial tali from live session OR mock stored tali
-  const [tali, setTali] = useState<StoredTali>(() => {
-    const boatName    = params.boatName ?? session?.boatName    ?? 'Boat'
-    const companyName = params.companyName ?? session?.companyName ?? 'Company'
+  // ViewShot ref — points to the physical bill view
+  const billRef = useRef<ViewShot>(null)
 
-    const rows: FishRow[] = (session?.fishData ?? [])
-      .filter(fd => fd.totalKg > 0)
-      .map(fd => {
-        const meta = getFishMeta(fd.fishId)
-        return {
-          fishId:              fd.fishId,
-          fishName:            meta.name,
-          fishNameGujarati:    meta.nameGujarati,
-          totalKg:             fd.totalKg,
-          pricePerKg:          null,
-          previousPricePerKg:  null,
-          totalAmount:         null,
+  // Unsaved price changes
+  const pendingRef = useRef<Record<string, number>>({})
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true)
+      try {
+        const companyId = params.companyId ?? 'default'
+
+        // Load template
+        const rawTmpl = await AsyncStorage.getItem(TEMPLATE_KEY(companyId))
+        let tmpl: TaliTemplate | null = null
+        if (rawTmpl) { tmpl = JSON.parse(rawTmpl); setTemplate(tmpl) }
+
+        // Mode A: open existing tali from list
+        if (params.taliId) {
+          const loaded = await loadTali(params.taliId)
+          if (loaded) { setTali(loaded); syncState(loaded) }
+          setLoading(false)
+          return
         }
-      })
 
-    // Demo: if company owner, pre-fill some prices to show the flow
-    if (!isBoatOwner && rows.length > 0) {
-      rows[0].pricePerKg   = 230
-      rows[0].totalAmount  = Math.round(rows[0].totalKg * 230)
+        // Mode B: fresh session just ended
+        if (!session?.fishData?.length) { setLoading(false); return }
+
+        if (!tmpl) {
+          router.replace({
+            pathname: '/tali-template',
+            params: { companyId, companyName: session.companyName ?? '', redirectAfter: 'tali-bill' },
+          } as any)
+          return
+        }
+
+        // Generate bill number
+        const billNo  = getNextBillNumber(tmpl)
+        const updated = { ...tmpl, billCounter: tmpl.billCounter + 1 }
+        await saveTemplate(updated)
+        setTemplate(updated)
+
+        // Save tali
+        const saved = await saveTali({
+          sessionId:       session.sessionId,
+          serverSessionId: session.serverSessionId ?? null,
+          billNo,
+          boatName:        params.boatName   ?? session.boatName   ?? 'બોટ',
+          boatReg:         params.boatReg    ?? '',
+          ownerPhone:      params.ownerPhone ?? '',
+          ownerName:       params.ownerName  ?? '',
+          companyId,
+          companyName:     session.companyName ?? tmpl.companyName,
+          fishData:        session.fishData,
+          getFishMeta,
+        })
+
+        setTali(saved)
+        syncState(saved)
+        clearSession()
+      } catch (e) {
+        console.error('TaliBill init error', e)
+      } finally {
+        setLoading(false)
+      }
     }
+    init()
+  }, [])
 
-    return buildMockTali(boatName, companyName, rows, isBoatOwner ? 'PENDING_PRICE' : 'PRICED')
-  })
+  function syncState(t: SavedTali) {
+    setAnyFilled(t.fishEntries.some(f => f.pricePerKg !== null))
+    setAllFilled(t.fishEntries.length > 0 && t.fishEntries.every(f => f.pricePerKg !== null))
+  }
 
-  // Editable price inputs (company owner only)
-  const [priceInputs, setPriceInputs] = useState<Record<string, string>>(() => {
-    const map: Record<string, string> = {}
-    tali.fishRows.forEach(r => {
-      map[r.fishId] = r.pricePerKg !== null ? String(r.pricePerKg) : ''
-    })
-    return map
-  })
+  // ── Capture bill as image ──────────────────────────────────────────────────
+  // react-native-view-shot writes to a temp URI automatically — use it directly
+  const captureBillImage = async (): Promise<string> => {
+    if (!billRef.current?.capture) throw new Error('ViewShot not ready')
+    // capture() returns a file:// URI already saved to device cache
+    const uri = await billRef.current.capture()
+    return uri
+  }
 
-  // ── Company owner: submit prices ──────────────────────────────────────────
-  function handleSubmitPrices() {
-    const allFilled = tali.fishRows.every(r => {
-      const v = parseFloat(priceInputs[r.fishId])
-      return !isNaN(v) && v > 0
-    })
-    if (!allFilled) {
-      Alert.alert('Missing prices', 'Please fill price for all fish before submitting.')
+  // ── WhatsApp direct send ───────────────────────────────────────────────────
+  //
+  // Flow:
+  //   1. Capture bill as PNG image (~100ms)
+  //   2. Open WhatsApp directly to the boat owner's chat
+  //      whatsapp://send?phone=+91XXXXXXXXXX
+  //   3. Share the image via native share sheet simultaneously
+  //      → user is already in WhatsApp, taps the image to attach and send
+  //
+  // If no phone saved yet → prompt once → save → proceed
+  //
+  const handleWhatsApp = async (phone?: string) => {
+    if (!tali || !template) return
+
+    const targetPhone = (phone ?? tali.ownerPhone ?? '').trim()
+    if (!targetPhone) {
+      // No phone saved yet — ask once
+      setPhoneVis(true)
       return
     }
 
-    const updatedRows: FishRow[] = tali.fishRows.map(r => {
-      const newPrice   = parseFloat(priceInputs[r.fishId])
-      const prevPrice  = r.pricePerKg  // existing price before this update
-      const isChange   = prevPrice !== null && prevPrice !== newPrice
-      return {
-        ...r,
-        previousPricePerKg: isChange ? prevPrice : null,
-        pricePerKg:  newPrice,
-        totalAmount: Math.round(r.totalKg * newPrice),
+    setSharing(true)
+    try {
+      // Step 1: capture bill image
+      const imageUri = await captureBillImage()
+
+      // Step 2: check WhatsApp is installed
+      const waUrl      = `whatsapp://send?phone=+91${targetPhone}`
+      const waInstalled = await Linking.canOpenURL(waUrl)
+
+      if (!waInstalled) {
+        // WhatsApp not installed — fall back to generic share sheet
+        await Sharing.shareAsync(imageUri, {
+          mimeType:    'image/png',
+          dialogTitle: `Send bill to ${tali.ownerName || tali.boatName}`,
+          UTI:         'public.png',
+        })
+        return
       }
-    })
 
-    const subtotal = updatedRows.reduce((s, r) => s + (r.totalAmount ?? 0), 0)
-    const sc       = Math.round(subtotal * tali.sellingChargeRate)
-    const final    = subtotal - sc
+      // Step 3: open WhatsApp to the owner's chat directly
+      await Linking.openURL(waUrl)
 
-    setTali(prev => ({
-      ...prev,
-      status:       'PRICED',
-      fishRows:     updatedRows,
-      subtotal,
-      sellingCharge: sc,
-      finalTotal:   final,
-    }))
+      // Step 4: after a short delay, trigger share sheet so the image
+      // is ready to attach — user is already in WhatsApp, they just pick the image
+      await new Promise(r => setTimeout(r, 800))
 
-    Alert.alert('Prices submitted', 'Boat owner has been notified to review and confirm.')
+      const canShare = await Sharing.isAvailableAsync()
+      if (canShare) {
+        await Sharing.shareAsync(imageUri, {
+          mimeType:    'image/png',
+          dialogTitle: `Bill for ${tali.ownerName || tali.boatName}`,
+          UTI:         'public.png',
+        })
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Could not send. Please try again.')
+      console.error('WhatsApp send error', e)
+    } finally {
+      setSharing(false)
+    }
   }
 
-  // ── Boat owner: confirm tali ───────────────────────────────────────────────
-  function handleConfirm() {
-    Alert.alert(
-      'Confirm Tali?',
-      'Once confirmed, this tali is locked and cannot be changed by either side.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: () => {
-            setTali(prev => ({
-              ...prev,
-              status: 'CONFIRMED',
-              // Clear previous price highlights after confirm
-              fishRows: prev.fishRows.map(r => ({ ...r, previousPricePerKg: null })),
-            }))
-          },
+  const handlePhoneSave = async (phone: string) => {
+    if (!tali) return
+    await updateTaliOwnerPhone(tali.id, phone)
+    setTali(prev => prev ? { ...prev, ownerPhone: phone } : prev)
+    handleWhatsApp(phone)
+  }
+
+  // ── Print ──────────────────────────────────────────────────────────────────
+  const handlePrint = async () => {
+    if (!tali || !template) return
+    setPrinting(true)
+    try {
+      const imageUri = await captureBillImage()
+      // expo-print can print an image URI directly — no HTML needed
+      await Print.printAsync({ uri: imageUri })
+    } catch (e) {
+      Alert.alert('Error', 'Could not print. Make sure a printer is connected.')
+      console.error('Print error', e)
+    } finally {
+      setPrinting(false)
+    }
+  }
+
+  // ── Price confirm from numpad ──────────────────────────────────────────────
+  const handlePriceConfirm = useCallback((fishId: string, price: number) => {
+    setTali(prev => {
+      if (!prev) return prev
+      const entries = prev.fishEntries.map(fe =>
+        fe.fishId === fishId
+          ? { ...fe, pricePerKg: price, totalAmount: Math.round(fe.totalKg * price) }
+          : fe
+      )
+      const all    = entries.every(f => f.pricePerKg !== null)
+      const gTotal = all ? entries.reduce((s, f) => s + (f.totalAmount ?? 0), 0) : null
+      const next   = { ...prev, fishEntries: entries, grandTotal: gTotal }
+      syncState(next)
+      return next
+    })
+    pendingRef.current[fishId] = price
+    setAnyFilled(true)
+  }, [])
+
+  // ── Submit prices ──────────────────────────────────────────────────────────
+  const handleSubmit = async () => {
+    if (!tali || Object.keys(pendingRef.current).length === 0) return
+    setSaving(true)
+    try {
+      const updated = await updateTaliPrices(tali.id, pendingRef.current)
+      if (updated) { setTali(updated); syncState(updated); pendingRef.current = {} }
+    } catch { Alert.alert('Error', 'Could not save prices.') }
+    finally { setSaving(false) }
+  }
+
+  // ── Confirm tali ───────────────────────────────────────────────────────────
+  const handleConfirm = () => {
+    if (!tali) return
+    Alert.alert('Confirm Tali?', 'Once confirmed, prices cannot be changed.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Confirm', onPress: async () => {
+          setConfirming(true)
+          const updated = await confirmTali(tali.id)
+          if (updated) { setTali(updated); syncState(updated) }
+          setConfirming(false)
         },
-      ]
+      },
+    ])
+  }
+
+  // ── Loading / error states ─────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <View style={s.center}>
+        <ActivityIndicator color={TEAL} size="large" />
+        <Text style={s.loadTxt}>બિલ તૈયાર થઈ રહ્યું છે...</Text>
+      </View>
+    )
+  }
+
+  if (!tali || !template) {
+    return (
+      <View style={s.center}>
+        <Text style={{ fontSize: 40 }}>📋</Text>
+        <Text style={s.loadTxt}>No tali data found.</Text>
+        <TouchableOpacity style={s.retryBtn} onPress={() => router.back()}>
+          <Text style={s.retryTxt}>← Go Back</Text>
+        </TouchableOpacity>
+      </View>
     )
   }
 
   const statusCfg   = STATUS_CFG[tali.status]
-  const hasChanges  = tali.fishRows.some(r => r.previousPricePerKg !== null)
-  const allPriced   = tali.fishRows.every(r => r.pricePerKg !== null)
   const isConfirmed = tali.status === 'CONFIRMED'
+  const hasPending  = Object.keys(pendingRef.current).length > 0
 
   return (
-    <>
-      <StatusBar barStyle="dark-content" backgroundColor={BG} />
-      <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
 
-        {/* ── Header ── */}
-        <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.canGoBack() ? router.back() : null}>
-            <Ionicons name="arrow-back" size={20} color={TP} />
-          </TouchableOpacity>
-          <View style={s.headerCenter}>
-            <Text style={s.headerTitle}>તાળી બિલ · Tali Bill</Text>
-            <Text style={s.headerSub}>{tali.boatName}</Text>
-          </View>
-          <View style={[s.statusBadge, { backgroundColor: statusCfg.bg }]}>
-            <Text style={[s.statusText, { color: statusCfg.color }]}>{statusCfg.label}</Text>
-          </View>
+      {/* Header */}
+      <View style={s.header}>
+        <TouchableOpacity style={s.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <Text style={s.backTxt}>←</Text>
+        </TouchableOpacity>
+        <View style={s.headerCenter}>
+          <Text style={s.headerTitle}>તાળી બિલ</Text>
+          <Text style={s.headerSub}>{tali.boatName} · {tali.billNo}</Text>
+        </View>
+        <View style={[s.statusBadge, { backgroundColor: statusCfg.color + '22' }]}>
+          <Text style={[s.statusTxt, { color: statusCfg.color }]}>{statusCfg.labelGu}</Text>
+        </View>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+
+        {/* ViewShot wraps the physical bill — this is what gets captured */}
+        <ViewShot
+          ref={billRef}
+          options={{ format: 'png', quality: 1.0 }}
+          style={s.billShadow}
+        >
+          <PhysicalBill template={template} tali={tali} />
+        </ViewShot>
+
+        {/* Capture hint */}
+        <View style={s.captureHint}>
+          <Text style={s.captureHintTxt}>
+            📸 Bill image is captured from the view above
+          </Text>
         </View>
 
-        {/* ── Change alert banner (boat owner sees if company updated price) ── */}
-        {isBoatOwner && hasChanges && !isConfirmed && (
-          <View style={s.changeBanner}>
-            <Ionicons name="alert-circle" size={16} color={AMBER} />
-            <Text style={s.changeBannerText}>
-              Company updated prices — highlighted rows changed. Review and confirm.
-            </Text>
-          </View>
-        )}
-
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <ScrollView
-            contentContainerStyle={s.scroll}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* ── Receipt paper ── */}
-            <View style={s.paper}>
-
-              {/* Company header */}
-              <View style={s.paperHeader}>
-                <Text style={s.paperCompany}>{tali.companyName}</Text>
-                <Text style={s.paperSubtitle}>માછીમારી રસીદ · FISHING RECEIPT</Text>
-              </View>
-
-              {/* Meta row */}
-              <View style={s.paperMeta}>
-                <View style={s.paperMetaRow}>
-                  <Text style={s.paperMetaLabel}>બોટ / BOAT</Text>
-                  <Text style={s.paperMetaValue}>{tali.boatName}</Text>
-                </View>
-                <View style={s.paperMetaRow}>
-                  <Text style={s.paperMetaLabel}>તારીખ / DATE</Text>
-                  <Text style={s.paperMetaValue}>{tali.date}</Text>
-                </View>
-                <View style={s.paperMetaRow}>
-                  <Text style={s.paperMetaLabel}>બિલ નં / BILL NO</Text>
-                  <Text style={s.paperMetaValue}>{tali.billNo}</Text>
-                </View>
-              </View>
-
-              {/* Divider */}
-              <View style={s.paperDivider} />
-
-              {/* Table header */}
-              <View style={s.tableHeader}>
-                <Text style={[s.tableHeaderCell, { flex: 2 }]}>માછી / FISH</Text>
-                <Text style={[s.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>વજન</Text>
-                <Text style={[s.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>₹/KG</Text>
-                <Text style={[s.tableHeaderCell, { flex: 1.2, textAlign: 'right' }]}>રકમ</Text>
-              </View>
-
-              <View style={s.paperDivider} />
-
-              {/* Fish rows */}
-              {tali.fishRows.map((row, idx) => {
-                const isChanged = row.previousPricePerKg !== null
-                const isPending = row.pricePerKg === null
-
-                return (
-                  <View
-                    key={row.fishId}
-                    style={[
-                      s.fishRow,
-                      isChanged && s.fishRowChanged,
-                      idx < tali.fishRows.length - 1 && s.fishRowBorder,
-                    ]}
-                  >
-                    {/* Changed indicator */}
-                    {isChanged && (
-                      <View style={s.changeIndicator} />
-                    )}
-
-                    {/* Fish name */}
-                    <View style={{ flex: 2 }}>
-                      <Text style={s.fishNameGuj}>{row.fishNameGujarati}</Text>
-                      <Text style={s.fishNameEn}>{row.fishName}</Text>
-                      {/* Show old price if changed */}
-                      {isChanged && (
-                        <Text style={s.oldPrice}>
-                          was ₹{row.previousPricePerKg}/kg
-                        </Text>
-                      )}
-                    </View>
-
-                    {/* Weight */}
-                    <Text style={[s.fishCell, { flex: 1, textAlign: 'right' }]}>
-                      {fmtKg(row.totalKg)}
-                    </Text>
-
-                    {/* Price per kg */}
-                    {!isBoatOwner && !isConfirmed ? (
-                      // Company owner: editable input
-                      <View style={[s.priceInputWrap, { flex: 1 }]}>
-                        <TextInput
-                          style={s.priceInput}
-                          value={priceInputs[row.fishId]}
-                          onChangeText={v => setPriceInputs(prev => ({ ...prev, [row.fishId]: v }))}
-                          keyboardType="numeric"
-                          placeholder="0"
-                          placeholderTextColor={TM}
-                          returnKeyType="done"
-                        />
-                      </View>
-                    ) : (
-                      // Boat owner / confirmed: read-only
-                      <Text style={[
-                        s.fishCell,
-                        { flex: 1, textAlign: 'right' },
-                        isPending && s.fishCellPending,
-                        isChanged && s.fishCellChanged,
-                      ]}>
-                        {isPending ? '—' : fmtNum(row.pricePerKg!)}
-                      </Text>
-                    )}
-
-                    {/* Total amount */}
-                    <Text style={[
-                      s.fishCell,
-                      { flex: 1.2, textAlign: 'right', fontWeight: '700' },
-                      isPending && s.fishCellPending,
-                    ]}>
-                      {row.totalAmount !== null ? fmtNum(row.totalAmount) : '—'}
-                    </Text>
-                  </View>
-                )
-              })}
-
-              <View style={s.paperDivider} />
-
-              {/* Totals — only show when prices are filled */}
-              {allPriced && tali.subtotal !== null ? (
-                <View style={s.totalsSection}>
-                  <View style={s.totalRow}>
-                    <Text style={s.totalLabel}>કુલ / Subtotal</Text>
-                    <Text style={s.totalValue}>₹ {fmtNum(tali.subtotal)}</Text>
-                  </View>
-                  <View style={[s.totalRow, s.chargeRow]}>
-                    <View>
-                      <Text style={s.chargeLabel}>વેચાણ ચાર્જ / Selling Charge</Text>
-                      <Text style={s.chargePercent}>{(tali.sellingChargeRate * 100).toFixed(0)}% of subtotal</Text>
-                    </View>
-                    <Text style={s.chargeValue}>− ₹ {fmtNum(tali.sellingCharge!)}</Text>
-                  </View>
-                  <View style={s.paperDividerThick} />
-                  <View style={[s.totalRow, s.finalRow]}>
-                    <Text style={s.finalLabel}>અંતિમ કુલ / Final Total</Text>
-                    <Text style={s.finalValue}>₹ {fmtNum(tali.finalTotal!)}</Text>
-                  </View>
-                </View>
-              ) : (
-                <View style={s.pendingTotals}>
-                  <Ionicons name="time-outline" size={18} color={AMBER} />
-                  <Text style={s.pendingTotalsText}>
-                    Totals will appear once company fills all prices
-                  </Text>
-                </View>
-              )}
-
-              {/* Signature / footer */}
-              <View style={s.paperFooter}>
-                <View style={s.signatureBox}>
-                  <View style={s.signatureLine} />
-                  <Text style={s.signatureLabel}>સહી / SIGNATURE</Text>
-                  <Text style={s.signatureCompany}>{tali.companyName}</Text>
-                </View>
-                <View style={s.poweredBy}>
-                  <Text style={s.poweredByText}>Fishness · Knowmadic</Text>
-                </View>
-              </View>
-
-            </View>
-
-            {/* ── Confirmed stamp ── */}
-            {isConfirmed && (
-              <View style={s.confirmedStamp}>
-                <Ionicons name="checkmark-circle" size={24} color={GREEN} />
-                <Text style={s.confirmedText}>Tali Confirmed — Locked</Text>
-              </View>
-            )}
-
-            <View style={{ height: 100 }} />
-          </ScrollView>
-        </KeyboardAvoidingView>
-
-        {/* ── Bottom action bar ── */}
+        {/* Price filling section */}
         {!isConfirmed && (
-          <View style={s.actionBar}>
-            {isBoatOwner ? (
-              // Boat owner: can only confirm when priced
-              tali.status === 'PRICED' ? (
-                <TouchableOpacity style={s.confirmBtn} onPress={handleConfirm} activeOpacity={0.85}>
-                  <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-                  <Text style={s.confirmBtnText}>Confirm Tali</Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={s.waitingBar}>
-                  <Ionicons name="time-outline" size={18} color={AMBER} />
-                  <Text style={s.waitingText}>Waiting for company to fill prices…</Text>
+          <View style={s.priceCard}>
+            <Text style={s.priceCardTitle}>
+              {canFill ? 'ભાવ ભરો — Fill Prices' : '⏳ Waiting for Price'}
+            </Text>
+            <Text style={s.priceCardSub}>
+              {canFill
+                ? 'Tap any fish to enter price per kg'
+                : 'Company owner will fill the prices'}
+            </Text>
+
+            {tali.fishEntries.map(fe => (
+              <TouchableOpacity
+                key={fe.fishId}
+                style={[
+                  s.priceRow,
+                  !canFill && s.priceRowRO,
+                  fe.pricePerKg !== null && s.priceRowFilled,
+                ]}
+                onPress={() => {
+                  if (!canFill || isConfirmed) return
+                  setSelectedFish(fe)
+                  setNumpadVis(true)
+                }}
+                activeOpacity={canFill ? 0.75 : 1}
+              >
+                <View style={s.priceLeft}>
+                  <Text style={s.priceGu}>{fe.fishNameGujarati}</Text>
+                  <Text style={s.priceEn}>{fe.fishName}</Text>
+                  <Text style={s.priceKg}>{fe.totalKg.toFixed(1)} kg · {fe.counts} નંગ</Text>
                 </View>
-              )
-            ) : (
-              // Company owner: submit prices
-              <TouchableOpacity style={s.submitBtn} onPress={handleSubmitPrices} activeOpacity={0.85}>
-                <Ionicons name="send-outline" size={18} color="#fff" />
-                <Text style={s.submitBtnText}>
-                  {tali.status === 'PRICED' ? 'Update Prices' : 'Submit Prices to Boat Owner'}
-                </Text>
+
+                {canFill ? (
+                  <View style={[s.priceRight, fe.pricePerKg !== null && s.priceRightFilled]}>
+                    {fe.pricePerKg !== null ? (
+                      <>
+                        <Text style={s.priceFilled}>₹{fe.pricePerKg}/kg</Text>
+                        <Text style={s.priceAmt}>= ₹{Math.round(fe.totalAmount!).toLocaleString('en-IN')}</Text>
+                      </>
+                    ) : (
+                      <Text style={s.priceEmpty}>Tap ▶</Text>
+                    )}
+                  </View>
+                ) : (
+                  <Text style={s.priceWait}>
+                    {fe.pricePerKg !== null ? `₹${fe.pricePerKg}/kg` : '—'}
+                  </Text>
+                )}
               </TouchableOpacity>
+            ))}
+
+            {tali.grandTotal !== null && (
+              <View style={s.totalRow}>
+                <Text style={s.totalLabel}>કુલ રોટલ</Text>
+                <Text style={s.totalVal}>₹{Math.round(tali.grandTotal).toLocaleString('en-IN')}</Text>
+              </View>
             )}
           </View>
         )}
 
-      </SafeAreaView>
-    </>
+        {isConfirmed && (
+          <View style={s.confirmedCard}>
+            <Text style={s.confirmedIcon}>✅</Text>
+            <Text style={s.confirmedTitle}>Tali Confirmed</Text>
+            {tali.grandTotal !== null && (
+              <Text style={s.confirmedTotal}>
+                ₹{Math.round(tali.grandTotal).toLocaleString('en-IN')}
+              </Text>
+            )}
+          </View>
+        )}
+
+        <View style={{ height: 140 }} />
+      </ScrollView>
+
+      {/* ── Bottom Action Bar ── */}
+      <View style={s.actionBar}>
+
+        {/* Exit — always */}
+        {!isConfirmed && (
+          <TouchableOpacity style={s.exitBtn} onPress={() => router.back()} activeOpacity={0.8}>
+            <Text style={s.exitTxt}>Exit</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Save Prices */}
+        {canFill && !isConfirmed && anyFilled && (
+          <TouchableOpacity
+            style={[s.saveBtn, saving && s.btnOff]}
+            onPress={handleSubmit}
+            disabled={saving}
+            activeOpacity={0.85}
+          >
+            {saving
+              ? <ActivityIndicator color="#fff" size="small" />
+              : <Text style={s.saveTxt}>Save Prices</Text>
+            }
+          </TouchableOpacity>
+        )}
+
+        {/* Confirm */}
+        {canFill && !isConfirmed && allFilled && !hasPending && (
+          <TouchableOpacity
+            style={[s.confirmBtn, confirming && s.btnOff]}
+            onPress={handleConfirm}
+            disabled={confirming}
+            activeOpacity={0.85}
+          >
+            {confirming
+              ? <ActivityIndicator color="#fff" size="small" />
+              : <Text style={s.confirmTxt}>✓ Confirm</Text>
+            }
+          </TouchableOpacity>
+        )}
+
+        {/* Print — shows after confirm */}
+        {isConfirmed && (
+          <TouchableOpacity
+            style={[s.printBtn, printing && s.btnOff]}
+            onPress={handlePrint}
+            disabled={printing}
+            activeOpacity={0.85}
+          >
+            {printing
+              ? <ActivityIndicator color={TS} size="small" />
+              : <Text style={s.printTxt}>🖨️ Print</Text>
+            }
+          </TouchableOpacity>
+        )}
+
+        {/* WhatsApp — shows after confirm */}
+        {isConfirmed && (
+          <TouchableOpacity
+            style={[s.waBtn, sharing && s.btnOff]}
+            onPress={() => handleWhatsApp()}
+            disabled={sharing}
+            activeOpacity={0.85}
+          >
+            {sharing ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <View style={s.waBtnInner}>
+                <Text style={s.waTxt}>💬 WhatsApp</Text>
+                {tali.ownerPhone ? (
+                  <Text style={s.waPhone}>+91 {tali.ownerPhone}</Text>
+                ) : (
+                  <Text style={s.waPhone}>Tap to set number</Text>
+                )}
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+
+      </View>
+
+      {/* Modals */}
+      <PriceNumpad
+        visible={numpadVis}
+        fish={selectedFish}
+        onConfirm={handlePriceConfirm}
+        onClose={() => setNumpadVis(false)}
+      />
+      <PhoneModal
+        visible={phoneVis}
+        current={tali.ownerPhone}
+        onSave={handlePhoneSave}
+        onClose={() => setPhoneVis(false)}
+      />
+
+    </SafeAreaView>
   )
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: BG },
+  safe:     { flex: 1, backgroundColor: BG },
+  center:   { flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center', gap: 14 },
+  loadTxt:  { color: TS, fontSize: 14 },
+  retryBtn: { backgroundColor: ELEV, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, marginTop: 8 },
+  retryTxt: { color: TS, fontWeight: '700' },
 
-  // Header
   header: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14,
-    gap: 12,
-    borderBottomWidth: 1, borderBottomColor: BOR,
+    backgroundColor: SURF, borderBottomWidth: 1, borderBottomColor: BOR,
+    paddingHorizontal: 16, paddingVertical: 14, gap: 12,
   },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: ELEV, alignItems: 'center', justifyContent: 'center',
-  },
+  backBtn:      { width: 36, height: 36, borderRadius: 18, backgroundColor: ELEV, alignItems: 'center', justifyContent: 'center' },
+  backTxt:      { color: TP, fontSize: 18, fontWeight: '700' },
   headerCenter: { flex: 1 },
   headerTitle:  { fontSize: 16, fontWeight: '800', color: TP },
-  headerSub:    { fontSize: 12, color: TS, marginTop: 1 },
+  headerSub:    { fontSize: 11, color: TS, marginTop: 1 },
   statusBadge:  { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  statusText:   { fontSize: 11, fontWeight: '800' },
+  statusTxt:    { fontSize: 11, fontWeight: '700' },
 
-  // Change banner
-  changeBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(245,158,11,0.12)',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(245,158,11,0.3)',
-    paddingHorizontal: 16, paddingVertical: 10,
-  },
-  changeBannerText: { flex: 1, fontSize: 12, color: AMBER, fontWeight: '600', lineHeight: 17 },
-
-  scroll: { padding: 16 },
-
-  // Receipt paper
-  paper: {
-    backgroundColor: PAPER,
-    borderRadius: 16,
-    overflow: 'hidden',
+  scroll:     { padding: 14, gap: 14 },
+  billShadow: {
+    borderRadius: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 16,
-    elevation: 10,
+    elevation: 12,
   },
 
-  // Paper header (dark green like existing bill.tsx)
-  paperHeader: {
-    backgroundColor: '#1c3a2a',
-    paddingVertical: 20, paddingHorizontal: 20,
-    alignItems: 'center', gap: 4,
+  captureHint: {
+    alignItems: 'center',
+    paddingVertical: 6,
   },
-  paperCompany:  { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
-  paperSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.65)', letterSpacing: 1 },
+  captureHintTxt: { fontSize: 11, color: TM },
 
-  // Meta rows
-  paperMeta: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 10, gap: 6 },
-  paperMetaRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  paperMetaLabel: { fontSize: 11, color: '#555', fontWeight: '600' },
-  paperMetaValue: { fontSize: 11, color: '#1c3a2a', fontWeight: '700' },
+  // Price card
+  priceCard:     { backgroundColor: SURF, borderRadius: 16, borderWidth: 1, borderColor: BOR, padding: 16, gap: 6 },
+  priceCardTitle:{ fontSize: 14, fontWeight: '800', color: TP, marginBottom: 2 },
+  priceCardSub:  { fontSize: 12, color: TS, marginBottom: 6 },
+  priceRow:      { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 10, marginBottom: 4, backgroundColor: ELEV, borderWidth: 1, borderColor: BOR },
+  priceRowRO:    { opacity: 0.7 },
+  priceRowFilled:{ borderColor: TEAL + '50', backgroundColor: TEAL + '0A' },
+  priceLeft:     { flex: 1, gap: 2 },
+  priceGu:       { fontSize: 14, fontWeight: '700', color: TP },
+  priceEn:       { fontSize: 11, color: TS },
+  priceKg:       { fontSize: 11, color: TEAL, fontWeight: '600', marginTop: 2 },
+  priceRight:    { alignItems: 'flex-end', gap: 2, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: BOR, minWidth: 90 },
+  priceRightFilled:{ backgroundColor: TEAL + '18' },
+  priceFilled:   { fontSize: 14, fontWeight: '800', color: TEAL },
+  priceAmt:      { fontSize: 11, color: TS },
+  priceEmpty:    { fontSize: 12, color: TM, fontStyle: 'italic' },
+  priceWait:     { fontSize: 13, color: TM, fontWeight: '600' },
 
-  // Dividers
-  paperDivider:      { height: 1, backgroundColor: '#e0ddd6', marginHorizontal: 16 },
-  paperDividerThick: { height: 2, backgroundColor: '#1c3a2a', marginHorizontal: 16, marginVertical: 6 },
+  totalRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: BOR },
+  totalLabel: { fontSize: 14, color: TS, fontWeight: '600' },
+  totalVal:   { fontSize: 18, fontWeight: '900', color: GREEN },
 
-  // Table
-  tableHeader: {
-    flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8,
-    backgroundColor: '#f0ede5',
-  },
-  tableHeaderCell: { fontSize: 10, fontWeight: '700', color: '#555', letterSpacing: 0.5 },
+  confirmedCard:  { backgroundColor: GREEN + '12', borderRadius: 16, borderWidth: 1, borderColor: GREEN + '40', padding: 20, alignItems: 'center', gap: 8 },
+  confirmedIcon:  { fontSize: 40 },
+  confirmedTitle: { fontSize: 17, fontWeight: '800', color: TP },
+  confirmedTotal: { fontSize: 26, fontWeight: '900', color: GREEN, marginTop: 4 },
 
-  // Fish rows
-  fishRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 12,
-    position: 'relative',
-  },
-  fishRowBorder: { borderBottomWidth: 1, borderBottomColor: '#e8e4dc' },
-  // Yellow highlight for changed price row
-  fishRowChanged: { backgroundColor: 'rgba(245,158,11,0.08)' },
-  // Left yellow bar on changed row
-  changeIndicator: {
-    position: 'absolute', left: 0, top: 0, bottom: 0,
-    width: 3, backgroundColor: AMBER,
-  },
-
-  fishNameGuj: { fontSize: 14, fontWeight: '800', color: '#1a1a1a' },
-  fishNameEn:  { fontSize: 11, color: '#666', marginTop: 1 },
-  oldPrice:    { fontSize: 10, color: AMBER, fontWeight: '600', marginTop: 2 },
-
-  fishCell:        { fontSize: 13, color: '#1a1a1a' },
-  fishCellPending: { color: '#aaa', fontStyle: 'italic' },
-  fishCellChanged: { color: AMBER, fontWeight: '700' },
-
-  // Editable price input (company owner)
-  priceInputWrap: { alignItems: 'flex-end' },
-  priceInput: {
-    fontSize: 14, fontWeight: '700', color: '#1a1a1a',
-    textAlign: 'right',
-    borderBottomWidth: 1.5, borderBottomColor: TEAL,
-    paddingVertical: 2, paddingHorizontal: 4,
-    minWidth: 60,
-  },
-
-  // Totals section
-  totalsSection: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, gap: 8 },
-  totalRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel:{ fontSize: 13, color: '#333', fontWeight: '600' },
-  totalValue:{ fontSize: 14, color: '#1a1a1a', fontWeight: '700' },
-  chargeRow: { paddingVertical: 4 },
-  chargeLabel:   { fontSize: 12, color: '#c0392b', fontWeight: '700' },
-  chargePercent: { fontSize: 10, color: '#999' },
-  chargeValue:   { fontSize: 13, color: '#c0392b', fontWeight: '700' },
-  finalRow:  { paddingVertical: 6 },
-  finalLabel:{ fontSize: 15, fontWeight: '800', color: '#1c3a2a' },
-  finalValue:{ fontSize: 18, fontWeight: '800', color: '#1c3a2a' },
-
-  // Pending totals placeholder
-  pendingTotals: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 16, paddingVertical: 16,
-  },
-  pendingTotalsText: { fontSize: 12, color: AMBER, fontStyle: 'italic' },
-
-  // Paper footer
-  paperFooter: {
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20,
-    alignItems: 'center', gap: 16,
-    borderTopWidth: 1, borderTopColor: '#e0ddd6', marginTop: 8,
-  },
-  signatureBox:    { alignItems: 'center', gap: 4 },
-  signatureLine:   { width: 120, height: 1, backgroundColor: '#999' },
-  signatureLabel:  { fontSize: 10, color: '#666', letterSpacing: 0.5, marginTop: 4 },
-  signatureCompany:{ fontSize: 12, fontWeight: '700', color: '#1a1a1a' },
-  poweredBy:       {},
-  poweredByText:   { fontSize: 10, color: '#aaa' },
-
-  // Confirmed stamp
-  confirmedStamp: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, marginTop: 16, padding: 12,
-    backgroundColor: 'rgba(5,150,105,0.12)',
-    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(5,150,105,0.3)',
-  },
-  confirmedText: { fontSize: 14, fontWeight: '800', color: GREEN },
-
-  // Bottom action bar
+  // Action bar
   actionBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    padding: 16, paddingBottom: 32,
+    flexDirection: 'row', gap: 8,
+    padding: 14, paddingBottom: 28,
     backgroundColor: SURF,
     borderTopWidth: 1, borderTopColor: BOR,
     shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.3, shadowRadius: 12, elevation: 16,
+    shadowOpacity: 0.35, shadowRadius: 12, elevation: 16,
   },
-  confirmBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: GREEN, borderRadius: 14, paddingVertical: 16,
-  },
-  confirmBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  submitBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: TEAL, borderRadius: 14, paddingVertical: 16,
-  },
-  submitBtnText:  { color: '#fff', fontSize: 15, fontWeight: '800' },
-  waitingBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: 'rgba(245,158,11,0.12)',
-    borderRadius: 14, paddingVertical: 14,
-    borderWidth: 1, borderColor: 'rgba(245,158,11,0.3)',
-  },
-  waitingText: { fontSize: 13, color: AMBER, fontWeight: '600' },
+  exitBtn:  { paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: BOR, backgroundColor: ELEV, alignItems: 'center', justifyContent: 'center' },
+  exitTxt:  { fontSize: 14, color: TS, fontWeight: '600' },
+
+  saveBtn:   { flex: 1, backgroundColor: TEAL, borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+  saveTxt:   { fontSize: 14, fontWeight: '800', color: '#fff' },
+  confirmBtn:{ flex: 1, backgroundColor: GREEN, borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+  confirmTxt:{ fontSize: 14, fontWeight: '800', color: '#fff' },
+  btnOff:    { opacity: 0.5 },
+
+  printBtn: { flex: 1, backgroundColor: ELEV, borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: BOR },
+  printTxt: { fontSize: 14, fontWeight: '700', color: TS },
+
+  waBtn: { flex: 1.6, backgroundColor: WA_GRN, borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+  waBtnInner: { alignItems: 'center', gap: 2 },
+  waTxt:  { fontSize: 15, fontWeight: '800', color: '#fff' },
+  waPhone:{ fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: '600' },
 })

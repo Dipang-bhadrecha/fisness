@@ -67,6 +67,7 @@ export default function RootLayout() {
         <Stack.Screen name="ledger"       options={{ headerShown: false }} />
         <Stack.Screen name="add-expense"  options={{ headerShown: false }} />
         <Stack.Screen name="add-crew"     options={{ headerShown: false }} />
+        <Stack.Screen name="tali-template" options={{ headerShown: false }} />
       </Stack>
     </SafeAreaProvider>
   )

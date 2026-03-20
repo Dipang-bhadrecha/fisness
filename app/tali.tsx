@@ -124,7 +124,7 @@ export default function TaliScreen() {
               return
             }
           }
-        } catch (_) {}
+        } catch (_) { }
       }
       createSession('બોટ - 1', 'કંપની')
       addPreSelectedFish(parsedSelectedFish)
@@ -148,12 +148,10 @@ export default function TaliScreen() {
     setBucketModalVisible(true)
   }
 
-  // ── Updated: also handles editing bucket weight of existing fish ────────────
   const handleBucketConfirm = (weight: number) => {
     if (!pendingFish) return
     const alreadyInSession = session?.fishData.some(fd => fd.fishId === pendingFish.id)
     if (alreadyInSession) {
-      // Update bucket weight for the existing fish in the store
       useTaliStore.setState(s => ({
         session: s.session ? {
           ...s.session,
@@ -214,10 +212,24 @@ export default function TaliScreen() {
                   return { fishId: fd.fishId, fishName, fishNameGujarati, bucketWeight: fd.bucketWeight, totalKg: fd.totalKg }
                 })
                 await apiEndSession(token, session.serverSessionId, fishEntries)
-              } catch (_) {}
+              } catch (_) { }
             }
             endSession()
-            router.push('/tali-bill')
+            // ── FIX: consistent companyId fallback so template key always matches ──
+            // const resolvedCompanyId = (companyId && companyId !== '') ? companyId : 'default'
+            // Resolve companyId — try params first, then session, then default
+const resolvedCompanyId = (companyId && companyId !== '')
+  ? companyId
+  : 'default'
+            router.push({
+              pathname: '/tali-bill',
+              params: {
+                companyId: resolvedCompanyId,
+                boatName:  session?.boatName ?? boatName ?? '',
+                boatReg:   '',
+                ownerName: '',
+              },
+            } as any)
           },
         },
       ]
@@ -341,7 +353,6 @@ export default function TaliScreen() {
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
 
-        {/* ── Bucket Weight Row — tap to edit for current fish ── */}
         <TouchableOpacity
           style={styles.bucketRow}
           activeOpacity={0.75}
@@ -365,13 +376,11 @@ export default function TaliScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* Total weight row */}
         <View style={styles.totalBox}>
           <Text style={styles.totalLabel}>{t.tali.totalLabel}</Text>
           <Text style={styles.totalValue}>{formatKg(activeFishData.totalKg)}</Text>
         </View>
 
-        {/* Count / Tap button */}
         <TouchableOpacity
           onPress={() => {
             if (activeFishData.isPaused) {
@@ -454,7 +463,6 @@ export default function TaliScreen() {
         alreadyAddedIds={session.fishData.map((fd) => fd.fishId)}
       />
 
-      {/* Bucket Weight Modal — used for both new fish and editing existing */}
       {pendingFish && (
         <BucketWeightModal
           visible={bucketModalVisible}
@@ -466,7 +474,6 @@ export default function TaliScreen() {
         />
       )}
 
-      {/* Delete Fish Sheet */}
       {deletingFish && (
         <DeleteFishSheet
           visible={true}
@@ -484,239 +491,43 @@ export default function TaliScreen() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-    paddingHorizontal: theme.spacing[2],
-    paddingVertical: theme.spacing[2],
-    gap: theme.spacing[2],
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.elevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backBtnText: {
-    fontSize: theme.fontSize.xl,
-    color: theme.colors.textPrimary,
-    fontWeight: '700',
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: '800',
-    color: theme.colors.textPrimary,
-  },
-  headerSub: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-    marginTop: 1,
-  },
-  endBtn: {
-    backgroundColor: theme.colors.danger,
-    paddingHorizontal: theme.spacing[3],
-    paddingVertical: theme.spacing[1],
-    borderRadius: theme.radius.sm,
-    minHeight: 36,
-    justifyContent: 'center',
-  },
-  endBtnText: {
-    color: '#fff',
-    fontSize: theme.fontSize.sm,
-    fontWeight: '700',
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing[1],
-    padding: theme.spacing[4],
-  },
-  emptyIcon: {
-    fontSize: 64,
-  },
-  emptyTitle: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: '800',
-    color: theme.colors.textPrimary,
-  },
-  emptyText: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
-  emptyAddBtn: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing[4],
-    paddingVertical: theme.spacing[3],
-    borderRadius: theme.radius.md,
-    marginTop: theme.spacing[3],
-  },
-  emptyAddBtnText: {
-    color: '#fff',
-    fontSize: theme.fontSize.lg,
-    fontWeight: '700',
-  },
-  bottomBar: {
-    backgroundColor: theme.colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    padding: theme.spacing[3],
-    paddingBottom: theme.spacing[4],
-    gap: theme.spacing[2],
-  },
-
-  // ── Bucket weight row (NEW) ────────────────────────────────────────────────
-  bucketRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: theme.colors.elevated,
-    borderRadius: theme.radius.sm,
-    paddingHorizontal: theme.spacing[3],
-    paddingVertical: theme.spacing[2],
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  bucketLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  bucketIcon: {
-    fontSize: 20,
-  },
-  bucketLabel: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  bucketFishName: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textPrimary,
-    fontWeight: '700',
-    marginTop: 1,
-  },
-  bucketRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  bucketVal: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: '800',
-    color: theme.colors.primary,
-  },
-  bucketEditBadge: {
-    backgroundColor: theme.colors.primary + '22',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.primary + '40',
-  },
-  bucketEditText: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.primary,
-    fontWeight: '700',
-  },
-  // ── End bucket weight row ──────────────────────────────────────────────────
-
-  totalBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: theme.spacing[2],
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  totalLabel: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
-    fontWeight: '600',
-  },
-  totalValue: {
-    fontSize: theme.fontSize.xl,
-    color: theme.colors.primary,
-    fontWeight: '700',
-  },
-  countBtn: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 120,
-    gap: 4,
-  },
-  countBtnPaused: {
-    backgroundColor: theme.colors.elevated,
-    borderWidth: 2,
-    borderColor: theme.colors.pause,
-  },
-  countBtnDeck: {
-    fontSize: theme.fontSize.sm,
-    color: 'rgba(255,255,255,0.7)',
-    fontWeight: '600',
-    letterSpacing: 1,
-  },
-  countBtnNumber: {
-    fontSize: 64,
-    fontWeight: '800',
-    color: theme.colors.textPrimary,
-    lineHeight: 72,
-  },
-  countBtnHint: {
-    fontSize: theme.fontSize.sm,
-    color: 'rgba(255,255,255,0.6)',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
-  },
-  modalBox: {
-    backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: theme.radius.xl,
-    borderTopRightRadius: theme.radius.xl,
-    padding: theme.spacing[4],
-    gap: theme.spacing[3],
-  },
-  modalTitle: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-  },
-  modalSub: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-  },
-  modalInput: {
-    backgroundColor: theme.colors.elevated,
-    borderRadius: theme.radius.md,
-    padding: theme.spacing[3],
-    fontSize: theme.fontSize.xxl,
-    color: theme.colors.textPrimary,
-    fontWeight: '700',
-    textAlign: 'center',
-    minHeight: theme.touchTarget,
-  },
-  modalBtns: {
-    flexDirection: 'row',
-    gap: theme.spacing[2],
-  },
+  container:       { flex: 1, backgroundColor: theme.colors.background },
+  header:          { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, borderBottomWidth: 1, borderBottomColor: theme.colors.border, paddingHorizontal: theme.spacing[2], paddingVertical: theme.spacing[2], gap: theme.spacing[2] },
+  backBtn:         { width: 40, height: 40, borderRadius: theme.radius.sm, backgroundColor: theme.colors.elevated, alignItems: 'center', justifyContent: 'center' },
+  backBtnText:     { fontSize: theme.fontSize.xl, color: theme.colors.textPrimary, fontWeight: '700' },
+  headerCenter:    { flex: 1, alignItems: 'center' },
+  headerTitle:     { fontSize: theme.fontSize.lg, fontWeight: '800', color: theme.colors.textPrimary },
+  headerSub:       { fontSize: theme.fontSize.xs, color: theme.colors.textSecondary, marginTop: 1 },
+  endBtn:          { backgroundColor: theme.colors.danger, paddingHorizontal: theme.spacing[3], paddingVertical: theme.spacing[1], borderRadius: theme.radius.sm, minHeight: 36, justifyContent: 'center' },
+  endBtnText:      { color: '#fff', fontSize: theme.fontSize.sm, fontWeight: '700' },
+  emptyState:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: theme.spacing[1], padding: theme.spacing[4] },
+  emptyIcon:       { fontSize: 64 },
+  emptyTitle:      { fontSize: theme.fontSize.xl, fontWeight: '800', color: theme.colors.textPrimary },
+  emptyText:       { fontSize: theme.fontSize.md, color: theme.colors.textSecondary, textAlign: 'center' },
+  emptyAddBtn:     { backgroundColor: theme.colors.primary, paddingHorizontal: theme.spacing[4], paddingVertical: theme.spacing[3], borderRadius: theme.radius.md, marginTop: theme.spacing[3] },
+  emptyAddBtnText: { color: '#fff', fontSize: theme.fontSize.lg, fontWeight: '700' },
+  bottomBar:       { backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border, padding: theme.spacing[3], paddingBottom: theme.spacing[4], gap: theme.spacing[2] },
+  bucketRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: theme.colors.elevated, borderRadius: theme.radius.sm, paddingHorizontal: theme.spacing[3], paddingVertical: theme.spacing[2], borderWidth: 1, borderColor: theme.colors.border },
+  bucketLeft:      { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bucketIcon:      { fontSize: 20 },
+  bucketLabel:     { fontSize: theme.fontSize.xs, color: theme.colors.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  bucketFishName:  { fontSize: theme.fontSize.sm, color: theme.colors.textPrimary, fontWeight: '700', marginTop: 1 },
+  bucketRight:     { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bucketVal:       { fontSize: theme.fontSize.lg, fontWeight: '800', color: theme.colors.primary },
+  bucketEditBadge: { backgroundColor: theme.colors.primary + '22', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.primary + '40' },
+  bucketEditText:  { fontSize: theme.fontSize.xs, color: theme.colors.primary, fontWeight: '700' },
+  totalBox:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: theme.spacing[2], borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  totalLabel:      { fontSize: theme.fontSize.md, color: theme.colors.textSecondary, fontWeight: '600' },
+  totalValue:      { fontSize: theme.fontSize.xl, color: theme.colors.primary, fontWeight: '700' },
+  countBtn:        { backgroundColor: theme.colors.primary, borderRadius: theme.radius.lg, alignItems: 'center', justifyContent: 'center', minHeight: 120, gap: 4 },
+  countBtnPaused:  { backgroundColor: theme.colors.elevated, borderWidth: 2, borderColor: theme.colors.pause },
+  countBtnDeck:    { fontSize: theme.fontSize.sm, color: 'rgba(255,255,255,0.7)', fontWeight: '600', letterSpacing: 1 },
+  countBtnNumber:  { fontSize: 64, fontWeight: '800', color: theme.colors.textPrimary, lineHeight: 72 },
+  countBtnHint:    { fontSize: theme.fontSize.sm, color: 'rgba(255,255,255,0.6)' },
+  modalOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalBox:        { backgroundColor: theme.colors.surface, borderTopLeftRadius: theme.radius.xl, borderTopRightRadius: theme.radius.xl, padding: theme.spacing[4], gap: theme.spacing[3] },
+  modalTitle:      { fontSize: theme.fontSize.xl, fontWeight: '700', color: theme.colors.textPrimary },
+  modalSub:        { fontSize: theme.fontSize.sm, color: theme.colors.textSecondary },
+  modalInput:      { backgroundColor: theme.colors.elevated, borderRadius: theme.radius.md, padding: theme.spacing[3], fontSize: theme.fontSize.xxl, color: theme.colors.textPrimary, fontWeight: '700', textAlign: 'center', minHeight: theme.touchTarget },
+  modalBtns:       { flexDirection: 'row', gap: theme.spacing[2] },
 })

@@ -67,6 +67,18 @@ export default function CompanyDashboardHome() {
     { emoji: '👥', label: 'Staff & Managers',  sub: 'Access & permissions',                             onPress: () => router.push('/access' as any) },
     { emoji: '📒', label: 'Ledger',            sub: 'All transactions',                                 onPress: () => router.push('/ledger' as any) },
     { emoji: '📊', label: 'CA Export',         sub: 'Season report for accountant',                     onPress: () => console.log('TODO: CA export') },
+    {
+  emoji: '🧾',
+  label: 'Bill Template',
+  sub: 'Customise your tali bill format',
+  onPress: () => router.push({
+    pathname: '/tali-template',
+    params: {
+      companyId:   companyId ?? '',
+      companyName: companyName ?? '',
+    },
+  } as any)
+},
   ]
 
   const NAV_ITEMS = [
