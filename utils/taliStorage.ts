@@ -2,15 +2,15 @@
  * utils/taliStorage.ts
  *
  * AsyncStorage-based tali (session) persistence.
- * Saves talis locally when session ends.
- * Company owner can open any saved tali and fill prices.
+ * Added: updateTaliBillNo — assigns a real bill number to a PENDING tali
+ *        when the company owner opens it for the first time.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { FishSessionData } from '../types'
 
 // ─── Storage Keys ─────────────────────────────────────────────────────────────
-const TALI_LIST_KEY = 'fishness_tali_list'          // stores array of TaliRecord ids
+const TALI_LIST_KEY = 'fishness_tali_list'
 const TALI_KEY      = (id: string) => `fishness_tali_${id}`
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -20,7 +20,7 @@ export interface SavedFishEntry {
   fishId: string
   fishName: string
   fishNameGujarati: string
-  counts: number          // total bucket count
+  counts: number
   totalKg: number
   bucketWeight: number
   pricePerKg: number | null
@@ -28,18 +28,18 @@ export interface SavedFishEntry {
 }
 
 export interface SavedTali {
-  id: string              // unique id e.g. "TALI-20260320-AB12"
-  billNo: string          // bill display number e.g. "BILL-001"
-  sessionId: string       // local session id from taliStore
+  id: string
+  billNo: string          // 'PENDING' until company owner opens, then real number
+  sessionId: string
   serverSessionId: string | null
   boatName: string
   boatReg: string
-  ownerPhone: string      // boat owner's whatsapp number
+  ownerPhone: string
   ownerName: string
   companyId: string
   companyName: string
-  date: string            // ISO date string
-  month: string           // "Mar 2026"
+  date: string
+  month: string
   fishEntries: SavedFishEntry[]
   totalKg: number
   grandTotal: number | null
@@ -83,14 +83,14 @@ export async function saveTali(params: {
       const { name, nameGujarati } = params.getFishMeta(fd.fishId)
       const counts = fd.entries.reduce((s, e) => s + e.counts.length, 0)
       return {
-        fishId:          fd.fishId,
-        fishName:        name,
+        fishId:           fd.fishId,
+        fishName:         name,
         fishNameGujarati: nameGujarati,
         counts,
-        totalKg:         fd.totalKg,
-        bucketWeight:    fd.bucketWeight,
-        pricePerKg:      null,
-        totalAmount:     null,
+        totalKg:          fd.totalKg,
+        bucketWeight:     fd.bucketWeight,
+        pricePerKg:       null,
+        totalAmount:      null,
       }
     })
 
@@ -117,10 +117,8 @@ export async function saveTali(params: {
     updatedAt:       now,
   }
 
-  // Save tali record
   await AsyncStorage.setItem(TALI_KEY(id), JSON.stringify(tali))
 
-  // Add to list
   const existing = await getTaliIdList()
   await AsyncStorage.setItem(TALI_LIST_KEY, JSON.stringify([id, ...existing]))
 
@@ -167,10 +165,32 @@ export async function loadTali(id: string): Promise<SavedTali | null> {
   }
 }
 
+// ─── Assign a real bill number to a PENDING tali ─────────────────────────────
+// Called by tali-bill.tsx init when company owner opens a tali that was
+// saved with billNo: 'PENDING' (because the tali taker had no template).
+export async function updateTaliBillNo(
+  id: string,
+  billNo: string
+): Promise<SavedTali | null> {
+  try {
+    const tali = await loadTali(id)
+    if (!tali) return null
+    const updated: SavedTali = {
+      ...tali,
+      billNo,
+      updatedAt: new Date().toISOString(),
+    }
+    await AsyncStorage.setItem(TALI_KEY(id), JSON.stringify(updated))
+    return updated
+  } catch {
+    return null
+  }
+}
+
 // ─── Update tali prices (company owner fills prices) ─────────────────────────
 export async function updateTaliPrices(
   id: string,
-  prices: Record<string, number>  // fishId → pricePerKg
+  prices: Record<string, number>
 ): Promise<SavedTali | null> {
   try {
     const tali = await loadTali(id)
@@ -188,8 +208,8 @@ export async function updateTaliPrices(
       return fe
     })
 
-    const allPriced    = updatedEntries.every(fe => fe.pricePerKg !== null)
-    const grandTotal   = allPriced
+    const allPriced  = updatedEntries.every(fe => fe.pricePerKg !== null)
+    const grandTotal = allPriced
       ? updatedEntries.reduce((s, fe) => s + (fe.totalAmount ?? 0), 0)
       : null
 

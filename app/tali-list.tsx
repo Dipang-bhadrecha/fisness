@@ -1,10 +1,8 @@
 /**
- * app/tali-list.tsx — My Talis (Real Data)
+ * app/tali-list.tsx — My Talis
  *
- * Loads saved talis from AsyncStorage via taliStorage.ts
- * Shows live status badges: Price Not Filled / Price Filled / Confirmed
- * Tap → opens tali-bill for that session
- * Pull to refresh supported
+ * Key change: when routing to tali-bill, passes canFillPrices='true'|'false'
+ * based on the current entity context so boat owners never see fill-price UI.
  */
 
 import { Ionicons } from '@expo/vector-icons'
@@ -22,6 +20,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppTabBar } from '../components/shared/AppTabBar'
+import { useEntityStore } from '../store/entityStore'
 import { SavedTali, TaliStatus, loadAllTalis } from '../utils/taliStorage'
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -35,6 +34,18 @@ const TM    = '#3D5A73'
 const TEAL  = '#0891b2'
 const GREEN = '#059669'
 const AMBER = '#f59e0b'
+
+// ─── Determine if current user can fill prices ────────────────────────────────
+// This is evaluated in tali-list so the correct value is passed to tali-bill
+// regardless of what entity is active when tali-bill eventually renders.
+function useCanFillPricesNow(): boolean {
+  const { activeEntity } = useEntityStore()
+  if (!activeEntity) return false
+  if (activeEntity.type === 'COMPANY' && activeEntity.role === 'owner') return true
+  if (activeEntity.type === 'MANAGER_COMPANY' &&
+      activeEntity.permissions.includes('FILL_FISH_PRICE')) return true
+  return false
+}
 
 // ─── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<TaliStatus, {
@@ -64,8 +75,8 @@ const STATUS_CFG: Record<TaliStatus, {
 }
 
 // ─── Format helpers ────────────────────────────────────────────────────────────
-const fmt   = (n: number) => n.toLocaleString('en-IN')
-const fmtKg = (n: number) => `${n.toLocaleString('en-IN')} kg`
+const fmt    = (n: number) => n.toLocaleString('en-IN')
+const fmtKg  = (n: number) => `${n.toLocaleString('en-IN')} kg`
 
 function fmtDisplayDate(isoStr: string): string {
   return new Date(isoStr).toLocaleDateString('en-IN', {
@@ -80,19 +91,28 @@ function fmtMonth(isoStr: string): string {
 }
 
 // ─── Tali Card ─────────────────────────────────────────────────────────────────
-function TaliCard({ tali }: { tali: SavedTali }) {
+function TaliCard({
+  tali,
+  canFillPrices,
+}: {
+  tali: SavedTali
+  canFillPrices: boolean
+}) {
   const cfg = STATUS_CFG[tali.status]
 
   const handlePress = () => {
     router.push({
       pathname: '/tali-bill',
       params: {
-        taliId:     tali.id,
-        companyId:  tali.companyId,
-        boatName:   tali.boatName,
-        boatReg:    tali.boatReg,
-        ownerName:  tali.ownerName,
-        ownerPhone: tali.ownerPhone,
+        taliId:        tali.id,
+        companyId:     tali.companyId,
+        boatName:      tali.boatName,
+        boatReg:       tali.boatReg,
+        ownerName:     tali.ownerName,
+        ownerPhone:    tali.ownerPhone,
+        // KEY: pass whether the current user can fill prices
+        // This is decided HERE based on current entity, not inside tali-bill
+        canFillPrices: canFillPrices ? 'true' : 'false',
       },
     } as any)
   }
@@ -106,7 +126,7 @@ function TaliCard({ tali }: { tali: SavedTali }) {
         {/* Top: bill no + status badge */}
         <View style={tc.topRow}>
           <View style={tc.topLeft}>
-            <Text style={tc.billNo}>{tali.billNo}</Text>
+            <Text style={tc.billNo}>{tali.billNo === 'PENDING' ? 'Bill Pending' : tali.billNo}</Text>
             <Text style={tc.date}>{fmtDisplayDate(tali.date)}</Text>
           </View>
           <View style={[tc.statusBadge, { backgroundColor: cfg.color + '22' }]}>
@@ -162,19 +182,15 @@ const tc = StyleSheet.create({
   accentBar:   { width: 4 },
   inner:       { flex: 1, padding: 12, gap: 8 },
   chevron:     { justifyContent: 'center', paddingRight: 12 },
-
   topRow:      { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   topLeft:     { gap: 2, flex: 1 },
   billNo:      { fontSize: 12, fontWeight: '700', color: TP, fontFamily: 'monospace' },
   date:        { fontSize: 11, color: TS },
-
   statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 20, marginLeft: 8 },
   statusTxt:   { fontSize: 10, fontWeight: '700' },
-
   metaRow:     { flexDirection: 'row', gap: 14 },
   metaItem:    { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
   metaTxt:     { fontSize: 11, color: TS, flexShrink: 1 },
-
   statsRow:    { flexDirection: 'row', alignItems: 'center', backgroundColor: ELEV, borderRadius: 8, padding: 8 },
   stat:        { flex: 1, alignItems: 'center', gap: 1 },
   statVal:     { fontSize: 12, fontWeight: '700', color: TP },
@@ -184,20 +200,21 @@ const tc = StyleSheet.create({
 
 // ─── Screen ────────────────────────────────────────────────────────────────────
 export default function TaliListScreen() {
-  const [talis,     setTalis]     = useState<SavedTali[]>([])
-  const [loading,   setLoading]   = useState(true)
+  const canFillPrices = useCanFillPricesNow()
+
+  const [talis,      setTalis]      = useState<SavedTali[]>([])
+  const [loading,    setLoading]    = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   // Filter state
-  const [activeMonth, setActiveMonth] = useState('All')
-  const [activeBoat,  setActiveBoat]  = useState('All')
+  const [activeMonth,  setActiveMonth]  = useState('All')
+  const [activeBoat,   setActiveBoat]   = useState('All')
   const [activeStatus, setActiveStatus] = useState<TaliStatus | 'All'>('All')
 
-  // Load talis from storage every time screen is focused
+  // Load talis every time screen is focused
   const loadTalis = useCallback(async () => {
     try {
       const all = await loadAllTalis()
-      // Sort newest first
       all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       setTalis(all)
     } catch (e) {
@@ -220,11 +237,11 @@ export default function TaliListScreen() {
     loadTalis()
   }
 
-  // ── Derived filter options ─────────────────────────────────────────────────
+  // Filter options
   const months = ['All', ...Array.from(new Set(talis.map(t => fmtMonth(t.date))))]
   const boats  = ['All', ...Array.from(new Set(talis.map(t => t.boatName)))]
 
-  // ── Apply filters ──────────────────────────────────────────────────────────
+  // Apply filters
   const filtered = talis.filter(t => {
     const matchMonth  = activeMonth  === 'All' || fmtMonth(t.date) === activeMonth
     const matchBoat   = activeBoat   === 'All' || t.boatName === activeBoat
@@ -232,10 +249,9 @@ export default function TaliListScreen() {
     return matchMonth && matchBoat && matchStatus
   })
 
-  // ── Alert counts ───────────────────────────────────────────────────────────
+  // Alert counts
   const pendingCount = talis.filter(t => t.status === 'PENDING_PRICE').length
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor={BG} />
@@ -243,7 +259,10 @@ export default function TaliListScreen() {
 
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.canGoBack() ? router.back() : null}>
+          <TouchableOpacity
+            style={s.backBtn}
+            onPress={() => router.canGoBack() ? router.back() : null}
+          >
             <Ionicons name="arrow-back" size={20} color={TP} />
           </TouchableOpacity>
           <View style={s.headerCenter}>
@@ -260,8 +279,8 @@ export default function TaliListScreen() {
         {/* Status filter pills */}
         <View style={s.statusBar}>
           {(['All', 'PENDING_PRICE', 'PRICED', 'CONFIRMED'] as const).map(st => {
-            const isAll = st === 'All'
-            const cfg   = isAll ? null : STATUS_CFG[st]
+            const isAll    = st === 'All'
+            const cfg      = isAll ? null : STATUS_CFG[st]
             const isActive = activeStatus === st
             return (
               <TouchableOpacity
@@ -293,7 +312,7 @@ export default function TaliListScreen() {
           })}
         </View>
 
-        {/* Month + boat filters */}
+        {/* Month filter */}
         {months.length > 2 && (
           <View style={s.filterSection}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterScroll}>
@@ -310,6 +329,7 @@ export default function TaliListScreen() {
           </View>
         )}
 
+        {/* Boat filter */}
         {boats.length > 2 && (
           <View style={s.filterSection}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterScroll}>
@@ -357,7 +377,13 @@ export default function TaliListScreen() {
                 </Text>
               </View>
             ) : (
-              filtered.map(t => <TaliCard key={t.id} tali={t} />)
+              filtered.map(t => (
+                <TaliCard
+                  key={t.id}
+                  tali={t}
+                  canFillPrices={canFillPrices}
+                />
+              ))
             )}
             <View style={{ height: 100 }} />
           </ScrollView>
@@ -371,7 +397,7 @@ export default function TaliListScreen() {
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe:      { flex: 1, backgroundColor: BG },
+  safe: { flex: 1, backgroundColor: BG },
 
   header: {
     flexDirection: 'row', alignItems: 'center',
@@ -385,7 +411,6 @@ const s = StyleSheet.create({
   alertDot:     { minWidth: 24, height: 24, borderRadius: 12, backgroundColor: AMBER, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   alertDotTxt:  { fontSize: 11, fontWeight: '800', color: '#000' },
 
-  // Status filter bar
   statusBar: {
     flexDirection: 'row', gap: 8,
     paddingHorizontal: 16, paddingVertical: 10,
@@ -401,7 +426,6 @@ const s = StyleSheet.create({
   statusPillActive: { borderColor: TEAL, backgroundColor: TEAL + '15' },
   statusPillTxt:    { fontSize: 11, fontWeight: '600', color: TS },
 
-  // Month/boat filters
   filterSection: { paddingHorizontal: 16, paddingTop: 8 },
   filterScroll:  { gap: 8, paddingBottom: 4 },
   pill:          { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: ELEV, borderWidth: 1, borderColor: BOR },
@@ -410,7 +434,6 @@ const s = StyleSheet.create({
   pillTxt:       { fontSize: 12, fontWeight: '600', color: TS },
   pillTxtActive: { color: TEAL, fontWeight: '700' },
 
-  // Content
   loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
   loadingTxt: { color: TS, fontSize: 14 },
 

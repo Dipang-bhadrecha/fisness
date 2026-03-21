@@ -1,25 +1,16 @@
 /**
  * app/tali-bill.tsx — Tali Bill (Image capture + WhatsApp + Print)
  *
- * Sharing strategy:
- *   Image capture → react-native-view-shot captures bill view as PNG (~100ms)
- *   WhatsApp      → opens WhatsApp directly to boat owner's number, then
- *                   share sheet triggers so image can be attached and sent
- *   Print         → expo-print.printAsync({ uri: imageUri }) native dialog
+ * Always opened from tali-list with a taliId param.
+ * tali.tsx now saves the tali to storage before routing to tali-list.
  *
- * WhatsApp number source:
- *   Comes from RegisteredBoat.ownerPhone → passed as param → stored in SavedTali
- *   If missing → one-time phone prompt → saved permanently for this tali
- *
- * Install:
- *   npx expo install react-native-view-shot expo-sharing expo-file-system
- *
- * Two open modes:
- *   A) taliId param  → load from taliStorage (opened from tali-list)
- *   B) no taliId     → fresh session just ended (reads from useTaliSession)
+ * Role-aware UI:
+ *   - Boat owners / tali takers → see bill image + "Save Tali" button only
+ *   - Company owners / FILL_FISH_PRICE managers → see full price fill UI
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as FileSystem from 'expo-file-system/legacy'
 import * as Print from 'expo-print'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Sharing from 'expo-sharing'
@@ -27,7 +18,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  Linking,
   Modal,
   ScrollView,
   StyleSheet,
@@ -38,24 +28,22 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import ViewShot from 'react-native-view-shot'
-import { FISH_CATEGORIES } from '../constants/fishTypes'
-import { useTaliSession } from '../hooks/useTaliSession'
 import { useEntityStore } from '../store/entityStore'
 import {
-  confirmTali,
-  loadTali,
   SavedFishEntry,
   SavedTali,
-  saveTali,
   TaliStatus,
+  confirmTali,
+  loadTali,
+  updateTaliBillNo,
   updateTaliOwnerPhone,
   updateTaliPrices,
 } from '../utils/taliStorage'
 import {
+  TEMPLATE_KEY,
+  TaliTemplate,
   getNextBillNumber,
   saveTemplate,
-  TaliTemplate,
-  TEMPLATE_KEY,
 } from './tali-template'
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -73,15 +61,6 @@ const PAPER  = '#FEFDF8'
 const WA_GRN = '#25D366'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function getFishMeta(fishId: string): { name: string; nameGujarati: string } {
-  const preset = FISH_CATEGORIES.find(f => f.id === fishId)
-  if (preset) return { name: preset.name, nameGujarati: preset.nameGujarati }
-  const name = fishId.startsWith('custom_')
-    ? fishId.replace('custom_', '').replace(/_/g, ' ')
-    : fishId
-  return { name, nameGujarati: name }
-}
-
 function toKg(kg: number) {
   const k = Math.floor(kg)
   const g = Math.round((kg - k) * 1000)
@@ -94,16 +73,25 @@ function fmtDate(isoStr: string) {
   })
 }
 
-function useCanFillPrice(): boolean {
+// Fill prices is ONLY shown when tali-list explicitly passes canFillPrices='true'.
+// Default is false — boat owners / tali takers never see price UI.
+function useCanFillPrice(overrideParam?: string): boolean {
   const { activeEntity } = useEntityStore()
+
+  // Explicit param from tali-list always wins
+  if (overrideParam === 'true')  return true
+  if (overrideParam === 'false') return false
+
+  // No param passed — this means screen was opened outside normal flow.
+  // Only allow if active entity is explicitly a company owner context.
+  // Default to false to be safe — boat owners should never see fill prices.
   if (!activeEntity) return false
-  if (activeEntity.role === 'owner') return true
-  return activeEntity.permissions.includes('FILL_FISH_PRICE')
+  if (activeEntity.type === 'COMPANY' && activeEntity.role === 'owner') return true
+  // All other cases — NO
+  return false
 }
 
 // ─── Physical Bill View ───────────────────────────────────────────────────────
-// This is the view that gets captured as an image.
-// Keep it self-contained with no external state dependencies.
 function PhysicalBill({
   template,
   tali,
@@ -116,7 +104,6 @@ function PhysicalBill({
 
   return (
     <View style={bill.paper}>
-
       {/* Blessings */}
       <View style={bill.blessingsRow}>
         <Text style={bill.blessingTxt}>{template.blessing1}</Text>
@@ -131,10 +118,10 @@ function PhysicalBill({
           </View>
         )}
         <View style={bill.companyCenter}>
-          {template.phone          && <Text style={bill.companyPhone}   >Mo. {template.phone}</Text>}
+          {template.phone          && <Text style={bill.companyPhone}>Mo. {template.phone}</Text>}
           <Text style={bill.companyName}>{template.companyName}</Text>
           {template.companyNameGujarati && <Text style={bill.companyGuj}>{template.companyNameGujarati}</Text>}
-          {template.tagline        && <Text style={bill.companyTagline} >{template.tagline}</Text>}
+          {template.tagline        && <Text style={bill.companyTagline}>{template.tagline}</Text>}
           {template.location       && <Text style={bill.companyLocation}>{template.location}</Text>}
         </View>
       </View>
@@ -219,7 +206,6 @@ function PhysicalBill({
         <Text style={bill.signCompany}>{template.companyName}</Text>
         <Text style={bill.signPowered}>Fishness · Knowmadic</Text>
       </View>
-
     </View>
   )
 }
@@ -416,7 +402,7 @@ const np = StyleSheet.create({
   fishInfo:{ alignItems: 'center', gap: 2 },
   fishGuj: { fontSize: 20, fontWeight: '800', color: TP },
   fishEn:  { fontSize: 13, color: TS },
-  fishKg:  { fontSize: 13, color: TEAL, fontWeight: '600', marginTop: 2 },
+  fishKg:  { fontSize: 11, color: TEAL, fontWeight: '600', marginTop: 2 },
   label:   { fontSize: 11, color: TS, textAlign: 'center', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   display: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', backgroundColor: ELEV, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 20, gap: 6 },
   dRupee:  { fontSize: 22, color: TS, fontWeight: '700' },
@@ -434,8 +420,10 @@ const np = StyleSheet.create({
 
 // ─── Phone input modal ────────────────────────────────────────────────────────
 function PhoneModal({ visible, current, onSave, onClose }: {
-  visible: boolean; current: string
-  onSave: (phone: string) => void; onClose: () => void
+  visible: boolean
+  current: string
+  onSave: (phone: string) => void
+  onClose: () => void
 }) {
   const [phone, setPhone] = useState(current)
   useEffect(() => { if (visible) setPhone(current) }, [visible, current])
@@ -463,7 +451,12 @@ function PhoneModal({ visible, current, onSave, onClose }: {
           </View>
           <TouchableOpacity
             style={[pm.btn, phone.length !== 10 && pm.btnOff]}
-            onPress={() => { if (phone.length === 10) { onSave(phone); onClose() } }}
+            onPress={() => {
+              if (phone.length === 10) {
+                onSave(phone)
+                onClose()
+              }
+            }}
           >
             <Text style={pm.btnTxt}>💬 Save & Send on WhatsApp</Text>
           </TouchableOpacity>
@@ -497,36 +490,37 @@ const STATUS_CFG: Record<TaliStatus, { labelGu: string; color: string }> = {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function TaliBillScreen() {
-  const { session, clearSession } = useTaliSession()
-  const canFill = useCanFillPrice()
   const params  = useLocalSearchParams<{
-    taliId?:    string
-    companyId?: string
-    boatName?:  string
-    boatReg?:   string
-    ownerName?: string
-    ownerPhone?:string
+    taliId?:         string
+    companyId?:      string
+    boatName?:       string
+    boatReg?:        string
+    ownerName?:      string
+    ownerPhone?:     string
+    canFillPrices?:  string   // 'true' | 'false' — set by tali-list when routing
   }>()
 
-  // State
-  const [loading,       setLoading]      = useState(true)
-  const [tali,          setTali]         = useState<SavedTali | null>(null)
-  const [template,      setTemplate]     = useState<TaliTemplate | null>(null)
-  const [selectedFish,  setSelectedFish] = useState<SavedFishEntry | null>(null)
-  const [numpadVis,     setNumpadVis]    = useState(false)
-  const [phoneVis,      setPhoneVis]     = useState(false)
-  const [anyFilled,     setAnyFilled]    = useState(false)
-  const [allFilled,     setAllFilled]    = useState(false)
-  const [saving,        setSaving]       = useState(false)
-  const [confirming,    setConfirming]   = useState(false)
-  const [sharing,       setSharing]      = useState(false)
-  const [printing,      setPrinting]     = useState(false)
+  // canFill is determined by whoever opened this screen from tali-list
+  // The param overrides entity-store checks so boat owners always get false
+  const canFill = useCanFillPrice(params.canFillPrices)
 
-  // ViewShot ref — points to the physical bill view
-  const billRef = useRef<ViewShot>(null)
+  const [loading,      setLoading]    = useState(true)
+  const [tali,         setTali]       = useState<SavedTali | null>(null)
+  const [template,     setTemplate]   = useState<TaliTemplate | null>(null)
+  const [selectedFish, setSelectedFish] = useState<SavedFishEntry | null>(null)
+  const [numpadVis,    setNumpadVis]  = useState(false)
+  const [phoneVis,     setPhoneVis]   = useState(false)
+  const [anyFilled,    setAnyFilled]  = useState(false)
+  const [allFilled,    setAllFilled]  = useState(false)
+  const [saving,       setSaving]     = useState(false)
+  const [confirming,   setConfirming] = useState(false)
+  const [sharing,      setSharing]    = useState(false)
+  const [sharingPdf,   setSharingPdf] = useState(false)
+  const [printing,     setPrinting]   = useState(false)
 
-  // Unsaved price changes
-  const pendingRef = useRef<Record<string, number>>({})
+  const billRef            = useRef<ViewShot>(null)
+  const pendingRef         = useRef<Record<string, number>>({})
+  const [pendingShareFormat, setPendingShareFormat] = useState<'image' | 'pdf'>('image')
 
   // ── Init ───────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -540,52 +534,36 @@ export default function TaliBillScreen() {
         let tmpl: TaliTemplate | null = null
         if (rawTmpl) { tmpl = JSON.parse(rawTmpl); setTemplate(tmpl) }
 
-        // Mode A: open existing tali from list
+        // Mode A: open existing tali from tali-list (always has taliId)
         if (params.taliId) {
           const loaded = await loadTali(params.taliId)
-          if (loaded) { setTali(loaded); syncState(loaded) }
+          if (loaded) {
+            // If tali was saved with PENDING bill number and template now exists,
+            // assign a real bill number now
+            if (loaded.billNo === 'PENDING' && tmpl) {
+              const billNo   = getNextBillNumber(tmpl)
+              const updated  = { ...tmpl, billCounter: tmpl.billCounter + 1 }
+              await saveTemplate(updated)
+              setTemplate(updated)
+              // Update the saved tali with the real bill number
+              const patched = await updateTaliBillNo(loaded.id, billNo)
+              if (patched) { setTali(patched); syncState(patched) }
+              else          { setTali(loaded);  syncState(loaded) }
+            } else {
+              setTali(loaded)
+              syncState(loaded)
+            }
+          }
           setLoading(false)
           return
         }
 
-        // Mode B: fresh session just ended
-        if (!session?.fishData?.length) { setLoading(false); return }
-
-        if (!tmpl) {
-          router.replace({
-            pathname: '/tali-template',
-            params: { companyId, companyName: session.companyName ?? '', redirectAfter: 'tali-bill' },
-          } as any)
-          return
-        }
-
-        // Generate bill number
-        const billNo  = getNextBillNumber(tmpl)
-        const updated = { ...tmpl, billCounter: tmpl.billCounter + 1 }
-        await saveTemplate(updated)
-        setTemplate(updated)
-
-        // Save tali
-        const saved = await saveTali({
-          sessionId:       session.sessionId,
-          serverSessionId: session.serverSessionId ?? null,
-          billNo,
-          boatName:        params.boatName   ?? session.boatName   ?? 'બોટ',
-          boatReg:         params.boatReg    ?? '',
-          ownerPhone:      params.ownerPhone ?? '',
-          ownerName:       params.ownerName  ?? '',
-          companyId,
-          companyName:     session.companyName ?? tmpl.companyName,
-          fishData:        session.fishData,
-          getFishMeta,
-        })
-
-        setTali(saved)
-        syncState(saved)
-        clearSession()
+        // Mode B: no taliId — tali.tsx now saves the tali before routing to tali-list
+        // so we should never arrive here without a taliId in normal flow.
+        // Fallback: just show empty state
+        setLoading(false)
       } catch (e) {
         console.error('TaliBill init error', e)
-      } finally {
         setLoading(false)
       }
     }
@@ -598,82 +576,137 @@ export default function TaliBillScreen() {
   }
 
   // ── Capture bill as image ──────────────────────────────────────────────────
-  // react-native-view-shot writes to a temp URI automatically — use it directly
   const captureBillImage = async (): Promise<string> => {
     if (!billRef.current?.capture) throw new Error('ViewShot not ready')
-    // capture() returns a file:// URI already saved to device cache
     const uri = await billRef.current.capture()
     return uri
   }
 
-  // ── WhatsApp direct send ───────────────────────────────────────────────────
-  //
-  // Flow:
-  //   1. Capture bill as PNG image (~100ms)
-  //   2. Open WhatsApp directly to the boat owner's chat
-  //      whatsapp://send?phone=+91XXXXXXXXXX
-  //   3. Share the image via native share sheet simultaneously
-  //      → user is already in WhatsApp, taps the image to attach and send
-  //
-  // If no phone saved yet → prompt once → save → proceed
-  //
-  const handleWhatsApp = async (phone?: string) => {
+  // ── Share as IMAGE (PNG) ───────────────────────────────────────────────────
+  // Captures the bill view → copies to stable cache → native share sheet
+  // WhatsApp appears as a target → user picks contact → sends image
+  const handleShareImage = async (phone?: string) => {
     if (!tali || !template) return
 
     const targetPhone = (phone ?? tali.ownerPhone ?? '').trim()
     if (!targetPhone) {
-      // No phone saved yet — ask once
+      // Store which format was pending so PhoneModal callback knows what to do
+      setPendingShareFormat('image')
       setPhoneVis(true)
+      return
+    }
+
+    const canShare = await Sharing.isAvailableAsync()
+    if (!canShare) {
+      Alert.alert('Sharing not available', 'Your device does not support sharing.')
       return
     }
 
     setSharing(true)
     try {
-      // Step 1: capture bill image
-      const imageUri = await captureBillImage()
+      const tempUri   = await captureBillImage()
+      const stableUri = `${FileSystem.cacheDirectory}bill_${tali.billNo.replace(/-/g, '_')}.png`
+      await FileSystem.copyAsync({ from: tempUri, to: stableUri })
 
-      // Step 2: check WhatsApp is installed
-      const waUrl      = `whatsapp://send?phone=+91${targetPhone}`
-      const waInstalled = await Linking.canOpenURL(waUrl)
-
-      if (!waInstalled) {
-        // WhatsApp not installed — fall back to generic share sheet
-        await Sharing.shareAsync(imageUri, {
-          mimeType:    'image/png',
-          dialogTitle: `Send bill to ${tali.ownerName || tali.boatName}`,
-          UTI:         'public.png',
-        })
-        return
-      }
-
-      // Step 3: open WhatsApp to the owner's chat directly
-      await Linking.openURL(waUrl)
-
-      // Step 4: after a short delay, trigger share sheet so the image
-      // is ready to attach — user is already in WhatsApp, they just pick the image
-      await new Promise(r => setTimeout(r, 800))
-
-      const canShare = await Sharing.isAvailableAsync()
-      if (canShare) {
-        await Sharing.shareAsync(imageUri, {
-          mimeType:    'image/png',
-          dialogTitle: `Bill for ${tali.ownerName || tali.boatName}`,
-          UTI:         'public.png',
-        })
-      }
-    } catch (e) {
-      Alert.alert('Error', 'Could not send. Please try again.')
-      console.error('WhatsApp send error', e)
+      await Sharing.shareAsync(stableUri, {
+        mimeType:    'image/png',
+        dialogTitle: `Send bill image to ${tali.ownerName || tali.boatName} (+91 ${targetPhone})`,
+        UTI:         'public.png',
+      })
+    } catch (e: any) {
+      if (e?.message?.includes('dismissed') || e?.message?.includes('cancel')) return
+      Alert.alert('Error', 'Could not share image. Please try again.')
+      console.error('Image share error', e)
     } finally {
       setSharing(false)
     }
   }
 
+  // ── Share as PDF ───────────────────────────────────────────────────────────
+  // Captures the bill view as PNG → wraps it in an HTML page →
+  // expo-print generates a PDF → native share sheet opens with the PDF
+  // WhatsApp appears as a target → user picks contact → sends PDF
+  const handleSharePdf = async (phone?: string) => {
+    if (!tali || !template) return
+
+    const targetPhone = (phone ?? tali.ownerPhone ?? '').trim()
+    if (!targetPhone) {
+      setPendingShareFormat('pdf')
+      setPhoneVis(true)
+      return
+    }
+
+    const canShare = await Sharing.isAvailableAsync()
+    if (!canShare) {
+      Alert.alert('Sharing not available', 'Your device does not support sharing.')
+      return
+    }
+
+    setSharingPdf(true)
+    try {
+      // Step 1: capture bill as PNG image
+      const tempUri   = await captureBillImage()
+      const stableImg = `${FileSystem.cacheDirectory}bill_${tali.billNo.replace(/-/g, '_')}.png`
+      await FileSystem.copyAsync({ from: tempUri, to: stableImg })
+
+      // Step 2: read the image as base64 so we can embed it in HTML
+      const base64 = await FileSystem.readAsStringAsync(stableImg, {
+        encoding: FileSystem.EncodingType.Base64,
+      })
+
+      // Step 3: build a minimal HTML page that embeds the bill image
+      // expo-print renders this HTML to a PDF file
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { background: #fff; }
+              img  { width: 100%; height: auto; display: block; }
+            </style>
+          </head>
+          <body>
+            <img src="data:image/png;base64,${base64}" />
+          </body>
+        </html>
+      `
+
+      // Step 4: generate PDF from the HTML
+      const { uri: pdfUri } = await Print.printToFileAsync({ html, base64: false })
+
+      // Step 5: copy PDF to a stable named path
+      const stablePdf = `${FileSystem.cacheDirectory}bill_${tali.billNo.replace(/-/g, '_')}.pdf`
+      await FileSystem.copyAsync({ from: pdfUri, to: stablePdf })
+
+      // Step 6: share the PDF — WhatsApp, Gmail, Drive etc. all appear as targets
+      await Sharing.shareAsync(stablePdf, {
+        mimeType:    'application/pdf',
+        dialogTitle: `Send bill PDF to ${tali.ownerName || tali.boatName} (+91 ${targetPhone})`,
+        UTI:         'com.adobe.pdf',
+      })
+    } catch (e: any) {
+      if (e?.message?.includes('dismissed') || e?.message?.includes('cancel')) return
+      Alert.alert('Error', 'Could not generate PDF. Please try again.')
+      console.error('PDF share error', e)
+    } finally {
+      setSharingPdf(false)
+    }
+  }
+
+  // ── Phone save callback ────────────────────────────────────────────────────
+  // Called when user submits number in the PhoneModal.
+  // Saves the phone then retries whichever share was pending.
   const handlePhoneSave = async (phone: string) => {
     if (!tali) return
     await updateTaliOwnerPhone(tali.id, phone)
     setTali(prev => prev ? { ...prev, ownerPhone: phone } : prev)
-    handleWhatsApp(phone)
+    if (pendingShareFormat === 'pdf') {
+      handleSharePdf(phone)
+    } else {
+      handleShareImage(phone)
+    }
   }
 
   // ── Print ──────────────────────────────────────────────────────────────────
@@ -682,7 +715,6 @@ export default function TaliBillScreen() {
     setPrinting(true)
     try {
       const imageUri = await captureBillImage()
-      // expo-print can print an image URI directly — no HTML needed
       await Print.printAsync({ uri: imageUri })
     } catch (e) {
       Alert.alert('Error', 'Could not print. Make sure a printer is connected.')
@@ -718,8 +750,11 @@ export default function TaliBillScreen() {
     try {
       const updated = await updateTaliPrices(tali.id, pendingRef.current)
       if (updated) { setTali(updated); syncState(updated); pendingRef.current = {} }
-    } catch { Alert.alert('Error', 'Could not save prices.') }
-    finally { setSaving(false) }
+    } catch {
+      Alert.alert('Error', 'Could not save prices.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   // ── Confirm tali ───────────────────────────────────────────────────────────
@@ -783,7 +818,7 @@ export default function TaliBillScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
 
-        {/* ViewShot wraps the physical bill — this is what gets captured */}
+        {/* ViewShot wraps the physical bill */}
         <ViewShot
           ref={billRef}
           options={{ format: 'png', quality: 1.0 }}
@@ -792,62 +827,40 @@ export default function TaliBillScreen() {
           <PhysicalBill template={template} tali={tali} />
         </ViewShot>
 
-        {/* Capture hint */}
-        <View style={s.captureHint}>
-          <Text style={s.captureHintTxt}>
-            📸 Bill image is captured from the view above
-          </Text>
-        </View>
-
-        {/* Price filling section */}
-        {!isConfirmed && (
+        {/* ── Price section — only shown to company owners / permitted managers ── */}
+        {!isConfirmed && canFill && (
           <View style={s.priceCard}>
-            <Text style={s.priceCardTitle}>
-              {canFill ? 'ભાવ ભરો — Fill Prices' : '⏳ Waiting for Price'}
-            </Text>
-            <Text style={s.priceCardSub}>
-              {canFill
-                ? 'Tap any fish to enter price per kg'
-                : 'Company owner will fill the prices'}
-            </Text>
+            <Text style={s.priceCardTitle}>ભાવ ભરો — Fill Prices</Text>
+            <Text style={s.priceCardSub}>Tap any fish to enter price per kg</Text>
 
             {tali.fishEntries.map(fe => (
               <TouchableOpacity
                 key={fe.fishId}
                 style={[
                   s.priceRow,
-                  !canFill && s.priceRowRO,
                   fe.pricePerKg !== null && s.priceRowFilled,
                 ]}
                 onPress={() => {
-                  if (!canFill || isConfirmed) return
                   setSelectedFish(fe)
                   setNumpadVis(true)
                 }}
-                activeOpacity={canFill ? 0.75 : 1}
+                activeOpacity={0.75}
               >
                 <View style={s.priceLeft}>
                   <Text style={s.priceGu}>{fe.fishNameGujarati}</Text>
                   <Text style={s.priceEn}>{fe.fishName}</Text>
                   <Text style={s.priceKg}>{fe.totalKg.toFixed(1)} kg · {fe.counts} નંગ</Text>
                 </View>
-
-                {canFill ? (
-                  <View style={[s.priceRight, fe.pricePerKg !== null && s.priceRightFilled]}>
-                    {fe.pricePerKg !== null ? (
-                      <>
-                        <Text style={s.priceFilled}>₹{fe.pricePerKg}/kg</Text>
-                        <Text style={s.priceAmt}>= ₹{Math.round(fe.totalAmount!).toLocaleString('en-IN')}</Text>
-                      </>
-                    ) : (
-                      <Text style={s.priceEmpty}>Tap ▶</Text>
-                    )}
-                  </View>
-                ) : (
-                  <Text style={s.priceWait}>
-                    {fe.pricePerKg !== null ? `₹${fe.pricePerKg}/kg` : '—'}
-                  </Text>
-                )}
+                <View style={[s.priceRight, fe.pricePerKg !== null && s.priceRightFilled]}>
+                  {fe.pricePerKg !== null ? (
+                    <>
+                      <Text style={s.priceFilled}>₹{fe.pricePerKg}/kg</Text>
+                      <Text style={s.priceAmt}>= ₹{Math.round(fe.totalAmount!).toLocaleString('en-IN')}</Text>
+                    </>
+                  ) : (
+                    <Text style={s.priceEmpty}>Tap ▶</Text>
+                  )}
+                </View>
               </TouchableOpacity>
             ))}
 
@@ -857,6 +870,17 @@ export default function TaliBillScreen() {
                 <Text style={s.totalVal}>₹{Math.round(tali.grandTotal).toLocaleString('en-IN')}</Text>
               </View>
             )}
+          </View>
+        )}
+
+        {/* ── For boat owners & non-price-fillers: show saved info card ── */}
+        {!isConfirmed && !canFill && (
+          <View style={s.savedInfoCard}>
+            <Text style={s.savedInfoIcon}>✅</Text>
+            <Text style={s.savedInfoTitle}>Tali Saved</Text>
+            <Text style={s.savedInfoSub}>
+              This tali has been saved. The company owner will fill prices.
+            </Text>
           </View>
         )}
 
@@ -878,14 +902,18 @@ export default function TaliBillScreen() {
       {/* ── Bottom Action Bar ── */}
       <View style={s.actionBar}>
 
-        {/* Exit — always */}
-        {!isConfirmed && (
-          <TouchableOpacity style={s.exitBtn} onPress={() => router.back()} activeOpacity={0.8}>
-            <Text style={s.exitTxt}>Exit</Text>
+        {/* Boat owner / tali taker — just "Save & Exit" button */}
+        {!canFill && !isConfirmed && (
+          <TouchableOpacity
+            style={s.saveExitBtn}
+            onPress={() => router.replace('/tali-list' as any)}
+            activeOpacity={0.85}
+          >
+            <Text style={s.saveExitTxt}>✓ Save Tali</Text>
           </TouchableOpacity>
         )}
 
-        {/* Save Prices */}
+        {/* Company owner — Save Prices */}
         {canFill && !isConfirmed && anyFilled && (
           <TouchableOpacity
             style={[s.saveBtn, saving && s.btnOff]}
@@ -900,7 +928,7 @@ export default function TaliBillScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Confirm */}
+        {/* Company owner — Confirm */}
         {canFill && !isConfirmed && allFilled && !hasPending && (
           <TouchableOpacity
             style={[s.confirmBtn, confirming && s.btnOff]}
@@ -915,7 +943,7 @@ export default function TaliBillScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Print — shows after confirm */}
+        {/* Print — after confirm */}
         {isConfirmed && (
           <TouchableOpacity
             style={[s.printBtn, printing && s.btnOff]}
@@ -930,24 +958,43 @@ export default function TaliBillScreen() {
           </TouchableOpacity>
         )}
 
-        {/* WhatsApp — shows after confirm */}
+        {/* Send as Image — after confirm */}
         {isConfirmed && (
           <TouchableOpacity
             style={[s.waBtn, sharing && s.btnOff]}
-            onPress={() => handleWhatsApp()}
-            disabled={sharing}
+            onPress={() => handleShareImage()}
+            disabled={sharing || sharingPdf}
             activeOpacity={0.85}
           >
             {sharing ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <View style={s.waBtnInner}>
-                <Text style={s.waTxt}>💬 WhatsApp</Text>
-                {tali.ownerPhone ? (
-                  <Text style={s.waPhone}>+91 {tali.ownerPhone}</Text>
-                ) : (
-                  <Text style={s.waPhone}>Tap to set number</Text>
-                )}
+                <Text style={s.waTxt}>🖼️ Image</Text>
+                <Text style={s.waPhone}>
+                  {tali.ownerPhone ? `+91 ${tali.ownerPhone}` : 'Set number'}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {/* Send as PDF — after confirm */}
+        {isConfirmed && (
+          <TouchableOpacity
+            style={[s.pdfBtn, sharingPdf && s.btnOff]}
+            onPress={() => handleSharePdf()}
+            disabled={sharing || sharingPdf}
+            activeOpacity={0.85}
+          >
+            {sharingPdf ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <View style={s.waBtnInner}>
+                <Text style={s.pdfBtnTxt}>📄 PDF</Text>
+                <Text style={s.waPhone}>
+                  {tali.ownerPhone ? `+91 ${tali.ownerPhone}` : 'Set number'}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
@@ -1004,12 +1051,6 @@ const s = StyleSheet.create({
     elevation: 12,
   },
 
-  captureHint: {
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  captureHintTxt: { fontSize: 11, color: TM },
-
   // Price card
   priceCard:     { backgroundColor: SURF, borderRadius: 16, borderWidth: 1, borderColor: BOR, padding: 16, gap: 6 },
   priceCardTitle:{ fontSize: 14, fontWeight: '800', color: TP, marginBottom: 2 },
@@ -1050,6 +1091,16 @@ const s = StyleSheet.create({
   exitBtn:  { paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: BOR, backgroundColor: ELEV, alignItems: 'center', justifyContent: 'center' },
   exitTxt:  { fontSize: 14, color: TS, fontWeight: '600' },
 
+  // Save & Exit — for boat owners / tali takers who cannot fill prices
+  saveExitBtn: { flex: 1, backgroundColor: TEAL, borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
+  saveExitTxt: { fontSize: 15, fontWeight: '800', color: '#fff' },
+
+  // Saved info card — shown to boat owners instead of price section
+  savedInfoCard: { backgroundColor: TEAL + '12', borderRadius: 16, borderWidth: 1, borderColor: TEAL + '40', padding: 20, alignItems: 'center', gap: 8 },
+  savedInfoIcon: { fontSize: 36 },
+  savedInfoTitle:{ fontSize: 17, fontWeight: '800', color: TP },
+  savedInfoSub:  { fontSize: 13, color: TS, textAlign: 'center', lineHeight: 19 },
+
   saveBtn:   { flex: 1, backgroundColor: TEAL, borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
   saveTxt:   { fontSize: 14, fontWeight: '800', color: '#fff' },
   confirmBtn:{ flex: 1, backgroundColor: GREEN, borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
@@ -1059,8 +1110,10 @@ const s = StyleSheet.create({
   printBtn: { flex: 1, backgroundColor: ELEV, borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: BOR },
   printTxt: { fontSize: 14, fontWeight: '700', color: TS },
 
-  waBtn: { flex: 1.6, backgroundColor: WA_GRN, borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+  waBtn: { flex: 1, backgroundColor: WA_GRN, borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
   waBtnInner: { alignItems: 'center', gap: 2 },
-  waTxt:  { fontSize: 15, fontWeight: '800', color: '#fff' },
-  waPhone:{ fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: '600' },
+  waTxt:  { fontSize: 14, fontWeight: '800', color: '#fff' },
+  waPhone:{ fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: '600' },
+  pdfBtn: { flex: 1, backgroundColor: '#c0392b', borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+  pdfBtnTxt: { fontSize: 14, fontWeight: '800', color: '#fff' },
 })

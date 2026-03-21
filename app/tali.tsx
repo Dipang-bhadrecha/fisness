@@ -1,3 +1,13 @@
+/**
+ * app/tali.tsx
+ *
+ * Changes:
+ *  1. End Session alert replaced with a proper in-screen Modal (not ugly OS alert)
+ *  2. After "Yes, End" → saves tali then navigates to /tali-list (not tali-bill)
+ *  3. Back button when session is active → navigates to home, not empty fish screen
+ *  4. Empty state back button → same, go to home
+ */
+
 import {
   createSession as apiCreateSession,
   endSession as apiEndSession,
@@ -7,7 +17,6 @@ import {
 import { router, useLocalSearchParams } from 'expo-router'
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-  Alert,
   Modal,
   StyleSheet,
   Text,
@@ -31,6 +40,7 @@ import { useAuthStore } from '../store/authStore'
 import { useTaliStore } from '../store/taliStore'
 import { FishCategory } from '../types'
 import { formatKg, generateSessionId } from '../utils/calculations'
+import { saveTali } from '../utils/taliStorage'
 
 interface PreSelectedFish {
   id: string
@@ -39,6 +49,152 @@ interface PreSelectedFish {
   bucketWeight: number
 }
 
+function getFishMeta(fishId: string): { name: string; nameGujarati: string } {
+  const preset = FISH_CATEGORIES.find(f => f.id === fishId)
+  if (preset) return { name: preset.name, nameGujarati: preset.nameGujarati }
+  const name = fishId.startsWith('custom_')
+    ? fishId.replace('custom_', '').replace(/_/g, ' ')
+    : fishId
+  return { name, nameGujarati: name }
+}
+
+// ─── End Session Confirm Modal ────────────────────────────────────────────────
+function EndSessionModal({
+  visible,
+  onCancel,
+  onConfirm,
+  saving,
+}: {
+  visible: boolean
+  onCancel: () => void
+  onConfirm: () => void
+  saving: boolean
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+      statusBarTranslucent
+    >
+      <View style={em.overlay}>
+        <View style={em.card}>
+          {/* Icon */}
+          <View style={em.iconWrap}>
+            <Text style={em.icon}>⚓</Text>
+          </View>
+
+          <Text style={em.title}>End Session?</Text>
+          <Text style={em.body}>
+            This will save the tali and you can fill prices later from My Talis.
+          </Text>
+
+          <View style={em.btnRow}>
+            <TouchableOpacity
+              style={em.cancelBtn}
+              onPress={onCancel}
+              activeOpacity={0.75}
+              disabled={saving}
+            >
+              <Text style={em.cancelTxt}>No, Continue</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[em.endBtn, saving && em.btnOff]}
+              onPress={onConfirm}
+              activeOpacity={0.8}
+              disabled={saving}
+            >
+              {saving ? (
+                <Text style={em.endTxt}>Saving...</Text>
+              ) : (
+                <Text style={em.endTxt}>Yes, End</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  )
+}
+
+const em = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  card: {
+    width: '100%',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  iconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.colors.danger + '18',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  icon: { fontSize: 26 },
+  title: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: theme.colors.textPrimary,
+    textAlign: 'center',
+  },
+  body: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+    width: '100%',
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: theme.colors.elevated,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  cancelTxt: {
+    fontSize: 14,
+    color: theme.colors.textPrimary,
+    fontWeight: '600',
+  },
+  endBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: theme.colors.danger,
+  },
+  endTxt: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '800',
+  },
+  btnOff: { opacity: 0.6 },
+})
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function TaliScreen() {
   const { t } = useLanguage()
   const { token } = useAuthStore()
@@ -70,6 +226,7 @@ export default function TaliScreen() {
     setActiveFish,
     deleteFish,
     endSession,
+    clearSession,
   } = useTaliSession()
 
   const addPreSelectedFish = (fish: PreSelectedFish[]) => {
@@ -84,7 +241,7 @@ export default function TaliScreen() {
       if (boatId && boatName && companyId) {
         if (token) {
           try {
-            const clientId = generateSessionId()
+            const clientId  = generateSessionId()
             const apiSession = await apiCreateSession(token, {
               companyId,
               registeredBoatId: boatId,
@@ -111,11 +268,11 @@ export default function TaliScreen() {
           const company = owned?.[0] ?? memberOf?.[0]
           if (company?.id) {
             const boats = await getRegisteredBoats(token, company.id)
-            const boat = boats?.[0]
+            const boat  = boats?.[0]
             if (boat?.id) {
-              const clientId = generateSessionId()
+              const clientId   = generateSessionId()
               const apiSession = await apiCreateSession(token, {
-                companyId: company.id,
+                companyId:        company.id,
                 registeredBoatId: boat.id,
                 clientId,
               })
@@ -124,7 +281,7 @@ export default function TaliScreen() {
               return
             }
           }
-        } catch (_) { }
+        } catch (_) {}
       }
       createSession('બોટ - 1', 'કંપની')
       addPreSelectedFish(parsedSelectedFish)
@@ -133,6 +290,7 @@ export default function TaliScreen() {
     startSession()
   }, [token, boatId, boatName, companyId, companyName])
 
+  // ── Local UI state ─────────────────────────────────────────────────────────
   const [addFishVisible,      setAddFishVisible]      = useState(false)
   const [bucketModalVisible,  setBucketModalVisible]  = useState(false)
   const [pendingFish,         setPendingFish]         = useState<FishCategory | null>(null)
@@ -142,6 +300,11 @@ export default function TaliScreen() {
     id: string; name: string; nameGujarati: string
   } | null>(null)
 
+  // End session modal state
+  const [endModalVisible, setEndModalVisible] = useState(false)
+  const [endSaving,       setEndSaving]       = useState(false)
+
+  // ── Fish modal handlers ────────────────────────────────────────────────────
   const handleFishSelected = (fish: FishCategory) => {
     setPendingFish(fish)
     setAddFishVisible(false)
@@ -174,66 +337,83 @@ export default function TaliScreen() {
 
   const handleDeleteFish = (fishId: string) => {
     if (!session || session.fishData.length <= 1) return
-    const fd = session.fishData.find((f) => f.fishId === fishId)
+    const fd     = session.fishData.find(f => f.fishId === fishId)
     if (!fd) return
-    const preset = FISH_CATEGORIES.find((f) => f.id === fishId)
-    const name = preset?.name ?? (fishId.startsWith('custom_') ? fishId.replace('custom_', '').replace(/_/g, ' ') : fishId)
+    const preset = FISH_CATEGORIES.find(f => f.id === fishId)
+    const name   = preset?.name ?? (fishId.startsWith('custom_')
+      ? fishId.replace('custom_', '').replace(/_/g, ' ')
+      : fishId)
     const nameGujarati = preset?.nameGujarati ?? name
     setDeletingFish({ id: fishId, name, nameGujarati })
   }
 
   const handlePartialSave = () => {
     const weight = parseFloat(partialInput)
-    if (isNaN(weight) || weight <= 0) {
-      Alert.alert(t.common.error, t.tali.invalidWeight)
-      return
-    }
+    if (isNaN(weight) || weight <= 0) return
     setPartialWeight(session!.activeFishId, weight)
     setPartialModalVisible(false)
     setPartialInput('')
   }
 
-  const handleEndSession = () => {
-    Alert.alert(
-      t.tali.endConfirmTitle,
-      t.tali.endConfirmMsg,
-      [
-        { text: t.common.no, style: 'cancel' },
-        {
-          text: t.tali.endConfirmYes,
-          style: 'destructive',
-          onPress: async () => {
-            if (session?.serverSessionId && token && session.fishData.length > 0) {
-              try {
-                const fishEntries = session.fishData.map((fd) => {
-                  const preset = FISH_CATEGORIES.find((f) => f.id === fd.fishId)
-                  const fishName = preset?.name ?? (fd.fishId.startsWith('custom_') ? fd.fishId.replace('custom_', '').replace(/_/g, ' ') : fd.fishId)
-                  const fishNameGujarati = preset?.nameGujarati ?? fishName
-                  return { fishId: fd.fishId, fishName, fishNameGujarati, bucketWeight: fd.bucketWeight, totalKg: fd.totalKg }
-                })
-                await apiEndSession(token, session.serverSessionId, fishEntries)
-              } catch (_) { }
+  // ── Back button — always go home, never the empty fish screen ─────────────
+  const handleBack = () => {
+    router.replace('/(home)' as any)
+  }
+
+  // ── End session ────────────────────────────────────────────────────────────
+  // Shows proper modal, then on confirm: saves tali + navigates to tali-list
+  const handleEndConfirm = async () => {
+    if (!session) return
+    setEndSaving(true)
+    try {
+      // 1. Call API to end session if server session exists
+      if (session.serverSessionId && token && session.fishData.length > 0) {
+        try {
+          const fishEntries = session.fishData.map(fd => {
+            const { name, nameGujarati } = getFishMeta(fd.fishId)
+            return {
+              fishId:           fd.fishId,
+              fishName:         name,
+              fishNameGujarati: nameGujarati,
+              bucketWeight:     fd.bucketWeight,
+              totalKg:          fd.totalKg,
             }
-            endSession()
-            // ── FIX: consistent companyId fallback so template key always matches ──
-            // const resolvedCompanyId = (companyId && companyId !== '') ? companyId : 'default'
-            // Resolve companyId — try params first, then session, then default
-const resolvedCompanyId = (companyId && companyId !== '')
-  ? companyId
-  : 'default'
-            router.push({
-              pathname: '/tali-bill',
-              params: {
-                companyId: resolvedCompanyId,
-                boatName:  session?.boatName ?? boatName ?? '',
-                boatReg:   '',
-                ownerName: '',
-              },
-            } as any)
-          },
-        },
-      ]
-    )
+          })
+          await apiEndSession(token, session.serverSessionId, fishEntries)
+        } catch (_) {}
+      }
+
+      // 2. Mark session ended in store
+      endSession()
+
+      // 3. Save tali to local storage
+      // companyId falls back to 'default' so template key always matches
+      const resolvedCompanyId = (companyId && companyId !== '') ? companyId : 'default'
+
+      await saveTali({
+        sessionId:       session.sessionId,
+        serverSessionId: session.serverSessionId ?? null,
+        billNo:          'PENDING',  // will be assigned when template exists
+        boatName:        session.boatName ?? boatName ?? 'બોટ',
+        boatReg:         '',
+        ownerPhone:      '',
+        ownerName:       '',
+        companyId:       resolvedCompanyId,
+        companyName:     session.companyName ?? companyName ?? '',
+        fishData:        session.fishData,
+        getFishMeta,
+      })
+
+      // 4. Clear session from store
+      clearSession()
+
+      // 5. Navigate to tali-list — user will open the tali to fill prices
+      setEndModalVisible(false)
+      router.replace('/tali-list' as any)
+    } catch (e) {
+      console.error('End session error', e)
+      setEndSaving(false)
+    }
   }
 
   // ── Empty state ────────────────────────────────────────────────────────────
@@ -241,15 +421,14 @@ const resolvedCompanyId = (companyId && companyId !== '')
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.canGoBack() ? router.back() : null}
-            style={styles.backBtn}
-          >
+          <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
             <Text style={styles.backBtnText}>←</Text>
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>{t.tali.headerTitle}</Text>
-            <Text style={styles.headerSub}>{session?.boatName ?? boatName ?? t.tali.headerSubtitle}</Text>
+            <Text style={styles.headerSub}>
+              {session?.boatName ?? boatName ?? t.tali.headerSubtitle}
+            </Text>
           </View>
           <View style={{ width: 40 }} />
         </View>
@@ -258,7 +437,10 @@ const resolvedCompanyId = (companyId && companyId !== '')
           <Text style={styles.emptyIcon}>🐟</Text>
           <Text style={styles.emptyTitle}>{t.tali.emptyTitle}</Text>
           <Text style={styles.emptyText}>{t.tali.emptyText}</Text>
-          <TouchableOpacity onPress={() => setAddFishVisible(true)} style={styles.emptyAddBtn}>
+          <TouchableOpacity
+            onPress={() => setAddFishVisible(true)}
+            style={styles.emptyAddBtn}
+          >
             <Text style={styles.emptyAddBtnText}>{t.tali.addFish}</Text>
           </TouchableOpacity>
         </View>
@@ -267,7 +449,7 @@ const resolvedCompanyId = (companyId && companyId !== '')
           visible={addFishVisible}
           onClose={() => setAddFishVisible(false)}
           onAddFish={handleFishSelected}
-          alreadyAddedIds={session?.fishData.map((fd) => fd.fishId) ?? []}
+          alreadyAddedIds={session?.fishData.map(fd => fd.fishId) ?? []}
         />
         {pendingFish && (
           <BucketWeightModal
@@ -284,23 +466,32 @@ const resolvedCompanyId = (companyId && companyId !== '')
   }
 
   // ── Active session ─────────────────────────────────────────────────────────
-  const activeFishData = session.fishData.find((fd) => fd.fishId === session.activeFishId)
+  const activeFishData = session.fishData.find(fd => fd.fishId === session.activeFishId)
 
-  const activeFish = FISH_CATEGORIES.find((f) => f.id === session.activeFishId) ?? (() => {
+  const activeFish = FISH_CATEGORIES.find(f => f.id === session.activeFishId) ?? (() => {
     const customName = session.activeFishId.startsWith('custom_')
       ? session.activeFishId.replace('custom_', '').replace(/_/g, ' ')
       : session.activeFishId
-    return { id: session.activeFishId, name: customName, nameGujarati: customName, bucketWeight: activeFishData?.bucketWeight ?? 25 }
+    return {
+      id:            session.activeFishId,
+      name:          customName,
+      nameGujarati:  customName,
+      bucketWeight:  activeFishData?.bucketWeight ?? 25,
+    }
   })()
 
   if (!activeFishData) return null
 
-  const totalKgMap = Object.fromEntries(session.fishData.map((fd) => [fd.fishId, fd.totalKg]))
+  const totalKgMap = Object.fromEntries(
+    session.fishData.map(fd => [fd.fishId, fd.totalKg])
+  )
 
-  const sessionCategories = session.fishData.map((fd) => {
-    const preset = FISH_CATEGORIES.find((f) => f.id === fd.fishId)
+  const sessionCategories = session.fishData.map(fd => {
+    const preset = FISH_CATEGORIES.find(f => f.id === fd.fishId)
     if (preset) return { ...preset, bucketWeight: fd.bucketWeight }
-    const customName = fd.fishId.startsWith('custom_') ? fd.fishId.replace('custom_', '').replace(/_/g, ' ') : fd.fishId
+    const customName = fd.fishId.startsWith('custom_')
+      ? fd.fishId.replace('custom_', '').replace(/_/g, ' ')
+      : fd.fishId
     return { id: fd.fishId, name: customName, nameGujarati: customName, bucketWeight: fd.bucketWeight }
   })
 
@@ -309,17 +500,18 @@ const resolvedCompanyId = (companyId && companyId !== '')
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.canGoBack() ? router.back() : null}
-          style={styles.backBtn}
-        >
+        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
           <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>{t.tali.headerTitle}</Text>
           <Text style={styles.headerSub}>{session.boatName ?? t.tali.headerSubtitle}</Text>
         </View>
-        <TouchableOpacity onPress={handleEndSession} style={styles.endBtn}>
+        {/* End button — top right */}
+        <TouchableOpacity
+          onPress={() => setEndModalVisible(true)}
+          style={styles.endBtn}
+        >
           <Text style={styles.endBtnText}>{t.tali.endSession}</Text>
         </TouchableOpacity>
       </View>
@@ -347,7 +539,7 @@ const resolvedCompanyId = (companyId && companyId !== '')
         entries={activeFishData.entries}
         bucketWeight={activeFishData.bucketWeight}
         partialWeight={activeFishData.partialWeight}
-        onCustomEntry={(weight) => addCustomCount(session.activeFishId, weight)}
+        onCustomEntry={weight => addCustomCount(session.activeFishId, weight)}
       />
 
       {/* Bottom Bar */}
@@ -413,6 +605,16 @@ const resolvedCompanyId = (companyId && companyId !== '')
         </TouchableOpacity>
       </View>
 
+      {/* ── End Session Modal (replaces ugly OS Alert) ── */}
+      <EndSessionModal
+        visible={endModalVisible}
+        onCancel={() => {
+          if (!endSaving) setEndModalVisible(false)
+        }}
+        onConfirm={handleEndConfirm}
+        saving={endSaving}
+      />
+
       {/* Partial Weight Modal */}
       <Modal
         visible={partialModalVisible}
@@ -460,7 +662,7 @@ const resolvedCompanyId = (companyId && companyId !== '')
         visible={addFishVisible}
         onClose={() => setAddFishVisible(false)}
         onAddFish={handleFishSelected}
-        alreadyAddedIds={session.fishData.map((fd) => fd.fishId)}
+        alreadyAddedIds={session.fishData.map(fd => fd.fishId)}
       />
 
       {pendingFish && (
@@ -489,7 +691,7 @@ const resolvedCompanyId = (companyId && companyId !== '')
   )
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container:       { flex: 1, backgroundColor: theme.colors.background },
   header:          { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, borderBottomWidth: 1, borderBottomColor: theme.colors.border, paddingHorizontal: theme.spacing[2], paddingVertical: theme.spacing[2], gap: theme.spacing[2] },
