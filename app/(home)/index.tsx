@@ -297,7 +297,7 @@ function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]
         </View>
         <View style={bcard.actionsRow}>
           <TouchableOpacity style={bcard.actionBtn} activeOpacity={0.75}
-            onPress={() => router.push({ pathname: '/tali-fish-select', params: { boatId: boat.id, boatName: boat.name } } as any)}>
+            onPress={() => router.push({ pathname: '/tali-list', params: { boatId: boat.id, boatName: boat.name } } as any)}>
             <Ionicons name={CARD_ICONS.tali} size={17} color={TS} />
             <Text style={bcard.actionLabel}>Tali</Text>
           </TouchableOpacity>

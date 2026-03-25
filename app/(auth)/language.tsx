@@ -1,12 +1,11 @@
 import { useTheme } from '@/store/themeStore'
-import { router } from 'expo-router'
 import React, { useMemo, useState } from 'react'
 import {
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Language } from '../../constants/i18n'
@@ -138,7 +137,7 @@ export default function LanguageScreen() {
     if (saving) return
     setSaving(true)
     await setLanguage(selected)
-    router.replace('/(setup)/role')
+    
   }
 
   return (
