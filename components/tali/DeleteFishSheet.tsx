@@ -1,21 +1,19 @@
 import React from 'react'
 import {
-    Image,
-    Modal,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native'
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import Animated, {
-    runOnJS,
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
 } from 'react-native-reanimated'
-import { getFishImage } from '../../constants/fishImages'
 import { theme } from '../../constants/theme'
 import { useLanguage } from '../../hooks/useLanguage'
 
@@ -38,7 +36,6 @@ export function DeleteFishSheet({
 }: DeleteFishSheetProps) {
   const { t } = useLanguage()
   const translateY = useSharedValue(0)
-  const image = getFishImage(fishId)
 
   const handleCancel = () => {
     translateY.value = withSpring(0)
@@ -85,19 +82,6 @@ export function DeleteFishSheet({
 
                 {/* Fish identity row */}
                 <View style={styles.fishRow}>
-                  {/* Fish image or fallback */}
-                  <View style={styles.fishImageBox}>
-                    {image ? (
-                      <Image
-                        source={image}
-                        style={styles.fishImage}
-                        resizeMode="contain"
-                      />
-                    ) : (
-                      <Text style={styles.fishEmoji}>🐟</Text>
-                    )}
-                  </View>
-
                   <View style={styles.fishInfo}>
                     <Text style={styles.fishName}>{fishName}</Text>
                     <Text style={styles.fishGuj}>{fishNameGujarati}</Text>
