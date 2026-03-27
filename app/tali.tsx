@@ -17,6 +17,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router'
 import React, { useEffect, useMemo, useState } from 'react'
 import {
+  ActivityIndicator,
   Modal,
   StyleSheet,
   Text,
@@ -234,34 +235,37 @@ export default function TaliScreen() {
     fish.forEach(f => addFishToSession(f.id, f.bucketWeight))
   }
 
+  const [isInitializing, setIsInitializing] = useState(!session)
+
   useEffect(() => {
-    if (session) return
+    if (session) {
+      setIsInitializing(false)
+      return
+    }
 
     const startSession = async () => {
       if (boatId && boatName && companyId) {
+        // 1. Create session + add fish immediately — no waiting for API
+        createSession(boatName, companyName ?? 'કંપની')
+        addPreSelectedFish(parsedSelectedFish)
+
+        // 2. Get server session ID in background — patches it in after API responds
         if (token) {
-          try {
-            const clientId  = generateSessionId()
-            const apiSession = await apiCreateSession(token, {
-              companyId,
-              registeredBoatId: boatId,
-              clientId,
+          const clientId = generateSessionId()
+          apiCreateSession(token, { companyId, registeredBoatId: boatId, clientId })
+            .then(apiSession => {
+              useTaliStore.setState(s => ({
+                session: s.session
+                  ? { ...s.session, serverSessionId: apiSession.id }
+                  : null,
+              }))
             })
-            createSession(boatName, companyName ?? 'કંપની', apiSession.id)
-            addPreSelectedFish(parsedSelectedFish)
-            return
-          } catch (_) {
-            createSession(boatName, companyName ?? 'કંપની')
-            addPreSelectedFish(parsedSelectedFish)
-            return
-          }
-        } else {
-          createSession(boatName, companyName ?? 'કંપની')
-          addPreSelectedFish(parsedSelectedFish)
-          return
+            .catch(() => {})
         }
+        return
       }
 
+      // Fallback: no boatId passed — fetch from API then create session
       if (token) {
         try {
           const { owned, memberOf } = await getMyCompanies(token)
@@ -270,14 +274,18 @@ export default function TaliScreen() {
             const boats = await getRegisteredBoats(token, company.id)
             const boat  = boats?.[0]
             if (boat?.id) {
-              const clientId   = generateSessionId()
-              const apiSession = await apiCreateSession(token, {
-                companyId:        company.id,
-                registeredBoatId: boat.id,
-                clientId,
-              })
-              createSession(boat.name ?? 'બોટ - 1', company.name ?? 'કંપની', apiSession.id)
+              createSession(boat.name ?? 'બોટ - 1', company.name ?? 'કંપની')
               addPreSelectedFish(parsedSelectedFish)
+              const clientId = generateSessionId()
+              apiCreateSession(token, { companyId: company.id, registeredBoatId: boat.id, clientId })
+                .then(apiSession => {
+                  useTaliStore.setState(s => ({
+                    session: s.session
+                      ? { ...s.session, serverSessionId: apiSession.id }
+                      : null,
+                  }))
+                })
+                .catch(() => {})
               return
             }
           }
@@ -287,7 +295,7 @@ export default function TaliScreen() {
       addPreSelectedFish(parsedSelectedFish)
     }
 
-    startSession()
+    startSession().finally(() => setIsInitializing(false))
   }, [token, boatId, boatName, companyId, companyName])
 
   // ── Local UI state ─────────────────────────────────────────────────────────
@@ -414,6 +422,27 @@ export default function TaliScreen() {
       console.error('End session error', e)
       setEndSaving(false)
     }
+  }
+
+  // ── Initializing — prevent "no fish" flash while session is being created ──
+  if (isInitializing) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+            <Text style={styles.backBtnText}>←</Text>
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>{t.tali.headerTitle}</Text>
+            <Text style={styles.headerSub}>{boatName ?? t.tali.headerSubtitle}</Text>
+          </View>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      </SafeAreaView>
+    )
   }
 
   // ── Empty state ────────────────────────────────────────────────────────────

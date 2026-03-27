@@ -135,6 +135,7 @@ interface EntityState {
 const ENTITY_STORAGE_KEY   = 'fishness_active_entity'
 const CONTEXT_STORAGE_KEY  = 'fishness_active_context'
 const ROLES_STORAGE_KEY    = 'fishness_selected_roles'
+const ENTITIES_CACHE_KEY   = 'fishness_entities_cache'
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 export const useEntityStore = create<EntityState>((set, get) => ({
@@ -232,11 +233,37 @@ export const useEntityStore = create<EntityState>((set, get) => ({
 
     if (primary) AsyncStorage.setItem(ENTITY_STORAGE_KEY, primary.id).catch(() => {})
     AsyncStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(roles)).catch(() => {})
+    AsyncStorage.setItem(ENTITIES_CACHE_KEY, JSON.stringify({ entities, variant, roles })).catch(() => {})
   },
 
   // ── Full backend load (called on cold start for returning users) ───────────
   loadEntities: async (token: string) => {
     set({ isLoading: true, loadError: null })
+
+    // Restore from local cache first — no API needed for frontend-only mode
+    try {
+      const cached = await AsyncStorage.getItem(ENTITIES_CACHE_KEY)
+      if (cached) {
+        const { entities, variant, roles } = JSON.parse(cached) as {
+          entities: Entity[]; variant: HomeVariant; roles: SelectedRole[]
+        }
+        const savedId  = await AsyncStorage.getItem(ENTITY_STORAGE_KEY)
+        const savedCtx = (await AsyncStorage.getItem(CONTEXT_STORAGE_KEY)) as ActiveContext | null
+        const active   = (savedId ? entities.find(e => e.id === savedId) : null) ?? entities[0] ?? null
+        set({
+          entities,
+          activeEntity: active,
+          secondaryEntity: entities[1] ?? null,
+          selectedRoles: roles,
+          homeVariant: variant,
+          activeContext: savedCtx ?? 'primary',
+          isLoaded: true,
+          isLoading: false,
+          loadError: null,
+        })
+        return
+      }
+    } catch {}
 
     try {
       const [companiesRes, meRes] = await Promise.all([

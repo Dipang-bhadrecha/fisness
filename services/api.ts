@@ -13,8 +13,10 @@
  */
 
 // ─── Base config ──────────────────────────────────────────────────────────────
-
-const BASE_URL = 'http://13.235.52.23:3001'
+// Set EXPO_PUBLIC_API_URL in .env.local, e.g.:
+//   http://192.168.1.42:3000   ← your laptop's LAN IP when testing on a physical device
+//   http://10.0.2.2:3000       ← Android emulator host alias for localhost
+const BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://13.235.52.23:3001').replace(/\/$/, '')
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -337,5 +339,119 @@ export async function syncSession(
     method: 'POST',
     token,
     body: JSON.stringify(data),
+  })
+}
+
+// ─── Session list + detail ────────────────────────────────────────────────────
+
+export interface ApiFishEntry {
+  id: string
+  fishId: string
+  fishName: string
+  fishNameGujarati?: string | null
+  bucketWeight: number
+  totalKg: number
+}
+
+export interface ApiSessionBill {
+  id: string
+  status: string
+  finalTotal: number
+  billNumber?: string | null
+}
+
+/** Shape returned by GET /api/v1/sessions (list) */
+export interface ApiSessionSummary {
+  id: string
+  companyId: string
+  registeredBoatId: string
+  status: string
+  startTime: string
+  endTime?: string | null
+  clientId?: string | null
+  company?: { id: string; name: string } | null
+  registeredBoat?: {
+    id: string; name: string
+    ownerName?: string | null; ownerPhone?: string | null
+  } | null
+  fishEntries: ApiFishEntry[]
+  bill?: ApiSessionBill | null
+}
+
+export interface ApiBillItem {
+  id: string
+  fishEntryId: string
+  fishName: string
+  fishNameGujarati?: string | null
+  totalKg: number
+  pricePerKg: number
+  totalAmount: number
+}
+
+export interface ApiBill {
+  id: string
+  sessionId: string
+  billNumber: string
+  status: string
+  subtotal: number
+  sellingCharge: number
+  finalTotal: number
+  items: ApiBillItem[]
+}
+
+/** Shape returned by GET /api/v1/sessions/:id (full session — bill includes items) */
+export interface ApiSessionDetail extends ApiSessionSummary {
+  bill?: (ApiSessionBill & { items?: ApiBillItem[] }) | null
+}
+
+export async function getSessions(
+  token: string,
+  filters?: { companyId?: string }
+): Promise<ApiSessionSummary[]> {
+  const params = new URLSearchParams()
+  if (filters?.companyId) params.set('companyId', filters.companyId)
+  const qs = params.toString() ? `?${params}` : ''
+  return request(`/api/v1/sessions${qs}`, { method: 'GET', token })
+}
+
+export async function getSession(token: string, sessionId: string): Promise<ApiSessionDetail> {
+  return request(`/api/v1/sessions/${sessionId}`, { method: 'GET', token })
+}
+
+// ─── Bill endpoints ───────────────────────────────────────────────────────────
+
+/** Create a draft bill from an ended session (company owner only) */
+export async function createBill(token: string, sessionId: string): Promise<ApiBill> {
+  return request('/api/v1/bills', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ sessionId }),
+  })
+}
+
+export async function getBill(token: string, billId: string): Promise<ApiBill> {
+  return request(`/api/v1/bills/${billId}`, { method: 'GET', token })
+}
+
+/** Owner fills price per kg for each fish.
+ *  prices: [{ billItemId, pricePerKg }]  — billItemId comes from ApiBill.items[].id
+ */
+export async function fillBillPrices(
+  token: string,
+  billId: string,
+  prices: Array<{ billItemId: string; pricePerKg: number }>
+): Promise<ApiBill> {
+  return request(`/api/v1/bills/${billId}/prices`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ prices }),
+  })
+}
+
+/** Lock bill and mark session as BILLED */
+export async function confirmBill(token: string, billId: string): Promise<ApiBill> {
+  return request(`/api/v1/bills/${billId}/confirm`, {
+    method: 'PATCH',
+    token,
   })
 }

@@ -55,8 +55,6 @@ export default function RootLayout() {
         <Stack.Screen name="(dashboard)"  options={{ headerShown: false }} />
         <Stack.Screen name="tali-bill"    options={{ headerShown: false }} />
         <Stack.Screen name="tali-list"    options={{ headerShown: false }} />
-        <Stack.Screen name="summary"      options={{ headerShown: false }} />
-        <Stack.Screen name="bill"         options={{ headerShown: false }} />
         <Stack.Screen name="crew"         options={{ headerShown: false }} />
         <Stack.Screen name="kharchi"      options={{ headerShown: false }} />
         <Stack.Screen name="profile"      options={{ headerShown: false }} />

@@ -44,6 +44,9 @@ export interface SavedTali {
   totalKg: number
   grandTotal: number | null
   status: TaliStatus
+  // Server-side bill tracking (optional — absent on old records)
+  billId?: string | null
+  billItemMap?: Record<string, string> | null  // fishId → server billItemId
   createdAt: string
   updatedAt: string
 }
@@ -264,4 +267,149 @@ export async function updateTaliOwnerPhone(id: string, phone: string): Promise<v
     const updated = { ...tali, ownerPhone: phone, updatedAt: new Date().toISOString() }
     await AsyncStorage.setItem(TALI_KEY(id), JSON.stringify(updated))
   } catch {}
+}
+
+// ─── Store server bill ID + item map after creating bill via API ──────────────
+export async function updateTaliBillId(
+  id: string,
+  billId: string,
+  billItemMap: Record<string, string>
+): Promise<SavedTali | null> {
+  try {
+    const tali = await loadTali(id)
+    if (!tali) return null
+    const updated: SavedTali = {
+      ...tali,
+      billId,
+      billItemMap,
+      updatedAt: new Date().toISOString(),
+    }
+    await AsyncStorage.setItem(TALI_KEY(id), JSON.stringify(updated))
+    return updated
+  } catch {
+    return null
+  }
+}
+
+// ─── Server-session sync types ────────────────────────────────────────────────
+export interface ServerSessionSummary {
+  id: string
+  companyId: string
+  status: string
+  startTime: string
+  endTime?: string | null
+  clientId?: string | null
+  company?: { id: string; name: string } | null
+  registeredBoat?: {
+    id: string; name: string
+    ownerName?: string | null; ownerPhone?: string | null
+  } | null
+  fishEntries: Array<{
+    fishId: string
+    fishName: string
+    fishNameGujarati?: string | null
+    bucketWeight: number
+    totalKg: number
+  }>
+  bill?: { id: string; status: string; finalTotal: number; billNumber?: string | null } | null
+}
+
+function mapServerStatus(session: ServerSessionSummary): TaliStatus {
+  if (session.status === 'BILLED') return 'CONFIRMED'
+  if (session.bill && session.bill.finalTotal > 0) return 'PRICED'
+  return 'PENDING_PRICE'
+}
+
+// ─── Upsert a server session into local storage ───────────────────────────────
+// - If a local tali with matching serverSessionId exists, update its status/bill
+// - Otherwise create a new local tali from the server data
+export async function upsertTaliFromServer(session: ServerSessionSummary): Promise<SavedTali | null> {
+  if (session.status === 'ACTIVE' || session.status === 'CANCELLED') return null
+  if (session.fishEntries.length === 0) return null
+
+  // Look for existing local tali by serverSessionId
+  const ids = await getTaliIdList()
+  let existingTali: SavedTali | null = null
+  for (const localId of ids) {
+    const t = await loadTali(localId)
+    if (t?.serverSessionId === session.id) { existingTali = t; break }
+  }
+
+  const serverStatus = mapServerStatus(session)
+
+  if (existingTali) {
+    const needsUpdate =
+      existingTali.status !== serverStatus ||
+      existingTali.billId !== (session.bill?.id ?? null) ||
+      existingTali.grandTotal !== (session.bill?.finalTotal ?? null)
+    if (!needsUpdate) return null
+
+    const updated: SavedTali = {
+      ...existingTali,
+      status:     serverStatus,
+      grandTotal: session.bill?.finalTotal ?? existingTali.grandTotal,
+      billId:     session.bill?.id ?? existingTali.billId,
+      updatedAt:  new Date().toISOString(),
+    }
+    await AsyncStorage.setItem(TALI_KEY(existingTali.id), JSON.stringify(updated))
+    return updated
+  }
+
+  // Create new local tali from server session
+  const now     = new Date().toISOString()
+  const newId   = generateTaliId()
+  const dateStr = session.endTime ?? session.startTime
+
+  const fishEntries: SavedFishEntry[] = session.fishEntries.map(fe => ({
+    fishId:           fe.fishId,
+    fishName:         fe.fishName,
+    fishNameGujarati: fe.fishNameGujarati ?? fe.fishName,
+    counts:           0,
+    totalKg:          fe.totalKg,
+    bucketWeight:     fe.bucketWeight,
+    pricePerKg:       null,
+    totalAmount:      null,
+  }))
+
+  const totalKg = fishEntries.reduce((s, f) => s + f.totalKg, 0)
+
+  const tali: SavedTali = {
+    id:              newId,
+    billNo:          session.bill?.billNumber ?? 'PENDING',
+    sessionId:       session.clientId ?? session.id,
+    serverSessionId: session.id,
+    boatName:        session.registeredBoat?.name ?? 'Unknown Boat',
+    boatReg:         '',
+    ownerPhone:      session.registeredBoat?.ownerPhone ?? '',
+    ownerName:       session.registeredBoat?.ownerName ?? '',
+    companyId:       session.companyId,
+    companyName:     session.company?.name ?? '',
+    date:            dateStr,
+    month:           getMonth(dateStr),
+    fishEntries,
+    totalKg,
+    grandTotal:      session.bill?.finalTotal ?? null,
+    status:          serverStatus,
+    billId:          session.bill?.id ?? null,
+    billItemMap:     null,
+    createdAt:       session.startTime,
+    updatedAt:       now,
+  }
+
+  await AsyncStorage.setItem(TALI_KEY(newId), JSON.stringify(tali))
+  const existingIds = await getTaliIdList()
+  await AsyncStorage.setItem(TALI_LIST_KEY, JSON.stringify([newId, ...existingIds]))
+
+  return tali
+}
+
+// ─── Sync all server sessions into local storage ──────────────────────────────
+// Returns only the talis that were newly created or updated.
+export async function syncServerSessions(sessions: ServerSessionSummary[]): Promise<SavedTali[]> {
+  const synced: SavedTali[] = []
+  for (const session of sessions) {
+    const result = await upsertTaliFromServer(session)
+    if (result) synced.push(result)
+  }
+  return synced
 }

@@ -20,8 +20,10 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppTabBar } from '../components/shared/AppTabBar'
+import { getSessions } from '../services/api'
+import { useAuthStore } from '../store/authStore'
 import { useEntityStore } from '../store/entityStore'
-import { SavedTali, TaliStatus, loadAllTalis } from '../utils/taliStorage'
+import { SavedTali, TaliStatus, loadAllTalis, syncServerSessions } from '../utils/taliStorage'
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 const BG    = '#080F1A'
@@ -201,6 +203,7 @@ const tc = StyleSheet.create({
 // ─── Screen ────────────────────────────────────────────────────────────────────
 export default function TaliListScreen() {
   const canFillPrices = useCanFillPricesNow()
+  const { token }     = useAuthStore()
 
   const [talis,      setTalis]      = useState<SavedTali[]>([])
   const [loading,    setLoading]    = useState(true)
@@ -211,19 +214,37 @@ export default function TaliListScreen() {
   const [activeBoat,   setActiveBoat]   = useState('All')
   const [activeStatus, setActiveStatus] = useState<TaliStatus | 'All'>('All')
 
-  // Load talis every time screen is focused
+  // Load talis every time screen is focused.
+  // Strategy: show local data immediately, then silently sync from server in background.
   const loadTalis = useCallback(async () => {
     try {
-      const all = await loadAllTalis()
-      all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      setTalis(all)
+      // 1. Show local data right away
+      const local = await loadAllTalis()
+      local.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      setTalis(local)
+
+      // 2. Sync from server (background — never blocks the UI)
+      if (token) {
+        try {
+          const serverSessions = await getSessions(token)
+          const changed = await syncServerSessions(serverSessions as any)
+          if (changed.length > 0) {
+            // Reload from local storage after sync to pick up new/updated entries
+            const refreshed = await loadAllTalis()
+            refreshed.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            setTalis(refreshed)
+          }
+        } catch {
+          // Server unavailable — local-only mode, no action needed
+        }
+      }
     } catch (e) {
       console.error('Failed to load talis', e)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [token])
 
   useFocusEffect(
     useCallback(() => {

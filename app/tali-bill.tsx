@@ -28,6 +28,13 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import ViewShot from 'react-native-view-shot'
+import {
+  createBill as apiCreateBill,
+  confirmBill as apiConfirmBill,
+  fillBillPrices,
+  getSession as apiGetSession,
+} from '../services/api'
+import { useAuthStore } from '../store/authStore'
 import { useEntityStore } from '../store/entityStore'
 import {
   SavedFishEntry,
@@ -35,6 +42,7 @@ import {
   TaliStatus,
   confirmTali,
   loadTali,
+  updateTaliBillId,
   updateTaliBillNo,
   updateTaliOwnerPhone,
   updateTaliPrices,
@@ -502,7 +510,8 @@ export default function TaliBillScreen() {
 
   // canFill is determined by whoever opened this screen from tali-list
   // The param overrides entity-store checks so boat owners always get false
-  const canFill = useCanFillPrice(params.canFillPrices)
+  const canFill      = useCanFillPrice(params.canFillPrices)
+  const { token }    = useAuthStore()
 
   const [loading,      setLoading]    = useState(true)
   const [tali,         setTali]       = useState<SavedTali | null>(null)
@@ -538,20 +547,49 @@ export default function TaliBillScreen() {
         if (params.taliId) {
           const loaded = await loadTali(params.taliId)
           if (loaded) {
-            // If tali was saved with PENDING bill number and template now exists,
-            // assign a real bill number now
+            // Resolve bill number: if PENDING and template now exists, assign a real one
+            let displayTali = loaded
             if (loaded.billNo === 'PENDING' && tmpl) {
-              const billNo   = getNextBillNumber(tmpl)
-              const updated  = { ...tmpl, billCounter: tmpl.billCounter + 1 }
+              const billNo  = getNextBillNumber(tmpl)
+              const updated = { ...tmpl, billCounter: tmpl.billCounter + 1 }
               await saveTemplate(updated)
               setTemplate(updated)
-              // Update the saved tali with the real bill number
               const patched = await updateTaliBillNo(loaded.id, billNo)
-              if (patched) { setTali(patched); syncState(patched) }
-              else          { setTali(loaded);  syncState(loaded) }
-            } else {
-              setTali(loaded)
-              syncState(loaded)
+              displayTali = patched ?? loaded
+            }
+            setTali(displayTali)
+            syncState(displayTali)
+
+            // ── Background: create/fetch server bill if owner has no billId yet ──
+            if (canFill && displayTali.serverSessionId && !displayTali.billId && token) {
+              const sessionId = displayTali.serverSessionId
+
+              const storeBillLocally = async (
+                billId: string,
+                items: Array<{ id: string; fishName: string }>
+              ) => {
+                const billItemMap: Record<string, string> = {}
+                for (const item of items) {
+                  const local = displayTali.fishEntries.find(fe => fe.fishName === item.fishName)
+                  if (local) billItemMap[local.fishId] = item.id
+                }
+                const withBill = await updateTaliBillId(displayTali.id, billId, billItemMap)
+                if (withBill) setTali(withBill)
+              }
+
+              apiCreateBill(token, sessionId)
+                .then(bill => storeBillLocally(bill.id, bill.items))
+                .catch(async (err: any) => {
+                  // Bill already exists (409) — fetch session to get the existing bill
+                  if (err?.status === 409) {
+                    try {
+                      const session = await apiGetSession(token, sessionId)
+                      if (session.bill?.id && session.bill.items?.length) {
+                        await storeBillLocally(session.bill.id, session.bill.items)
+                      }
+                    } catch { /* server unreachable, local mode only */ }
+                  }
+                })
             }
           }
           setLoading(false)
@@ -746,10 +784,28 @@ export default function TaliBillScreen() {
   // ── Submit prices ──────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!tali || Object.keys(pendingRef.current).length === 0) return
+    const pricesSnapshot = { ...pendingRef.current }  // capture before clearing
     setSaving(true)
     try {
-      const updated = await updateTaliPrices(tali.id, pendingRef.current)
-      if (updated) { setTali(updated); syncState(updated); pendingRef.current = {} }
+      const updated = await updateTaliPrices(tali.id, pricesSnapshot)
+      if (updated) {
+        setTali(updated)
+        syncState(updated)
+        pendingRef.current = {}
+
+        // Background: sync filled prices to the server bill
+        if (updated.billId && updated.billItemMap && token) {
+          const serverPrices = Object.entries(pricesSnapshot)
+            .map(([fishId, price]) => ({
+              billItemId: (updated.billItemMap as Record<string, string>)[fishId],
+              pricePerKg: price,
+            }))
+            .filter((p): p is { billItemId: string; pricePerKg: number } => !!p.billItemId)
+          if (serverPrices.length > 0) {
+            fillBillPrices(token, updated.billId, serverPrices).catch(() => {})
+          }
+        }
+      }
     } catch {
       Alert.alert('Error', 'Could not save prices.')
     } finally {
@@ -766,7 +822,14 @@ export default function TaliBillScreen() {
         text: 'Confirm', onPress: async () => {
           setConfirming(true)
           const updated = await confirmTali(tali.id)
-          if (updated) { setTali(updated); syncState(updated) }
+          if (updated) {
+            setTali(updated)
+            syncState(updated)
+            // Background: lock bill on server
+            if (updated.billId && token) {
+              apiConfirmBill(token, updated.billId).catch(() => {})
+            }
+          }
           setConfirming(false)
         },
       },

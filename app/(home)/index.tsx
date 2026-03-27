@@ -8,19 +8,24 @@
 
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppTabBar } from '../../components/shared/AppTabBar'
 import { useAuthStore } from '../../store/authStore'
+import { LocalBoat, useBoatStore } from '../../store/boatStore'
 import {
   ActiveContext,
   Entity,
@@ -56,13 +61,6 @@ const BOAT_STATUS = {
   repair: { label: 'Repair', color: '#f59e0b', bg: 'rgba(245,158,11,0.16)' },
 } as const
 
-const HOME_BOATS = [
-  { id: '1', name: 'Jai Mataji', gujaratiName: 'જય માતાજી', registration: 'GJ-VR-1042', status: 'active' as const, catchKg: 12400, expense: 85000, crew: 8, captain: 'Ramesh Bhai', lastTrip: '12 Mar 2026', location: 'Okha' },
-  { id: '2', name: 'Sea Star',   gujaratiName: 'સી સ્ટાર',  registration: 'GJ-VR-2201', status: 'docked' as const, catchKg: 9800,  expense: 62000, crew: 6, captain: 'Suresh Kaka', lastTrip: '10 Mar 2026', location: 'Veraval' },
-  { id: '3', name: 'Jai Mataji', gujaratiName: 'જય માતાજી', registration: 'GJ-VR-1042', status: 'active' as const, catchKg: 12400, expense: 85000, crew: 8, captain: 'Ramesh Bhai', lastTrip: '12 Mar 2026', location: 'Okha' },
-  { id: '4', name: 'Sea Star',   gujaratiName: 'સી સ્ટાર',  registration: 'GJ-VR-2201', status: 'docked' as const, catchKg: 9800,  expense: 62000, crew: 6, captain: 'Suresh Kaka', lastTrip: '10 Mar 2026', location: 'Veraval' },
-]
-
 const fmt = (n: number) => n.toLocaleString('en-IN')
 
 const P = {
@@ -82,15 +80,15 @@ const P = {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function HomeScreen() {
-  // ── FIX: also read isInitialised ─────────────────────────────────────────
   const { token, isInitialised } = useAuthStore()
   const {
     homeVariant, activeContext, activeEntity, secondaryEntity,
     isLoaded, isLoading, loadError, loadEntities, setActiveContext,
   } = useEntityStore()
+  const { loadBoats } = useBoatStore()
 
-  // ── FIX: wait for token restore before calling API ────────────────────────
   useEffect(() => {
+    loadBoats()
     if (isInitialised && token && !isLoaded && !isLoading) loadEntities(token)
   }, [isInitialised, token])
 
@@ -221,8 +219,8 @@ function VariantBody({ variant, activeContext, primary, secondary }: {
 // ═══════════════════════════════════════════════════════════════════════════════
 function BoatOwnerBody({ entity }: { entity: Entity | null }) {
   const accent = entity?.accent ?? BLUE
-  const boats  = entity?.id === 'personal_boats' && (!entity?.boatCount || entity.boatCount === 0)
-    ? [] : HOME_BOATS
+  const { boats } = useBoatStore()
+  const [addModalVisible, setAddModalVisible] = useState(false)
 
   return (
     <>
@@ -232,25 +230,40 @@ function BoatOwnerBody({ entity }: { entity: Entity | null }) {
         { icon: 'wallet-outline', label: 'Add\nExpense', onPress: () => router.push('/add-expense' as any) },
         { icon: 'people-outline', label: 'Add\nKharchi', onPress: () => router.push('/crew' as any) },
       ]} />
-      {boats.length > 0 && <BoatListSection boats={boats} accent={accent} />}
-      {boats.length === 0 && (!entity?.boatCount || entity.boatCount === 0) && entity?.id === 'personal_boats' && (
+      {boats.length > 0 && (
+        <BoatListSection
+          boats={boats}
+          accent={accent}
+          onAddBoat={() => setAddModalVisible(true)}
+        />
+      )}
+      {boats.length === 0 && (
         <OnboardingPrompt
           emoji="🚢"
           title="Add your first boat"
           subtitle="Tap here to add your boat name and start tracking trips."
           accent={accent}
-          onPress={() => {}}
+          onPress={() => setAddModalVisible(true)}
         />
       )}
+      <AddBoatModal
+        visible={addModalVisible}
+        accent={accent}
+        onClose={() => setAddModalVisible(false)}
+      />
     </>
   )
 }
 
-function BoatListSection({ boats, accent }: { boats: typeof HOME_BOATS; accent: string }) {
+function BoatListSection({ boats, accent, onAddBoat }: { boats: LocalBoat[]; accent: string; onAddBoat: () => void }) {
   return (
     <View style={bl.wrap}>
       <View style={bl.header}>
         <Text style={[bl.title, { color: accent }]}>MY BOATS</Text>
+        <TouchableOpacity onPress={onAddBoat} style={[bl.addBtn, { borderColor: accent + '50', backgroundColor: accent + '12' }]}>
+          <Ionicons name="add" size={14} color={accent} />
+          <Text style={[bl.addTxt, { color: accent }]}>Add Boat</Text>
+        </TouchableOpacity>
       </View>
       <View style={bl.list}>
         {boats.map(boat => (
@@ -261,7 +274,7 @@ function BoatListSection({ boats, accent }: { boats: typeof HOME_BOATS; accent: 
   )
 }
 
-function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]; accent: string }) {
+function BoatOwnerBoatCard({ boat, accent }: { boat: LocalBoat; accent: string }) {
   const status = BOAT_STATUS[boat.status]
   return (
     <View style={[bcard.card, { overflow: 'hidden' }]}>
@@ -288,7 +301,7 @@ function BoatOwnerBoatCard({ boat, accent }: { boat: (typeof HOME_BOATS)[number]
           </View>
           <View style={bcard.locationBadge}>
             <Ionicons name="location-sharp" size={12} color={TS} />
-            <Text style={bcard.locationText}>Location · {boat.location}</Text>
+            <Text style={bcard.locationText}>{boat.location}</Text>
           </View>
         </View>
         <View style={bcard.lastTripRow}>
@@ -677,12 +690,163 @@ const op = StyleSheet.create({
   sub:   { fontSize: 12, color: TS, marginTop: 2, lineHeight: 17 },
 })
 
+// ─── Add Boat Modal ───────────────────────────────────────────────────────────
+const STATUS_OPTIONS: { value: BoatStatus; label: string; color: string }[] = [
+  { value: 'active', label: 'At Sea',  color: '#10b981' },
+  { value: 'docked', label: 'Docked',  color: '#60a5fa' },
+  { value: 'repair', label: 'Repair',  color: '#f59e0b' },
+]
+
+type BoatStatus = 'active' | 'docked' | 'repair'
+
+function AddBoatModal({ visible, accent, onClose }: {
+  visible: boolean
+  accent: string
+  onClose: () => void
+}) {
+  const { addBoat } = useBoatStore()
+  const [name,         setName]         = useState('')
+  const [gujaratiName, setGujaratiName] = useState('')
+  const [registration, setRegistration] = useState('')
+  const [captain,      setCaptain]      = useState('')
+  const [location,     setLocation]     = useState('')
+  const [status,       setStatus]       = useState<BoatStatus>('docked')
+
+  const reset = () => {
+    setName(''); setGujaratiName(''); setRegistration('')
+    setCaptain(''); setLocation(''); setStatus('docked')
+  }
+
+  const handleClose = () => { reset(); onClose() }
+
+  const handleAdd = () => {
+    if (!name.trim()) return
+    addBoat({
+      name:         name.trim(),
+      gujaratiName: gujaratiName.trim(),
+      registration: registration.trim(),
+      captain:      captain.trim(),
+      location:     location.trim(),
+      status,
+    })
+    reset()
+    onClose()
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose} statusBarTranslucent>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <View style={am.overlay}>
+          <TouchableOpacity style={am.backdrop} onPress={handleClose} activeOpacity={1} />
+          <View style={am.sheet}>
+            <View style={am.header}>
+              <Text style={am.headerTitle}>Add Boat</Text>
+              <TouchableOpacity onPress={handleClose} style={am.closeBtn}>
+                <Ionicons name="close" size={22} color={TP} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={am.body} keyboardShouldPersistTaps="handled">
+              <View style={am.field}>
+                <Text style={am.label}>Boat Name *</Text>
+                <TextInput style={am.input} placeholder="e.g. Jai Mataji" placeholderTextColor={TS}
+                  value={name} onChangeText={setName} />
+              </View>
+
+              <View style={am.field}>
+                <Text style={am.label}>Boat Name (Gujarati)</Text>
+                <TextInput style={am.input} placeholder="e.g. જય માતાજી" placeholderTextColor={TS}
+                  value={gujaratiName} onChangeText={setGujaratiName} />
+              </View>
+
+              <View style={am.field}>
+                <Text style={am.label}>Registration No.</Text>
+                <TextInput style={am.input} placeholder="e.g. GJ-VR-1042" placeholderTextColor={TS}
+                  value={registration} onChangeText={setRegistration} autoCapitalize="characters" />
+              </View>
+
+              <View style={am.field}>
+                <Text style={am.label}>Captain Name</Text>
+                <TextInput style={am.input} placeholder="e.g. Ramesh Bhai" placeholderTextColor={TS}
+                  value={captain} onChangeText={setCaptain} />
+              </View>
+
+              <View style={am.field}>
+                <Text style={am.label}>Home Port / Location</Text>
+                <TextInput style={am.input} placeholder="e.g. Okha, Veraval" placeholderTextColor={TS}
+                  value={location} onChangeText={setLocation} />
+              </View>
+
+              <View style={am.field}>
+                <Text style={am.label}>Current Status</Text>
+                <View style={am.statusRow}>
+                  {STATUS_OPTIONS.map(opt => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[am.statusBtn, status === opt.value && { backgroundColor: opt.color + '22', borderColor: opt.color }]}
+                      onPress={() => setStatus(opt.value)}
+                      activeOpacity={0.75}
+                    >
+                      <View style={[am.statusDot, { backgroundColor: opt.color }]} />
+                      <Text style={[am.statusTxt, status === opt.value && { color: opt.color, fontWeight: '800' }]}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={am.btnRow}>
+                <TouchableOpacity style={am.cancelBtn} onPress={handleClose} activeOpacity={0.8}>
+                  <Text style={am.cancelTxt}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[am.addBtn, { backgroundColor: name.trim() ? accent : ELEV }]}
+                  onPress={handleAdd}
+                  disabled={!name.trim()}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[am.addTxt, !name.trim() && { color: TS }]}>Add Boat</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  )
+}
+
+const am = StyleSheet.create({
+  overlay:     { flex: 1, justifyContent: 'flex-end' },
+  backdrop:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.65)' },
+  sheet:       { backgroundColor: SURF, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%', borderWidth: 1, borderColor: BOR },
+  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: BOR },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: TP },
+  closeBtn:    { width: 36, height: 36, borderRadius: 18, backgroundColor: ELEV, alignItems: 'center', justifyContent: 'center' },
+  body:        { padding: 20, gap: 16, paddingBottom: 48 },
+  field:       { gap: 6 },
+  label:       { fontSize: 11, fontWeight: '700', color: TS, letterSpacing: 0.5, textTransform: 'uppercase' },
+  input:       { backgroundColor: ELEV, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 14, color: TP, fontSize: 15, borderWidth: 1, borderColor: BOR },
+  statusRow:   { flexDirection: 'row', gap: 8 },
+  statusBtn:   { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 12, backgroundColor: ELEV, borderWidth: 1.5, borderColor: BOR },
+  statusDot:   { width: 8, height: 8, borderRadius: 4 },
+  statusTxt:   { fontSize: 13, fontWeight: '600', color: TS },
+  btnRow:      { flexDirection: 'row', gap: 10, marginTop: 8 },
+  cancelBtn:   { flex: 1, paddingVertical: 15, borderRadius: 14, alignItems: 'center', backgroundColor: ELEV, borderWidth: 1, borderColor: BOR },
+  cancelTxt:   { fontSize: 15, fontWeight: '700', color: TS },
+  addBtn:      { flex: 1.5, paddingVertical: 15, borderRadius: 14, alignItems: 'center' },
+  addTxt:      { fontSize: 15, fontWeight: '800', color: '#fff' },
+})
+
 const bl = StyleSheet.create({
   wrap:   { marginHorizontal: 16, marginTop: 20, gap: 12 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title:  { fontSize: 10, fontWeight: '700', letterSpacing: 1.2 },
   link:   { fontSize: 12, fontWeight: '700' },
   list:   { gap: 12 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
+  addTxt: { fontSize: 12, fontWeight: '700' },
 })
 
 const bcard = StyleSheet.create({
